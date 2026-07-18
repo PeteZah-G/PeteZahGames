@@ -1,0 +1,242 @@
+
+.sass-cache/
+#*.css.map
+*.sass.map
+*.scss.map
+node_modules/
+
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+*.mo
+*.pot
+
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+instance/
+.webassets-cache
+
+.scrapy
+
+docs/_build/
+
+.pybuilder/
+target/
+
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+.spyderproject
+.spyproject
+
+.ropeproject
+
+/site
+
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+.pyre/
+.pytype/
+
+cython_debug/
+
+.idea/
+.idea/**/*
+*.iml
+*.iws
+*.ipr
+out/
+
+.DS_Store
+
+package-lock.json
+*.lock
+!pnpm-lock.yaml
+
+# PeteZah Specific Secrets 
+
+# 1. All .env files / files containing secrets
+.env
+.env.*
+*.env
+.env.local
+.env.development
+.env.production
+.env.test
+external-apis.js
+public/storage/ag
+public/storage/ag/
+public/storage/ag/*
+public/storage/ag/**/*
+
+# 2. SQLite database 
+storage/data/users.db
+storage/data/users.db-shm
+storage/data/users.db-wal
+storage/data/*.db
+storage/data/*.db-*
+*.db
+*.db-shm
+*.db-wal
+
+# 3. backup or export of the DB
+*.sqlite
+*.sqlite3
+backup/
+backups/
+dump/
+dumps/
+*.sql
+*.bak
+
+# 4. Session store (if you ever switch to file-store)
+/sessions/
+/session/
+
+# 5. Uploaded files that might contain sensitive data
+public/uploads/
+uploads/
+public/uploads/**/*
+uploads/**/*
+
+# 6. Logs — often contain IPs, emails, tokens
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# 7. OS / Editor junk
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.lnk
+
+# 8. IDEs and tools
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# 9. Docker / Deploy secrets
+Dockerfile
+.dockerignore
+.docker/
+.docker-compose.override.yml
+.docker-compose.prod.yml
+
+# 10. PM2 / Process manager
+.pm2/
+pm2.log
+ecosystem.config.js
+ecosystem.config.cjs
+
+# 11. Railway, Render, Vercel, Fly.io, etc.
+.railway/
+.render/
+.vercel/
+.fly/
+
+# 12. Any secret keys accidentally saved
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+*.pub
+ssh-key
+ssh-keygen
+
+# 13. Emergency fallback — ignore any file with "secret", "password", "token" in name
+*secret*
+*password*
+*token*
+*key*
+*private*
+*.key
+
+# 14. Your personal bot token (if you added x-bot-token or similar)
+*.token
+
+# ==========================
+# FINAL SAFETY NET (NUKE EVERYTHING DANGEROUS)
+# ==========================
+# If you're paranoid (and you should be), add this at the very end:
+# This ignores ANY file in the entire repo that contains sensitive words
+# (Git doesn't support regex in .gitignore, but you can use scripts or pre-commit hooks)
+# Instead, use a pre-commit hook with husky + git-secrets or talisman.
+
+# ==========================
+# RECOMMENDED: Add a pre-commit hook (not in gitignore, but CRUCIAL)
+# ==========================
+# Install talisman or git-secrets to scan commits for secrets:
+# https://github.com/thoughtworks/talisman
+# https://github.com/awslabs/git-secrets
+
+# Or use husky + a simple check:
+# package.json scripts:
+# "precommit": "node scripts/check-secrets.js"public/storage/ag/

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>PeteZah | HTML Interpreter</title>
+    <link
+      rel="icon"
+      type="image/x-icon"
+      href="https://cdn.jsdelivr.net/gh/PeteZah-Games/PeteZahGames@main/public/storage/images/logo-png-removebg-preview.png"
+    />
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+        background-color: #0a1d37;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .game-view {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .game-view iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+      }
+      .error-message {
+        color: #fff;
+        font-family: Poppins, sans-serif;
+        font-size: 24px;
+        text-align: center;
+        padding: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="game-view" id="gameView"><iframe id="gameFrame"></iframe></div>
+    <script>
+      async function loadHtmlFromUrl() {
+        const e = new URLSearchParams(window.location.search).get('url');
+        if (e)
+          try {
+            let t = e;
+            t.endsWith('index.html') || t.match(/\.\w+$/) || (t = t.replace(/\/$/, '') + '/index.html');
+            const r = await fetch(t + '?t=' + Date.now(), { mode: 'cors' });
+            if (!r.ok) throw new Error(`HTTP error! Status: ${r.status}`);
+            let o = await r.text();
+            const n = t.replace(/\/[^\/]*$/, '/'),
+              c = document.getElementById('gameFrame');
+            (c.contentDocument.open(),
+              c.contentDocument.write(o),
+              c.contentDocument.close(),
+              c.contentDocument.querySelectorAll('script').forEach((e) => {
+                const t = c.contentDocument.createElement('script');
+                (e.src ? (t.src = e.src.startsWith('http') ? e.src : n + e.src) : (t.textContent = e.textContent), e.parentNode.replaceChild(t, e));
+              }));
+          } catch (e) {
+            (console.error('Error loading HTML:', e), showError(`Failed to load HTML: ${e.message}`));
+          }
+        else showError('No URL provided in query parameters.');
+      }
+      function showError(e) {
+        document.getElementById('gameView').innerHTML = `<div class="error-message">${e}</div>`;
+      }
+      document.addEventListener('DOMContentLoaded', loadHtmlFromUrl);
+    </script>
+  </body>
+</html>

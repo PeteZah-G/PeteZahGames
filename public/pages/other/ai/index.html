@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Pete AI</title>
+    <meta property="og:title" content="Pete AI" />
+    <meta property="og:description" content="PeteZah, Game on." />
+    <meta property="og:image" content="/assets/images/icons/favicon.ico" />
+    <meta name="theme-color" content="#b6b6b6" />
+    <meta name="msapplication-TileColor" content="#b6b6b6" />
+    <link rel="icon" type="image/x-icon" href="/storage/images/logo-png-removebg-preview.png" />
+    <link rel="stylesheet" href="assets/css/index.css" />
+    <link rel="stylesheet" href="assets/css/toast.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0/themes/prism-tomorrow.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/vs2015.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.js"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-WGJ2192JZY"></script>
+    <script>
+      function gtag() { dataLayer.push(arguments); }
+      ((window.dataLayer = window.dataLayer || []), gtag('js', new Date()), gtag('config', 'G-WGJ2192JZY'));
+    </script>
+    <style>
+      .image-preview-container {
+        display: none;
+        padding: 4px 15px 0 15px;
+        align-items: center;
+        gap: 8px;
+      }
+      .chat-input {
+        flex-direction: column !important;
+        align-items: stretch !important;
+      }
+      .chat-input-row {
+        display: flex;
+        align-items: center;
+        padding: 15px;
+      }
+      .chat-input-row input[type='text'] {
+        flex: 1;
+        padding: 15px;
+        background-color: var(--color-secondary-bg);
+        color: var(--color-accent);
+        border: 1px dashed var(--color-border-light);
+        backdrop-filter: blur(5px);
+        border-radius: 20px;
+        transition: all 0.3s ease;
+        outline: none;
+        margin-right: 5px;
+        font-size: 15px;
+      }
+      .chat-input-row input[type='text']:focus,
+      .chat-input-row input[type='text']:hover {
+        border: 1px dashed var(--color-light);
+      }
+      .chat-input-row input[type='text']::placeholder {
+        color: var(--color-focus);
+        font-size: 15px;
+      }
+      .chat-input-row button {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        padding: 0;
+        background-color: var(--color-accent);
+        color: var(--color-pattern-bg);
+        backdrop-filter: blur(5px);
+        border: none;
+        margin-left: 5px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 16px;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.3s ease;
+      }
+      .chat-input-row button:hover {
+        background-color: var(--color-button-hover);
+        box-shadow: 0 0 10px var(--color-accent);
+      }
+      .chat-input-row button:disabled {
+        background-color: var(--color-button-disabled);
+        cursor: default;
+        box-shadow: none;
+      }
+      .chat-input.drag-over .chat-input-row {
+        outline: 2px dashed var(--color-light);
+        outline-offset: -4px;
+        border-radius: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="assets/js/index.js" defer="defer"></script>
+    <script src="assets/js/load.js" defer="defer"></script>
+    <script src="/storage/js/settings.js"></script>
+    <div class="god-rays"></div>
+    <div class="chat-container">
+      <div class="chat-header">
+        PeteAI <span class="version"><i class="fas fa-flask"></i> Powered by Llama 3.2</span>
+      </div>
+      <div class="branding">
+        <img src="/storage/images/logo-png-removebg-preview.png" alt="Pete AI Logo" />
+        <div>Pete AI</div>
+      </div>
+      <div class="chat-options">
+        <div class="option">
+          <label for="modelSelector"></label>
+          <div class="selector" id="modelSelector">
+            <div class="selector-selected">Fast Llama 3B (Optimized)</div>
+            <div class="selector-options">
+              <div data-value="fast-llama">Fast Llama 3B (Optimized)</div>
+              <div data-value="llama3.2">Llama 3.2 3B</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="chat-body" id="chatBody"></div>
+      <div class="suggestions-container" id="suggestionsContainer"></div>
+      <div class="chat-input">
+        <div class="image-preview-container" id="imagePreviewContainer"></div>
+        <div class="chat-input-row">
+          <input type="file" id="imageUpload" accept="image/*" style="display:none" />
+          <input type="text" id="aiInput" placeholder="What would you like to talk about?" autocomplete="off" />
+          <button id="imageUploadBtn" title="Attach image"><i class="fas fa-image"></i></button>
+          <button id="sendMsg"><i class="fas fa-arrow-up"></i></button>
+        </div>
+      </div>
+    </div>
+    <div class="social-icons">
+      <a href="https://discord.gg/cYjHFDguxS" target="_blank"><i class="fab fa-discord"></i></a>
+    </div>
+  </body>
+</html>

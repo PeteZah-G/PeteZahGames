@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AI – Ask about your screen</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0d1117; color: #fff; font-family: system-ui; width: 340px; overflow: hidden; }
+    .header { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); }
+    .header-left { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.8); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+    .body { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    video { width: 100%; border-radius: 10px; border: 1px solid rgba(255,255,255,0.07); max-height: 160px; object-fit: cover; background: #000; display: none; }
+    .screenshot-wrap { position: relative; display: none; }
+    .screenshot-wrap img { width: 100%; border-radius: 10px; max-height: 160px; object-fit: cover; border: 1px solid rgba(255,255,255,0.08); }
+    input[type=text] { width: 100%; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.85); font-size: 12px; outline: none; }
+    input[type=text]::placeholder { color: rgba(255,255,255,0.3); }
+    .row { display: flex; gap: 8px; }
+    button { flex: 1; padding: 9px; border-radius: 10px; font-size: 12px; cursor: pointer; font-weight: 500; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.8); }
+    button.primary { background: rgba(80,140,255,0.2); border-color: rgba(100,160,255,0.35); color: rgba(160,200,255,1); font-weight: 600; }
+    .hint { font-size: 10px; color: rgba(255,255,255,0.2); text-align: center; }
+    .response { font-size: 12px; color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 10px 12px; line-height: 1.6; max-height: 180px; overflow-y: auto; white-space: pre-wrap; display: none; }
+    .loading { display: none; font-size: 11px; color: rgba(255,255,255,0.35); text-align: center; padding: 8px 0; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left"><div class="dot"></div> AI — Ask about your screen</div>
+  </div>
+  <div class="body">
+    <video id="video" muted autoplay></video>
+    <div class="screenshot-wrap" id="ssWrap"><img id="ssImg" src="" alt=""/></div>
+    <input type="text" id="question" placeholder="Ask about your screen..." />
+    <div class="row" id="btns">
+      <button id="captureBtn" onclick="capture()">📸 Capture Frame</button>
+    </div>
+    <div class="loading" id="loading">Thinking...</div>
+    <div class="response" id="response"></div>
+    <p class="hint" id="hint">Keep this window open while browsing</p>
+  </div>
+  <script>
+    let stream = null;
+    let screenshotBase64 = null;
+
+    async function init() {
+      try {
+        stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 5 }, selfBrowserSurface: 'include' });
+        const video = document.getElementById('video');
+        video.srcObject = stream;
+        video.style.display = 'block';
+        stream.getVideoTracks()[0].addEventListener('ended', () => window.close());
+      } catch(e) { window.close(); }
+    }
+
+    function capture() {
+      const video = document.getElementById('video');
+      if (!video.srcObject) return;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      const dataUrl = canvas.toDataURL('image/png');
+      screenshotBase64 = dataUrl.split(',')[1];
+      document.getElementById('ssImg').src = dataUrl;
+      document.getElementById('ssWrap').style.display = 'block';
+      document.getElementById('btns').innerHTML = '<button onclick="retake()">Retake</button><button class="primary" onclick="sendToAI()">Send to AI ✦</button>';
+    }
+
+    function retake() {
+      screenshotBase64 = null;
+      document.getElementById('ssWrap').style.display = 'none';
+      document.getElementById('response').style.display = 'none';
+      document.getElementById('btns').innerHTML = '<button onclick="capture()">📸 Capture Frame</button>';
+    }
+
+    async function sendToAI() {
+      if (!screenshotBase64) return;
+      const question = document.getElementById('question').value || 'What do you see in this screenshot? Be concise.';
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('response').style.display = 'none';
+      try {
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: question,
+            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+            groqMessages: [
+              { role: 'system', content: 'You are a helpful AI. Answer concisely. For educational questions use: Answer: [answer]\n[brief explanation]' },
+              { role: 'user', content: [
+                { type: 'text', text: question },
+                { type: 'image_url', image_url: { url: 'data:image/png;base64,' + screenshotBase64 } }
+              ]}
+            ]
+          })
+        });
+        const data = await res.json();
+        document.getElementById('response').textContent = data.response || 'No response.';
+        document.getElementById('response').style.display = 'block';
+      } catch(e) {
+        document.getElementById('response').textContent = 'Error reaching AI.';
+        document.getElementById('response').style.display = 'block';
+      }
+      document.getElementById('loading').style.display = 'none';
+    }
+
+    document.getElementById('question').addEventListener('keydown', e => { if (e.key === 'Enter') sendToAI(); });
+    init();
+  </script>
+</body>
+</html>

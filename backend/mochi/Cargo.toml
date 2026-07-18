@@ -1,0 +1,37 @@
+[package]
+name = "mochi"
+version = "0.3.3"
+edition = "2021"
+
+[dependencies]
+base64 = "0.22.1"
+mimalloc = { version = "0.1", default-features = false }
+axum = { version = "0.7", features = ["http2", "ws"] }
+tokio = { version = "1.0", features = ["rt-multi-thread", "net", "macros", "sync", "signal"] }
+tokio-stream = "0.1"
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+tokio-util = { version = "0.7", features = ["io"] }
+urlencoding = "2.1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "gzip", "brotli", "deflate", "http2", "hickory-dns"] }
+lol_html = "1.0"
+moka = { version = "0.12", features = ["future"] }
+aho-corasick = "1.1"
+url = "2.5"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+bytes = "1.5"
+tower-http = { version = "0.5", features = ["compression-full", "cors"] }
+futures = "0.3"
+dashmap = "6"
+uuid = { version = "1.8", features = ["v4"] }
+image = { version = "0.25.9", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp", "ico"] }
+sysinfo = "0.32"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+opt-level = 3
+strip = true
+overflow-checks = false
+debug = false

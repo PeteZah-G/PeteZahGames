@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redirecting…</title>
+
+    <meta http-equiv="refresh" content="0;url=/embed.html">
+
+    <script>
+      (function() {
+        const hash = window.location.hash || '';
+
+        const target = '/embed.html' + hash;
+
+        window.location.replace(target);
+
+        setTimeout(() => {
+          window.location.href = target;
+        }, 50);
+      })();
+    </script>
+
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        background: #000814;
+        color: #88ccff;
+        font-family: system-ui, sans-serif;
+        display: grid;
+        place-items: center;
+      }
+      .msg {
+        font-size: 1.1rem;
+        opacity: 0.8;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="msg">Redirecting…</div>
+  </body>
+</html>

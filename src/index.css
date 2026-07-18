@@ -1,0 +1,358 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 30% 7%;
+    --foreground: 210 20% 95%;
+    --card: 220 28% 10%;
+    --card-foreground: 210 20% 95%;
+    --popover: 220 28% 11%;
+    --popover-foreground: 210 20% 95%;
+    --primary: 210 100% 65%;
+    --primary-foreground: 220 30% 5%;
+    --secondary: 220 25% 14%;
+    --secondary-foreground: 210 15% 70%;
+    --muted: 220 25% 12%;
+    --muted-foreground: 210 15% 55%;
+    --accent: 220 25% 16%;
+    --accent-foreground: 210 15% 88%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 40% 85% / 0.2;
+    --input: 210 40% 85% / 0.15;
+    --ring: 210 100% 65%;
+    --radius: 1rem;
+    --glass: 210 40% 90% / 0.06;
+    --glass-border: 210 40% 90% / 0.18;
+    --glass-hover: 210 40% 90% / 0.12;
+    --glass-active: 210 40% 90% / 0.2;
+    --glow-primary: 210 100% 65% / 0.2;
+    --space-blue: 217 90% 61%;
+    --space-green: 160 70% 45%;
+    --space-purple: 265 70% 60%;
+    --space-orange: 25 90% 55%;
+    --space-pink: 330 75% 55%;
+    --space-cyan: 190 85% 50%;
+    --sidebar-background: 220 30% 8%;
+    --sidebar-foreground: 210 20% 95%;
+    --sidebar-primary: 210 100% 65%;
+    --sidebar-primary-foreground: 220 30% 5%;
+    --sidebar-accent: 210 40% 90% / 0.1;
+    --sidebar-accent-foreground: 210 15% 88%;
+    --sidebar-border: 210 40% 80% / 0.12;
+    --sidebar-ring: 210 100% 65%;
+    --nebula-rose: 330 60% 50%;
+    --nebula-violet: 270 50% 45%;
+    --nebula-teal: 180 50% 35%;
+    --nebula-amber: 35 70% 45%;
+  }
+}
+
+/* Chromebook / sRGB-only displays render semi-transparent borders much brighter
+   than Mac P3 displays. This overrides just the border/glass variables for those
+   devices, making borders dimmer without touching Mac styling at all. */
+.chromeos * {
+  border-color: transparent !important;
+}
+.chromeos .glass,
+.chromeos .glass-heavy,
+.chromeos .category-card {
+  border: none !important;
+  outline: none !important;
+}
+.chromeos .category-card:hover {
+  border: none !important;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply text-foreground;
+    background-color: #020810;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: hsl(var(--glass));
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    border: 1px solid hsl(var(--glass-border));
+  }
+  .glass-heavy {
+    background: hsl(210 40% 90% / 0.08);
+    backdrop-filter: blur(40px) saturate(1.6);
+    -webkit-backdrop-filter: blur(40px) saturate(1.6);
+    border: 1px solid hsl(210 40% 90% / 0.2);
+  }
+  .glass-subtle {
+    background: hsla(220, 35%, 5%, 0.88);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  }
+  .chrome-bar {
+    background: hsla(220, 35%, 5%, 0.92);
+    color: hsla(0, 0%, 100%, 0.88);
+  }
+  .chrome-bar button,
+  .chrome-bar svg {
+    color: inherit;
+  }
+  .space-beams {
+    display: none;
+  }
+  .god-rays {
+    display: none;
+  }
+  .space-stars {
+    display: none;
+  }
+  .space-twinkle {
+    background-image:
+      radial-gradient(1.2px 1.2px at 6% 12%, rgba(255,255,255,0.7), transparent),
+      radial-gradient(1px 1px at 14% 38%, rgba(180,220,255,0.55), transparent),
+      radial-gradient(1.4px 1.4px at 22% 18%, rgba(255,255,255,0.8), transparent),
+      radial-gradient(1px 1px at 28% 44%, rgba(200,230,255,0.5), transparent),
+      radial-gradient(1.5px 1.5px at 18% 62%, rgba(255,255,255,0.75), transparent),
+      radial-gradient(1px 1px at 10% 72%, rgba(170,210,255,0.45), transparent),
+      radial-gradient(1.2px 1.2px at 32% 78%, rgba(255,255,255,0.6), transparent),
+      radial-gradient(1px 1px at 8% 88%, rgba(190,220,255,0.45), transparent),
+      radial-gradient(1.3px 1.3px at 36% 28%, rgba(255,255,255,0.55), transparent),
+      radial-gradient(1px 1px at 48% 16%, rgba(220,240,255,0.4), transparent),
+      radial-gradient(1.2px 1.2px at 55% 58%, rgba(200,230,255,0.35), transparent),
+      radial-gradient(1px 1px at 62% 82%, rgba(255,255,255,0.4), transparent),
+      radial-gradient(1px 1px at 72% 24%, rgba(180,220,255,0.35), transparent),
+      radial-gradient(1.2px 1.2px at 80% 48%, rgba(255,255,255,0.35), transparent),
+      radial-gradient(1px 1px at 88% 70%, rgba(200,230,255,0.3), transparent),
+      radial-gradient(1px 1px at 94% 18%, rgba(255,255,255,0.3), transparent);
+    animation: space-twinkle 6.5s ease-in-out infinite;
+    opacity: 0.5;
+    mix-blend-mode: screen;
+  }
+  .vanta-full {
+    min-width: 100vw;
+    min-height: 100dvh;
+  }
+  .vanta-full canvas {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    object-fit: cover;
+  }
+  @keyframes space-twinkle {
+    0%, 100% { opacity: 0.35; }
+    40% { opacity: 0.7; }
+    70% { opacity: 0.48; }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes god-rays {
+    from { background-position: 50% 50%, 50% 50%; }
+    to { background-position: 350% 50%, 350% 50%; }
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.15; }
+    50% { opacity: 0.95; }
+  }
+  .liquid-glass {
+    background: hsl(210 40% 90% / 0.07);
+    backdrop-filter: blur(32px) saturate(1.5);
+    -webkit-backdrop-filter: blur(32px) saturate(1.5);
+    border: 1px solid transparent;
+    background-clip: padding-box;
+    position: relative;
+  }
+  .liquid-glass::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      hsl(210 80% 80% / 0.3) 0%,
+      hsl(210 60% 70% / 0.08) 30%,
+      hsl(200 70% 80% / 0.15) 60%,
+      hsl(220 60% 70% / 0.05) 100%
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+  .nebula-bg {
+    background:
+      radial-gradient(ellipse 80% 60% at 15% 20%, hsl(210 80% 50% / 0.15) 0%, transparent 60%),
+      radial-gradient(ellipse 70% 50% at 85% 25%, hsl(230 70% 45% / 0.12) 0%, transparent 55%),
+      radial-gradient(ellipse 60% 70% at 50% 80%, hsl(200 60% 40% / 0.1) 0%, transparent 50%),
+      radial-gradient(ellipse 50% 40% at 70% 60%, hsl(190 50% 50% / 0.08) 0%, transparent 45%),
+      radial-gradient(ellipse 90% 80% at 40% 50%, hsl(220 40% 20% / 0.2) 0%, transparent 60%),
+      radial-gradient(circle at 50% 50%, hsl(210 30% 95% / 0.03) 0%, transparent 70%);
+  }
+  .space-bg {
+    background:
+      radial-gradient(ellipse at 20% 20%, hsl(210 60% 60% / 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 30%, hsl(230 50% 40% / 0.1) 0%, transparent 40%),
+      radial-gradient(ellipse at 50% 80%, hsl(200 40% 30% / 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 10% 90%, hsl(210 30% 20% / 0.05) 0%, transparent 40%);
+  }
+  .space-gradient {
+    background:
+      radial-gradient(ellipse at 50% 0%, hsl(210 80% 60% / 0.06) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 80%, hsl(230 50% 40% / 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 10% 90%, hsl(200 40% 30% / 0.06) 0%, transparent 50%);
+  }
+  .dot-pattern {
+    background-image: radial-gradient(hsl(210 40% 90% / 0.05) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  .star-field {
+    background-image:
+      radial-gradient(1px 1px at 10% 15%, hsl(210 60% 90% / 0.5), transparent),
+      radial-gradient(1px 1px at 30% 45%, hsl(200 50% 80% / 0.35), transparent),
+      radial-gradient(1px 1px at 55% 25%, hsl(220 70% 90% / 0.6), transparent),
+      radial-gradient(1px 1px at 70% 65%, hsl(210 50% 80% / 0.25), transparent),
+      radial-gradient(1px 1px at 85% 35%, hsl(230 60% 85% / 0.4), transparent),
+      radial-gradient(1px 1px at 40% 75%, hsl(200 50% 80% / 0.3), transparent),
+      radial-gradient(1px 1px at 95% 85%, hsl(210 50% 80% / 0.35), transparent),
+      radial-gradient(1.5px 1.5px at 20% 60%, hsl(210 80% 70% / 0.2), transparent),
+      radial-gradient(1.5px 1.5px at 60% 90%, hsl(230 60% 60% / 0.15), transparent),
+      radial-gradient(1.5px 1.5px at 75% 10%, hsl(200 60% 60% / 0.2), transparent);
+  }
+  .glow-white {
+    box-shadow: 0 0 40px hsl(var(--glow-primary)), inset 0 0 40px hsl(210 60% 80% / 0.03);
+  }
+  .glow-soft {
+    box-shadow: 0 8px 32px hsl(220 30% 2% / 0.6);
+  }
+  .font-code {
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.02em;
+  }
+  .text-gradient {
+    background: linear-gradient(135deg, hsl(210 20% 98%), hsl(210 60% 80%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .text-gradient-subtle {
+    background: linear-gradient(135deg, hsl(210 20% 80%), hsl(210 30% 55%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .sidebar-gradient {
+    background: linear-gradient(180deg, hsl(220 28% 9%) 0%, hsl(220 30% 6%) 100%);
+  }
+  .gradient-border {
+    border: 1px solid transparent;
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    background-image:
+      linear-gradient(hsl(220 28% 10%), hsl(220 28% 10%)),
+      linear-gradient(135deg, hsl(210 60% 80% / 0.25), hsl(210 50% 70% / 0.06), hsl(210 60% 80% / 0.15));
+  }
+  .category-card {
+    @apply relative rounded-2xl cursor-pointer transition-all duration-300;
+    background: hsla(210, 40%, 90%, 0.05);
+    border: 1px solid hsla(210, 40%, 80%, 0.12);
+    padding: 12px 14px;
+    min-width: 84px;
+  }
+  .category-card:hover {
+    background: hsla(210, 40%, 90%, 0.1);
+    border-color: hsla(210, 60%, 80%, 0.28);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px hsla(210, 60%, 30%, 0.28);
+  }
+
+  @keyframes nebula-drift {
+    0% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(3deg) scale(1.02); }
+    50% { transform: rotate(-2deg) scale(0.98); }
+    75% { transform: rotate(1deg) scale(1.01); }
+    100% { transform: rotate(0deg) scale(1); }
+  }
+  @keyframes swirl-1 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.15; }
+    33% { transform: translate(30px, -20px) rotate(120deg); opacity: 0.2; }
+    66% { transform: translate(-20px, 15px) rotate(240deg); opacity: 0.12; }
+  }
+  @keyframes swirl-2 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.1; }
+    50% { transform: translate(-40px, 30px) rotate(180deg); opacity: 0.18; }
+  }
+  .animated-nebula {
+    position: relative;
+    overflow: hidden;
+  }
+  .animated-nebula::before {
+    content: '';
+    position: absolute;
+    inset: -50%;
+    background:
+      radial-gradient(ellipse 50% 40% at 30% 30%, hsl(210 80% 55% / 0.18) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 50% at 70% 60%, hsl(230 70% 50% / 0.14) 0%, transparent 65%),
+      radial-gradient(ellipse 40% 60% at 50% 80%, hsl(200 60% 45% / 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 70% 40% at 20% 70%, hsl(220 50% 60% / 0.1) 0%, transparent 55%),
+      radial-gradient(circle at 80% 20%, hsl(210 40% 95% / 0.06) 0%, transparent 40%);
+    animation: swirl-1 30s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .animated-nebula::after {
+    content: '';
+    position: absolute;
+    inset: -30%;
+    background:
+      radial-gradient(ellipse 60% 50% at 60% 40%, hsl(215 70% 50% / 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 60% at 30% 60%, hsl(240 50% 45% / 0.1) 0%, transparent 55%),
+      radial-gradient(circle at 70% 80%, hsl(200 50% 90% / 0.05) 0%, transparent 50%);
+    animation: swirl-2 45s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+}
+
+html, body, #root {
+  height: 100dvh;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  background-color: #020810;
+}
+
+.vanta-full {
+  width: 100vw !important;
+  height: 100dvh !important;
+  left: 0 !important;
+  top: 0 !important;
+}
+
+.education-is-key {
+  display: none;
+}

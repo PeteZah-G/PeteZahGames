@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Loading</title>
+
+    <style>
+      @font-face {
+        font-family: 'Inter';
+        src: url('images/Inter-Regular.woff2') format('woff2');
+        font-weight: 400;
+        font-style: normal;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        font-family: 'Inter', Arial, Helvetica, sans-serif;
+        height: 100vh;
+        width: 100vw;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: #d0eaff;
+        background: radial-gradient(circle at center, #001b33 0%, #000814 100%);
+        background-size: 200% 200%;
+        animation: bgShift 20s ease-in-out infinite;
+        position: relative;
+      }
+
+      @keyframes bgShift {
+        0% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+
+      #main {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        z-index: 2;
+        text-align: center;
+      }
+
+      .spinner {
+        width: 140px;
+        height: 140px;
+        position: relative;
+        margin-bottom: 20px;
+        filter: drop-shadow(0 0 12px #00bfff);
+      }
+
+      .spinner-circle {
+        position: absolute;
+        border: 8px solid transparent;
+        border-radius: 50%;
+        animation: spin 1.8s linear infinite;
+      }
+
+      .spinner-circle:nth-child(1) {
+        width: 100%;
+        height: 100%;
+        border-top-color: #00bfff;
+        border-left-color: #0074d9;
+      }
+
+      .spinner-circle:nth-child(2) {
+        width: 72%;
+        height: 72%;
+        top: 14%;
+        left: 14%;
+        border-top-color: #003366;
+        border-left-color: #0055aa;
+        animation-duration: 2.5s;
+        animation-direction: reverse;
+      }
+
+      @keyframes spin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      #glitch-text {
+        font-size: 36px;
+        font-weight: 700;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        color: #d0eaff;
+        margin-top: 30px;
+        text-shadow:
+          0 0 10px #00bfff,
+          0 0 20px #0074d9,
+          0 0 30px #0055aa,
+          0 0 50px #003366;
+        animation:
+          glowPulse 2s ease-in-out infinite,
+          bounce 3s ease-in-out infinite;
+      }
+
+      @keyframes glowPulse {
+        0% {
+          text-shadow:
+            0 0 6px #00bfff,
+            0 0 12px #0074d9,
+            0 0 18px #0055aa,
+            0 0 30px #003366;
+        }
+        50% {
+          text-shadow:
+            0 0 20px #00d5ff,
+            0 0 30px #0094ff,
+            0 0 40px #0077cc,
+            0 0 60px #004488;
+        }
+        100% {
+          text-shadow:
+            0 0 6px #00bfff,
+            0 0 12px #0074d9,
+            0 0 18px #0055aa,
+            0 0 30px #003366;
+        }
+      }
+
+      @keyframes bounce {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-5px);
+        }
+      }
+
+      .shadow-layer {
+        position: absolute;
+        width: 100vw;
+        height: 100vh;
+        background: radial-gradient(ellipse at center, rgba(0, 10, 30, 0.6), rgba(0, 0, 0, 0.95));
+        z-index: 0;
+      }
+
+      .stars {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background: transparent url('https://www.transparenttextures.com/patterns/stardust.png') repeat;
+        opacity: 0.08;
+        z-index: 0;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="stars"></div>
+    <div class="shadow-layer"></div>
+
+    <div id="main">
+      <div class="spinner">
+        <div class="spinner-circle"></div>
+        <div class="spinner-circle"></div>
+      </div>
+      <p id="glitch-text">LOADING</p>
+    </div>
+
+    <script>
+      const target = document.getElementById('glitch-text');
+      const original = target.textContent;
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let iterations = 0;
+
+      const glitchInterval = setInterval(() => {
+        let displayed = '';
+        for (let i = 0; i < original.length; i++) {
+          if (i < iterations) {
+            displayed += original[i];
+          } else if (original[i] === ' ') {
+            displayed += ' ';
+          } else {
+            displayed += chars[Math.floor(Math.random() * chars.length)];
+          }
+        }
+        target.textContent = displayed.toUpperCase();
+        iterations += 0.5;
+        if (iterations >= original.length) {
+          clearInterval(glitchInterval);
+          target.textContent = original.toUpperCase();
+        }
+      }, 50);
+    </script>
+    <script src="/youtube/bundle.js"></script>
+    <script src="/youtube/config.js"></script>
+    <script src="youtube-register-sw.js"></script>
+    <script src="embed.js"></script>
+  </body>
+</html>

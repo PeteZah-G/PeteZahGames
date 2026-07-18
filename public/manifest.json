@@ -1,0 +1,16 @@
+{
+  "name": "PeteZah Games",
+  "short_name": "PeteZah",
+  "start_url": "/",
+  "display": "standalone",
+  "description": "Access the internet uncensored.  Game on.",
+  "background_color": "#0A1D37",
+  "theme_color": "#0A1D37",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

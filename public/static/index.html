@@ -1,0 +1,547 @@
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>New Tab</title>
+    <link rel="stylesheet" type="text/css" href="/storage/css/themes2.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100..900&family=Outfit:wght@100..900&display=swap');
+
+      body {
+        color: #fff;
+        background-color: #0a1d37;
+        font-family:
+          'Inter',
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        overflow: hidden;
+      }
+
+      .god-rays {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 550px;
+        --stripes: repeating-linear-gradient(
+          100deg,
+          rgba(20, 40, 60, 0.8) 0%,
+          rgba(20, 40, 60, 0.8) 7%,
+          transparent 10%,
+          transparent 12%,
+          rgba(20, 40, 60, 0.8) 16%
+        );
+        --rays: repeating-linear-gradient(
+          100deg,
+          rgba(30, 50, 90, 0.9) 10%,
+          rgba(20, 40, 80, 0.9) 15%,
+          rgba(30, 50, 90, 0.9) 20%,
+          rgba(20, 40, 80, 0.9) 25%,
+          rgba(30, 50, 90, 0.9) 30%
+        );
+        background-image: var(--stripes), var(--rays);
+        background-size: 300%, 200%;
+        background-position:
+          50% 50%,
+          50% 50%;
+        animation: fadeIn 2s ease;
+        mask-image: radial-gradient(ellipse at 100% 0%, rgba(255, 255, 255, 0) 40%, transparent 70%);
+        -webkit-mask-image: radial-gradient(ellipse at 100% 0%, white 40%, transparent 70%);
+        pointer-events: none;
+        z-index: -1;
+      }
+
+      .god-rays::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image: var(--stripes), var(--rays);
+        background-size: 200%, 100%;
+        animation: god-rays 40s linear infinite;
+        background-attachment: fixed;
+        mix-blend-mode: difference;
+      }
+
+      h1 {
+        font-size: 3rem;
+        color: #ffffff;
+        font-weight: 900;
+        text-transform: none;
+        letter-spacing: 2px;
+        margin-bottom: 20px;
+        margin-top: 5px;
+        text-shadow:
+          0 0 15px rgba(255, 255, 255, 0.3),
+          0 0 20px rgba(255, 255, 255, 0.3);
+        transition: transform 0.3s ease-in-out;
+      }
+
+      h1:hover {
+        transform: scale(1.05);
+      }
+
+      #dynamicParagraph {
+        color: #ffffff;
+        font-size: 1.25rem;
+        margin-top: 5px;
+        font-weight: 300;
+        text-shadow:
+          0 0 15px rgba(255, 255, 255, 0.2),
+          0 0 10px rgba(255, 255, 255, 0.1);
+        transition: color 0.3s ease-in-out;
+        cursor: pointer;
+      }
+
+      #dynamicParagraph:hover {
+        color: #a0a0a0;
+      }
+
+      #search-container {
+        margin-top: 20px;
+        text-align: center;
+      }
+
+      .search-bar-home {
+        padding: 12px 18px;
+        width: 350px;
+        border: 2px solid #1e2a47;
+        background-color: #141414;
+        border-radius: 30px;
+        font-family: 'Outfit', sans-serif;
+        outline: none;
+        margin: 0;
+        color: #fff;
+        font-size: 16px;
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease-in-out;
+      }
+
+      .search-bar-home::placeholder {
+        color: #bbb;
+        opacity: 0.8;
+        font-size: 14px;
+      }
+
+      .search-bar-home:focus {
+        border-color: #64a6e0;
+        background-color: #1d2537;
+      }
+
+      .search-button {
+        padding: 10px 20px;
+        background-color: #1e2a47;
+        color: white;
+        font-size: 16px;
+        border: none;
+        border-radius: 30px;
+        margin-top: 10px;
+        cursor: pointer;
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease-in-out;
+      }
+
+      .search-button:hover {
+        background-color: #64a6e0;
+        transform: translateY(-2px);
+      }
+
+      .search-button i {
+        margin-left: 8px;
+      }
+
+      #time {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        font-size: 18px;
+        color: white;
+        font-family: 'Outfit', sans-serif;
+        background-color: rgba(0, 0, 0, 0.5);
+        padding: 5px 10px;
+        border-radius: 10px;
+      }
+
+      .popup {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #0a1d37;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        padding: 35px;
+        border-radius: 20px;
+        z-index: 1000;
+        color: #fff;
+        box-shadow:
+          0 10px 40px rgba(0, 0, 0, 0.4),
+          inset 0 0 10px rgba(255, 255, 255, 0.05);
+        animation: popupFadeIn 0.3s ease-out;
+        min-width: 400px;
+        max-width: 450px;
+        backdrop-filter: blur(8px);
+      }
+
+      @keyframes popupFadeIn {
+        from {
+          opacity: 0;
+          transform: translate(-50%, -40%);
+        }
+
+        to {
+          opacity: 1;
+          transform: translate(-50%, -50%);
+        }
+      }
+
+      .popup h3 {
+        margin: 0 0 20px;
+        font-weight: 600;
+        color: #fff;
+        letter-spacing: 0.5px;
+      }
+
+      .popup input[type='text'] {
+        margin: 10px 0;
+        width: 100%;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #fff;
+        padding: 12px 15px;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        font-family: 'Outfit', sans-serif;
+      }
+
+      .popup input[type='text']:focus {
+        border-color: rgba(255, 255, 255, 0.5);
+        background: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+        outline: none;
+      }
+
+      .popup input[type='file'] {
+        margin: 15px 0;
+        color: #fff;
+        width: 100%;
+        font-family: 'Outfit', sans-serif;
+      }
+
+      .popup input[type='file']::-webkit-file-upload-button {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 8px 15px;
+        border-radius: 10px;
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .popup input[type='file']::-webkit-file-upload-button:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.4);
+      }
+
+      .popup-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 20px;
+      }
+
+      .popup button {
+        padding: 10px 20px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 10px;
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 500;
+      }
+
+      .popup button:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+
+      .popup button#add-btn {
+        background: linear-gradient(135deg, #ffffff, #e0e0e0);
+        color: #0a1d37;
+        border: none;
+      }
+
+      .popup button#add-btn:hover {
+        background: linear-gradient(135deg, #e0e0e0, #ffffff);
+      }
+
+      .add-pin-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 35px;
+        height: 35px;
+        background: #ffffff;
+        border: 2px solid #0a1d37;
+        border-radius: 50%;
+        color: #0a1d37;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      }
+
+      .add-pin-btn:hover {
+        transform: scale(1.2);
+        background: #e0e0e0;
+        color: #0a1d37;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="god-rays"></div>
+    <br /><br /><br /><br /><br />
+
+    <h1>Pete Prօxy</h1>
+    <p id="dynamicParagraph">(TEXT)</p>
+
+    <div id="search-container">
+      <form id="uv-form">
+        <input id="uv-search-engine" value="https://duckduckgo.com/?q=%s" type="hidden" />
+        <input id="uv-address" type="text" class="search-bar-home url-input" placeholder="Search or enter a URL" />
+        <button type="submit" class="search-button">SEARCH <i class="fa-solid fa-magnifying-glass"></i></button>
+      </form>
+      <div class="desc left-margin">
+        <p id="uv-error"></p>
+        <pre id="uv-error-code"></pre>
+      </div>
+    </div>
+
+    <div class="pinned-icons" style="display: flex; justify-content: center; align-items: center; gap: 15px">
+      <a href="/embed.html#https://tiktok.com" style="display: inline-block">
+        <img
+          src="/storage/ag/a/tiktok/IMG_5335.png"
+          style="width: 30px; height: 30px; border-radius: 50%; transition: transform 0.3s"
+          onmouseover="this.style.transform='scale(1.2)'"
+          onmouseout="this.style.transform='scale(1)'"
+        />
+      </a>
+      <a href="/embed.html#https://twitch.tv" style="display: inline-block">
+        <img
+          src="/storage/ag/a/twitch/IMG_5336.png"
+          style="width: 30px; height: 30px; border-radius: 50%; transition: transform 0.3s"
+          onmouseover="this.style.transform='scale(1.2)'"
+          onmouseout="this.style.transform='scale(1)'"
+        />
+      </a>
+      <a href="/embed.html#https://google.com" style="display: inline-block">
+        <img
+          src="/storage/ag/a/google/IMG_5324.webp"
+          style="width: 30px; height: 30px; border-radius: 50%; transition: transform 0.3s"
+          onmouseover="this.style.transform='scale(1.2)'"
+          onmouseout="this.style.transform='scale(1)'"
+        />
+      </a>
+      <a href="/embed.html#https://now.gg" style="display: inline-block">
+        <img
+          src="/storage/ag/a/nowgg/IMG_5325.png"
+          style="width: 30px; height: 30px; border-radius: 50%; transition: transform 0.3s"
+          onmouseover="this.style.transform='scale(1.2)'"
+          onmouseout="this.style.transform='scale(1)'"
+        />
+      </a>
+      <a href="#" id="add-pin-btn" class="add-pin-btn">
+        <span class="material-icons" style="font-size: 20px">add</span>
+      </a>
+    </div>
+
+    <div id="add-pin-popup" class="popup">
+      <h3>Add New Pin</h3>
+      <input type="text" id="pin-url" placeholder="Enter URL (https:// required)" />
+      <input type="file" id="pin-image" accept="image/*" />
+      <div class="popup-buttons">
+        <button id="cancel-btn">Cancel</button>
+        <button id="add-btn">Add</button>
+      </div>
+    </div>
+
+    <div id="time"></div>
+
+    <script src="/petezah/bundle.js" defer></script>
+    <script src="/petezah/config.js" defer></script>
+    <script src="/petezah/rizz.sw.js" defer></script>
+    <script src="/petezah/sw.js" defer></script>
+    <script src="/petezah/handler.js" defer></script>
+
+    <script>
+      const phrases = [
+        'PeteZah best unblocked games site!',
+        'https://petezahgames.com',
+        'Credits to Brunys and Voucan for proxy help',
+        'just had a major update ¯\\_(ツ)_/¯',
+        'Roblox should? now work my fellow pizzas',
+        'PeteZah-Next coming soon!',
+        'IVE EDGED TO Pete Zah -idkiguess',
+        "Don't forget to join our Discord server!",
+        'Source: trust me bro'
+      ];
+
+      const paragraph = document.getElementById('dynamicParagraph');
+
+      function changeText() {
+        const randomPhrase = phrases[Math.floor(Math.random() * phrases.length)];
+        paragraph.textContent = randomPhrase;
+      }
+
+      paragraph.addEventListener('click', changeText);
+      window.onload = changeText;
+
+      function updateTime() {
+        const timeElement = document.getElementById('time');
+        const now = new Date();
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const seconds = now.getSeconds().toString().padStart(2, '0');
+        timeElement.textContent = `${hours}:${minutes}:${seconds}`;
+      }
+
+      setInterval(updateTime, 1000);
+
+      const addPinBtn = document.getElementById('add-pin-btn');
+      const popup = document.getElementById('add-pin-popup');
+      const addBtn = document.getElementById('add-btn');
+      const cancelBtn = document.getElementById('cancel-btn');
+      const pinnedIcons = document.querySelector('.pinned-icons');
+
+      function loadSavedPins() {
+        const savedPins = JSON.parse(localStorage.getItem('pinnedBookmarks') || '[]');
+        savedPins.forEach((pin) => {
+          createPinElement(pin.url, pin.image);
+        });
+      }
+
+      function createPinElement(url, imageData) {
+        const newPin = document.createElement('a');
+        newPin.href = `/embed.html#${url}`;
+        newPin.style.display = 'inline-block';
+
+        const img = document.createElement('img');
+        img.src = imageData;
+        img.style.width = '30px';
+        img.style.height = '30px';
+        img.style.borderRadius = '50%';
+        img.style.transition = 'transform 0.3s';
+        img.onmouseover = function () {
+          this.style.transform = 'scale(1.2)';
+        };
+        img.onmouseout = function () {
+          this.style.transform = 'scale(1)';
+        };
+
+        newPin.appendChild(img);
+        pinnedIcons.insertBefore(newPin, addPinBtn);
+      }
+
+      function savePin(url, imageData) {
+        const savedPins = JSON.parse(localStorage.getItem('pinnedBookmarks') || '[]');
+        savedPins.push({ url, image: imageData });
+        localStorage.setItem('pinnedBookmarks', JSON.stringify(savedPins));
+      }
+
+      addPinBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        popup.style.display = 'block';
+      });
+
+      addBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        const urlInput = document.getElementById('pin-url').value;
+        const imageInput = document.getElementById('pin-image').files[0];
+
+        if (!urlInput.startsWith('https://')) {
+          alert('URL must start with https://');
+          return;
+        }
+
+        if (!imageInput) {
+          alert('Please select an image');
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const imageData = e.target.result;
+          createPinElement(urlInput, imageData);
+          savePin(urlInput, imageData);
+          popup.style.display = 'none';
+          document.getElementById('pin-url').value = '';
+          document.getElementById('pin-image').value = '';
+        };
+        reader.readAsDataURL(imageInput);
+      });
+
+      cancelBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        popup.style.display = 'none';
+        document.getElementById('pin-url').value = '';
+        document.getElementById('pin-image').value = '';
+      });
+
+      window.addEventListener('load', loadSavedPins);
+
+      document.getElementById('uv-form').addEventListener('submit', function (event) {
+        event.preventDefault();
+        const url = document.getElementById('uv-address').value;
+        const isAUrl = url.includes('.');
+
+        if (isAUrl) {
+          let formattedUrl = url;
+          if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            formattedUrl = 'https://' + url;
+          }
+
+          window.navigator.serviceWorker
+            .register('/petezah/sw.js', {
+              scope: __uv$config.prefix
+            })
+            .then(() => {
+              window.location.href = __uv$config.prefix + __uv$config.encodeUrl(formattedUrl);
+            });
+        } else {
+          const searchUrl = 'https://duckduckgo.com/?q=' + encodeURIComponent(url);
+          window.navigator.serviceWorker
+            .register('/petezah/sw.js', {
+              scope: __uv$config.prefix
+            })
+            .then(() => {
+              window.location.href = __uv$config.prefix + __uv$config.encodeUrl(searchUrl);
+            });
+        }
+      });
+
+      document.getElementById('uv-address').addEventListener('focus', function () {
+        if (this.value && this.value.indexOf('.') !== -1) {
+          this.value = 'https://' + this.value;
+        }
+      });
+
+      document.getElementById('uv-address').addEventListener('blur', function () {
+        this.value = this.value.replace(/^https?:\/\//, '');
+      });
+    </script>
+    <script src="/storage/js/settings.js"></script>
+  </body>
+</html>
