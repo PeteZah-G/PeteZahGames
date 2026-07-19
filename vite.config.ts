@@ -11,32 +11,32 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
     proxy: {
-      "/ws-stream": {
+      "/wisp": {
         target: "ws://localhost:8080",
         changeOrigin: true,
         ws: true,
       },
-      "/api/alt-stream-1": {
+      "/api/alt-wisp-1": {
         target: "ws://localhost:8080",
         changeOrigin: true,
         ws: true,
       },
-      "/api/alt-stream-2": {
+      "/api/alt-wisp-2": {
         target: "ws://localhost:8080",
         changeOrigin: true,
         ws: true,
       },
-      "/api/alt-stream-3": {
+      "/api/alt-wisp-3": {
         target: "ws://localhost:8080",
         changeOrigin: true,
         ws: true,
       },
-      "/api/alt-stream-4": {
+      "/api/alt-wisp-4": {
         target: "ws://localhost:8080",
         changeOrigin: true,
         ws: true,
       },
-      "/api/alt-stream-5": {
+      "/api/alt-wisp-5": {
         target: "ws://localhost:8080",
         changeOrigin: true,
         ws: true,

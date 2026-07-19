@@ -4,7 +4,7 @@ export const PX = {
   mux: '/m4thx/',
   epoxy: '/e7px/',
   curl: '/l9cx/',
-  stream: '/ws-stream/',
+  stream: '/wisp/',
   edge: '/api/edge/',
   sw: '/1k123.js',
   blocked: [
@@ -14,7 +14,7 @@ export const PX = {
     '/bare-mux/',
     '/epoxy/',
     '/libcurl/',
-    '/wisp/',
+    '/ws-stream/',
     '/bare/',
     '/ultraviolet/',
     '/uv/',

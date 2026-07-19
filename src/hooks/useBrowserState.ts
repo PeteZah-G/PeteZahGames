@@ -148,7 +148,6 @@ export function useBrowserState() {
   const pinnedTabs = spaceTabs.filter((t) => t.pinned);
   const unpinnedTabs = spaceTabs.filter((t) => !t.pinned);
 
-  // ── Add a new tab (optionally with a URL) ──────────────────────────────────
   const addTab = useCallback(
     (url?: unknown) => {
       const targetUrl =
@@ -161,7 +160,6 @@ export function useBrowserState() {
     [activeSpaceId]
   );
 
-  // ── Close a tab ────────────────────────────────────────────────────────────
   const closeTab = useCallback(
     (id: string) => {
       setTabs((prev) => {
@@ -206,14 +204,12 @@ export function useBrowserState() {
     setSplitTabId(null);
   }, [activeSpaceId]);
 
-  // ── Pin / unpin a tab ──────────────────────────────────────────────────────
   const togglePin = useCallback((id: string) => {
     setTabs((prev) =>
       prev.map((t) => (t.id === id ? { ...t, pinned: !t.pinned } : t))
     );
   }, []);
 
-  // ── Open a split pane with a real second tab ─────────────────────────────
   const openSplit = useCallback((tabId?: string) => {
     if (tabId) {
       if (splitTabId === tabId) {
@@ -256,7 +252,6 @@ export function useBrowserState() {
     focusedPane === "split" && splitTabId ? splitTabId : activeTabId;
   const focusedTab = tabs.find((t) => t.id === focusedTabId) || activeTab;
 
-  // ── Navigate the focused pane tab to a URL ────────────────────────────────
   const navigateToUrl = useCallback(
   (rawUrl: unknown) => {
     if (!rawUrl || typeof rawUrl !== "string" || !rawUrl.trim()) return;

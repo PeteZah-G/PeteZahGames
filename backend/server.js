@@ -272,6 +272,7 @@ server.on('upgrade', (req, socket, head) => {
 
   const isWispUrl =
     url.startsWith(PX.stream) ||
+    url.startsWith('/ws-stream/') ||
     /^\/api\/(stream-premium|alt-stream-\d+)\//.test(url) ||
     /^\/api\/(wisp-premium|alt-wisp-\d+)\//.test(url);
   const isBareUrl = bare.shouldRoute(req) || barePremium.shouldRoute(req);
@@ -305,7 +306,8 @@ server.on('upgrade', (req, socket, head) => {
     req.url =
       '/wisp/' +
       url
-        .replace(new RegExp('^' + PX.stream), '')
+        .replace(/^\/ws-stream\//, '')
+        .replace(new RegExp('^' + PX.stream.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), '')
         .replace(/^\/api\/(stream-premium|alt-stream-\d+)\//, '')
         .replace(/^\/api\/(wisp-premium|alt-wisp-\d+)\//, '');
   }

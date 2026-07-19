@@ -115,7 +115,7 @@ const VPN_REGIONS = [
     id: "default",
     label: "Default",
     sublabel: "International",
-    wisp: "/ws-stream/",
+    wisp: "/wisp/",
     config: "config.js",
     flag: (
       <svg
@@ -135,7 +135,7 @@ const VPN_REGIONS = [
     id: "1",
     label: "Quebec",
     sublabel: "Canada",
-    wisp: "/api/alt-stream-5/",
+    wisp: "/api/alt-wisp-5/",
     config: "/static/alt-config-5.js",
     flag: (
       <svg viewBox="0 0 900 600" className="w-4 h-4 rounded-[2px]">
@@ -157,7 +157,7 @@ const VPN_REGIONS = [
     id: "2",
     label: "Massachusetts",
     sublabel: "USA",
-    wisp: "/api/alt-stream-1/",
+    wisp: "/api/alt-wisp-1/",
     config: "/static/alt-config-1.js",
     flag: (
       <svg viewBox="0 0 19 10" className="w-4 h-4 rounded-[2px]">
@@ -196,7 +196,7 @@ const VPN_REGIONS = [
     id: "3",
     label: "Phoenix",
     sublabel: "USA",
-    wisp: "/api/alt-stream-2/",
+    wisp: "/api/alt-wisp-2/",
     config: "/static/alt-config-2.js",
     flag: (
       <svg viewBox="0 0 19 10" className="w-4 h-4 rounded-[2px]">
@@ -226,7 +226,7 @@ const VPN_REGIONS = [
     id: "4",
     label: "Virginia",
     sublabel: "USA",
-    wisp: "/api/alt-stream-3/",
+    wisp: "/api/alt-wisp-3/",
     config: "/static/alt-config-3.js",
     flag: (
       <svg viewBox="0 0 19 10" className="w-4 h-4 rounded-[2px]">
@@ -256,7 +256,7 @@ const VPN_REGIONS = [
     id: "5",
     label: "Vienna",
     sublabel: "Austria",
-    wisp: "/api/alt-stream-4/",
+    wisp: "/api/alt-wisp-4/",
     config: "/static/alt-config-4.js",
     flag: (
       <svg viewBox="0 0 3 2" className="w-4 h-4 rounded-[2px]">
