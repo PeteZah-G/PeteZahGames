@@ -4,7 +4,7 @@ export const PX = {
   mux: "/m4thx/",
   epoxy: "/e7px/",
   curl: "/l9cx/",
-  stream: "/ws-stream/",
+  stream: "/wisp/",
   edge: "/api/edge/",
   sw: "/1k123.js",
   coreAll: "/q9vx/sj.all.js",
