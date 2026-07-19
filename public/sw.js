@@ -20,7 +20,7 @@ self.addEventListener('activate', (event) => {
 function isAppShellRequest(request, url) {
   if (url.origin !== self.location.origin) return false;
   const path = url.pathname;
-  if (request.mode === 'navigate') return true;
+  if (path.startsWith('/scramjet/')) return false;
   if (path === '/' || path === '/index.html' || path === '/sw.js') return true;
   if (path.startsWith('/assets/')) return true;
   return false;
@@ -40,9 +40,7 @@ self.addEventListener('fetch', (event) => {
   try {
     const url = new URL(event.request.url);
     if (isAppShellRequest(event.request, url)) {
-      event.respondWith(
-        fetch(event.request).catch(() => fetch(event.request, { cache: 'reload' }))
-      );
+      event.respondWith(fetch(event.request));
       return;
     }
   } catch {}
