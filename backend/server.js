@@ -1,5 +1,6 @@
 import { baremuxPath } from '@mercuryworkshop/bare-mux/node';
 import { epoxyPath } from '@mercuryworkshop/epoxy-transport';
+import { libcurlPath } from '@mercuryworkshop/libcurl-transport';
 import { scramjetPath } from '@mercuryworkshop/scramjet/path';
 import { server as wisp } from '@mercuryworkshop/wisp-js/server';
 import bareServerPkg from '@tomphttp/bare-server-node';
@@ -18,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import process from 'process';
 import BetterSqlite3Session from 'better-sqlite3-session-store';
 import httpProxy from 'http-proxy';
+import { PX } from './px-paths.js';
 
 import { createCorsConfig, createSecurityHeaders, createUploadGuard } from './middleware/http-security.js';
 import { ddosShield } from './security/ddos-shield.js';
@@ -65,9 +67,15 @@ if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
   throw new Error('SESSION_SECRET must be set in production');
 }
 
-const bare = createBareServer('/bare/', { websocket: { maxPayloadLength: 4096 } });
+const bare = createBareServer(PX.edge, { websocket: { maxPayloadLength: 4096 } });
 const barePremium = createBareServer('/api/bare-premium/', { websocket: { maxPayloadLength: 4096 } });
 const app = express();
+const sciencePath = path.join(__dirname, '../public/science');
+const mathPath = path.join(__dirname, '../public/math');
+const q9Path = path.join(__dirname, '../public/q9vx');
+const m4Path = path.join(__dirname, '../public/m4thx');
+const e7Path = path.join(__dirname, '../public/e7px');
+const l9Path = path.join(__dirname, '../public/l9cx');
 
 app.set('trust proxy', ['127.0.0.1', '::1']);
 
@@ -109,17 +117,38 @@ app.use(createGateMiddleware(shield));
 
 const AUTH_PATHS = new Set(['/api/signin', '/api/signup', '/api/bot-challenge', '/api/bot-verify', '/api/verify-email']);
 app.use('/api/', (req, res, next) => AUTH_PATHS.has(req.path) ? authLimiter(req, res, next) : apiLimiter(req, res, next));
-app.use('/bare/', apiLimiter);
+app.use(PX.edge, apiLimiter);
 
-app.use('/scram/', express.static(scramjetPath));
-app.use('/baremux/', express.static(baremuxPath));
-app.use('/epoxy/', express.static(epoxyPath));
+app.use((req, res, next) => {
+  const p = req.path || '';
+  if (PX.blocked.some((b) => p === b.slice(0, -1) || p.startsWith(b))) {
+    return res.status(404).end();
+  }
+  if (p === '/sw.js') return res.status(404).end();
+  next();
+});
+
+app.use(PX.core, express.static(q9Path, { index: false }));
+app.use(PX.core, express.static(sciencePath, { index: false }));
+app.use(PX.core, express.static(scramjetPath, { index: false }));
+app.use(PX.mux, express.static(m4Path, { index: false }));
+app.use(PX.mux, express.static(mathPath, { index: false }));
+app.use(PX.mux, express.static(baremuxPath, { index: false }));
+app.use(PX.epoxy, express.static(e7Path, { index: false }));
+app.use(PX.epoxy, express.static(epoxyPath, { index: false }));
+app.use(PX.curl, express.static(l9Path, { index: false }));
+app.use(PX.curl, express.static(libcurlPath, { index: false }));
 app.use('/uploads', createUploadGuard(), express.static(path.join(__dirname, '../uploads'), { dotfiles: 'deny', index: false }));
 
-app.get('/sw.js', (_req, res) => {
+app.get(PX.sw, (_req, res) => {
   res.setHeader('Content-Type', 'application/javascript');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.sendFile(path.join(__dirname, '../dist/sw.js'));
+  res.sendFile(path.join(__dirname, '../dist/1k123.js'));
+});
+app.get('/1k123.js', (_req, res) => {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(path.join(__dirname, '../dist/1k123.js'));
 });
 
 app.use('/api', challengeRouter);
@@ -241,7 +270,10 @@ server.on('upgrade', (req, socket, head) => {
     return socket.destroy();
   }
 
-  const isWispUrl = url.startsWith('/wisp/') || /^\/api\/(wisp-premium|alt-wisp-\d+)\//.test(url);
+  const isWispUrl =
+    url.startsWith(PX.stream) ||
+    /^\/api\/(stream-premium|alt-stream-\d+)\//.test(url) ||
+    /^\/api\/(wisp-premium|alt-wisp-\d+)\//.test(url);
   const isBareUrl = bare.shouldRoute(req) || barePremium.shouldRoute(req);
 
   if (!isWispUrl && !isBareUrl) return socket.destroy();
@@ -269,7 +301,14 @@ server.on('upgrade', (req, socket, head) => {
   if (bare.shouldRoute(req)) return bare.routeUpgrade(req, socket, head);
   if (barePremium.shouldRoute(req)) return barePremium.routeUpgrade(req, socket, head);
 
-  if (!url.startsWith('/wisp/')) req.url = '/wisp/' + url.replace(/^\/api\/(wisp-premium|alt-wisp-\d+)\//, '');
+  if (!url.startsWith('/wisp/')) {
+    req.url =
+      '/wisp/' +
+      url
+        .replace(new RegExp('^' + PX.stream), '')
+        .replace(/^\/api\/(stream-premium|alt-stream-\d+)\//, '')
+        .replace(/^\/api\/(wisp-premium|alt-wisp-\d+)\//, '');
+  }
   wisp.routeRequest(req, socket, head);
 });
 

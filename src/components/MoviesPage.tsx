@@ -4,6 +4,7 @@ import {
   Play, X, Film, Search, Heart, ArrowLeft, Tv, Star, Clapperboard, Sparkles,
   ChevronLeft, ChevronRight,
 } from "lucide-react";
+import { pxEncode, pxReady } from "@/lib/px";
 
 interface CatalogItem {
   id: number;
@@ -335,8 +336,7 @@ function MoviePlayer({
     };
 
     const mount = () => {
-      const scramjet = (window as any).scramjet;
-      if (!scramjet || typeof scramjet.encodeUrl !== "function") return false;
+      if (!pxReady()) return false;
       try {
         cleanup();
         const prov = PROVIDERS.find((p) => p.id === provider) || PROVIDERS[0];
@@ -353,14 +353,14 @@ function MoviePlayer({
         iframe.referrerPolicy = "no-referrer";
         iframe.setAttribute(
           "sandbox",
-          "allow-scripts allow-same-origin allow-forms allow-presentation allow-fullscreen"
+          "allow-scripts allow-same-origin allow-forms allow-presentation"
         );
         iframe.title = "Player";
         iframe.onload = () => {
           iframe.style.opacity = "1";
           sealFrame(iframe);
         };
-        iframe.src = scramjet.encodeUrl(target);
+        iframe.src = pxEncode(target);
         host.appendChild(iframe);
         iframeRef.current = iframe;
         setFrameReady(true);

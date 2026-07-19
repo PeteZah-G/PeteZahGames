@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ZoomIn, ZoomOut, Maximize, Minimize, ExternalLink, Eye, EyeOff, GripHorizontal } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
 
 interface AppViewerPageProps {
   url: string;
@@ -22,14 +23,14 @@ function ControlBtn({ onClick, children, title }: { onClick: () => void; childre
   );
 }
 
-const getEmbedUrl = (originalUrl: string, scramjet: any) => {
+const getEmbedUrl = (originalUrl: string) => {
   try {
     const domain = new URL(originalUrl).hostname;
     if (domain.includes('google.com')) return '/static/google-embed.html#google.com';
     if (domain.includes('youtube.com')) return '/static/google-embed.html#youtube.com';
     if (domain.includes('reddit.com')) return '/static/google-embed.html#reddit.com';
   } catch { }
-  return scramjet.encodeUrl(originalUrl);
+  return pxEncode(originalUrl);
 };
 
 export default function AppViewerPage({ url, title, onBack }: AppViewerPageProps) {
@@ -45,12 +46,12 @@ export default function AppViewerPage({ url, title, onBack }: AppViewerPageProps
     if (!container) return;
 
     const tryCreate = () => {
-      const scramjet = (window as any).scramjet;
-      if (!scramjet) return false;
+      if (!pxReady()) return false;
       try {
-        const scFrame = scramjet.createFrame();
+        const scFrame = pxCreateFrame();
+        if (!scFrame) return false;
         scFrame.frame.style.cssText = "position:absolute;inset:0;width:100%;height:100%;border:none;opacity:0;transition:opacity 0.25s ease;";
-        scFrame.frame.src = getEmbedUrl(url, scramjet);
+        scFrame.frame.src = getEmbedUrl(url);
         scFrame.frame.onload = () => { scFrame.frame.style.opacity = "1"; };
         scramjetFrameRef.current = scFrame.frame;
         const wrapper = wrapperRef.current;

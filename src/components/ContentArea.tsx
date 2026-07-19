@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Tab } from "@/hooks/useBrowserState";
+import { PX, getMuxRoot, openMuxConnection, setMuxTransport } from "@/lib/px";
 import GamesPage from "./GamesPage";
 import GameViewerPage from "./GameViewerPage";
 import AIPage from "./AIPage";
@@ -114,7 +115,7 @@ const VPN_REGIONS = [
     id: "default",
     label: "Default",
     sublabel: "International",
-    wisp: "/wisp/",
+    wisp: "/ws-stream/",
     config: "config.js",
     flag: (
       <svg
@@ -134,7 +135,7 @@ const VPN_REGIONS = [
     id: "1",
     label: "Quebec",
     sublabel: "Canada",
-    wisp: "/api/alt-wisp-5/",
+    wisp: "/api/alt-stream-5/",
     config: "/static/alt-config-5.js",
     flag: (
       <svg viewBox="0 0 900 600" className="w-4 h-4 rounded-[2px]">
@@ -156,7 +157,7 @@ const VPN_REGIONS = [
     id: "2",
     label: "Massachusetts",
     sublabel: "USA",
-    wisp: "/api/alt-wisp-1/",
+    wisp: "/api/alt-stream-1/",
     config: "/static/alt-config-1.js",
     flag: (
       <svg viewBox="0 0 19 10" className="w-4 h-4 rounded-[2px]">
@@ -195,7 +196,7 @@ const VPN_REGIONS = [
     id: "3",
     label: "Phoenix",
     sublabel: "USA",
-    wisp: "/api/alt-wisp-2/",
+    wisp: "/api/alt-stream-2/",
     config: "/static/alt-config-2.js",
     flag: (
       <svg viewBox="0 0 19 10" className="w-4 h-4 rounded-[2px]">
@@ -225,7 +226,7 @@ const VPN_REGIONS = [
     id: "4",
     label: "Virginia",
     sublabel: "USA",
-    wisp: "/api/alt-wisp-3/",
+    wisp: "/api/alt-stream-3/",
     config: "/static/alt-config-3.js",
     flag: (
       <svg viewBox="0 0 19 10" className="w-4 h-4 rounded-[2px]">
@@ -255,7 +256,7 @@ const VPN_REGIONS = [
     id: "5",
     label: "Vienna",
     sublabel: "Austria",
-    wisp: "/api/alt-wisp-4/",
+    wisp: "/api/alt-stream-4/",
     config: "/static/alt-config-4.js",
     flag: (
       <svg viewBox="0 0 3 2" className="w-4 h-4 rounded-[2px]">
@@ -292,11 +293,9 @@ async function applyVpnRegion(regionId: string) {
         location.host +
         region.wisp;
 
-    if (window.BareMux) {
-      const conn = new window.BareMux.BareMuxConnection("/baremux/worker.js");
-      await conn
-        .setTransport("/epoxy/index.mjs", [{ wisp: wispUrl }])
-        .catch(() => {});
+    if (getMuxRoot()) {
+      const conn = openMuxConnection(PX.muxWorker);
+      await setMuxTransport(conn, PX.epoxyMod, wispUrl).catch(() => {});
     }
 
     window.dispatchEvent(
@@ -992,7 +991,7 @@ function ExtensionAwareIframe({
     className="w-full h-full border-none"
     title="proxy"
     referrerPolicy="no-referrer"
-    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals allow-presentation allow-fullscreen"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals allow-presentation"
     allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
   />;
 }

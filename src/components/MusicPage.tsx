@@ -5,6 +5,7 @@ import {
   Plus, Trash2, Share2, X, Music2, Heart, Copy, Check, Disc3,
 } from "lucide-react";
 import { requestSyncSoon } from "@/lib/settingsSync";
+import { pxEncode } from "@/lib/px";
 
 interface Track {
   id: string;
@@ -102,13 +103,7 @@ function decodeShare(raw: string) {
 }
 
 function proxifyStream(url: string): string {
-  const scramjet = (window as any).scramjet;
-  if (scramjet && typeof scramjet.encodeUrl === "function") {
-    try {
-      return scramjet.encodeUrl(url);
-    } catch {}
-  }
-  return url;
+  return pxEncode(url) || url;
 }
 
 function parseMusicUrl(url?: string) {

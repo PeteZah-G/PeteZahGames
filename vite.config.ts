@@ -11,51 +11,61 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
     proxy: {
-      "/wisp": {
+      "/ws-stream": {
         target: "ws://localhost:8080",
         changeOrigin: true,
         ws: true,
       },
-      "/api/alt-wisp-1": {
+      "/api/alt-stream-1": {
         target: "ws://localhost:8080",
         changeOrigin: true,
         ws: true,
       },
-      "/api/alt-wisp-2": {
+      "/api/alt-stream-2": {
         target: "ws://localhost:8080",
         changeOrigin: true,
         ws: true,
       },
-      "/api/alt-wisp-3": {
+      "/api/alt-stream-3": {
         target: "ws://localhost:8080",
         changeOrigin: true,
         ws: true,
       },
-      "/scramjet": {
+      "/api/alt-stream-4": {
+        target: "ws://localhost:8080",
+        changeOrigin: true,
+        ws: true,
+      },
+      "/api/alt-stream-5": {
+        target: "ws://localhost:8080",
+        changeOrigin: true,
+        ws: true,
+      },
+      "/afsd123k2": {
         target: "http://localhost:8080",
         changeOrigin: true,
       },
-      "/scram": {
+      "/q9vx": {
         target: "http://localhost:8080",
         changeOrigin: true,
       },
-      "/baremux": {
+      "/m4thx": {
         target: "http://localhost:8080",
         changeOrigin: true,
       },
-      "/epoxy": {
+      "/e7px": {
         target: "http://localhost:8080",
         changeOrigin: true,
       },
-      "/libcurl": {
+      "/l9cx": {
         target: "http://localhost:8080",
         changeOrigin: true,
       },
-      "/bare": {
+      "/api/edge": {
         target: "http://localhost:8080",
         changeOrigin: true,
       },
-      "/sw.js": {
+      "/1k123.js": {
         target: "http://localhost:8080",
         changeOrigin: true,
       },

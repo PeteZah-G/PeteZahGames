@@ -1,0 +1,22 @@
+export const PX = {
+  prefix: '/afsd123k2/',
+  core: '/q9vx/',
+  mux: '/m4thx/',
+  epoxy: '/e7px/',
+  curl: '/l9cx/',
+  stream: '/ws-stream/',
+  edge: '/api/edge/',
+  sw: '/1k123.js',
+  blocked: [
+    '/scram/',
+    '/scramjet/',
+    '/baremux/',
+    '/bare-mux/',
+    '/epoxy/',
+    '/libcurl/',
+    '/wisp/',
+    '/bare/',
+    '/ultraviolet/',
+    '/uv/',
+  ],
+};

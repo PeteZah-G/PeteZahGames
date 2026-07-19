@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
 
 export interface ScramjetFrame {
   frame: HTMLIFrameElement;
@@ -63,21 +64,21 @@ function formatUrl(raw: string): string {
 }
 
 function makeScramjetFrame(url: string): ScramjetFrame | undefined {
-  const scramjet = (window as any).scramjet;
-  if (!scramjet) {
-    console.warn("[browser] Scramjet not ready yet, frame creation skipped");
+  if (!pxReady()) {
+    console.warn("[browser] Proxy engine not ready yet, frame creation skipped");
     return undefined;
   }
   try {
-    const scFrame = scramjet.createFrame();
+    const scFrame = pxCreateFrame();
+    if (!scFrame) return undefined;
     const frame = scFrame.frame as HTMLIFrameElement;
-    frame.src = scramjet.encodeUrl(url);
+    frame.src = pxEncode(url);
     frame.style.cssText =
       "position:absolute;inset:0;width:100%;height:100%;border:none;opacity:0;transition:opacity 0.25s ease;";
     frame.referrerPolicy = "no-referrer";
     frame.setAttribute(
       "sandbox",
-      "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals allow-presentation allow-fullscreen allow-pointer-lock"
+      "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals allow-presentation allow-pointer-lock"
     );
     frame.allow =
       "fullscreen; autoplay; encrypted-media; picture-in-picture; clipboard-read; clipboard-write";
@@ -86,7 +87,7 @@ function makeScramjetFrame(url: string): ScramjetFrame | undefined {
     };
     return scFrame;
   } catch (e) {
-    console.error("Failed to create scramjet frame:", e);
+    console.error("Failed to create proxy frame:", e);
     return undefined;
   }
 }
@@ -313,9 +314,9 @@ export function useBrowserState() {
       );
     };
 
-    if (!(window as any).scramjet) {
+    if (!pxReady()) {
       const interval = setInterval(() => {
-        if ((window as any).scramjet) {
+        if (pxReady()) {
           clearInterval(interval);
           doNavigate();
         }

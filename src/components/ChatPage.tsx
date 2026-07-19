@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
 
 export default function ChatPage({ onNavigate }: { onNavigate: (url: string) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -8,11 +9,11 @@ export default function ChatPage({ onNavigate }: { onNavigate: (url: string) => 
     if (!container) return;
 
     const tryCreate = () => {
-      const scramjet = (window as any).scramjet;
-      if (!scramjet) return false;
+      if (!pxReady()) return false;
       try {
-        const scFrame = scramjet.createFrame();
-        scFrame.frame.src = scramjet.encodeUrl("https://vtx.coinknowledge.net/embed/petezah");
+        const scFrame = pxCreateFrame();
+        if (!scFrame) return false;
+        scFrame.frame.src = pxEncode("https://vtx.coinknowledge.net/embed/petezah");
         scFrame.frame.style.cssText = "position:absolute;inset:0;width:100%;height:100%;border:none;";
         container.appendChild(scFrame.frame);
         return true;
