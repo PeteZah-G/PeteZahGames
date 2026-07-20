@@ -248,7 +248,7 @@ function MoviePlayer({
 }) {
   const frameHostRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const [provider, setProvider] = useState("vidking");
+  const [provider, setProvider] = useState("vidlink");
   const [season, setSeason] = useState(state.season || 1);
   const [episode, setEpisode] = useState(state.episode || 1);
   const [seasons, setSeasons] = useState<SeasonInfo[]>([]);

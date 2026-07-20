@@ -25,13 +25,6 @@ export const VPN_REGION_DEFS: VpnRegionDef[] = [
     config: "/static/alt-config-5.js",
   },
   {
-    id: "2",
-    label: "Massachusetts",
-    sublabel: "USA",
-    wisp: "/api/alt-wisp-1/",
-    config: "/static/alt-config-1.js",
-  },
-  {
     id: "3",
     label: "Phoenix",
     sublabel: "USA",
@@ -44,13 +37,6 @@ export const VPN_REGION_DEFS: VpnRegionDef[] = [
     sublabel: "USA",
     wisp: "/api/alt-wisp-3/",
     config: "/static/alt-config-3.js",
-  },
-  {
-    id: "5",
-    label: "Vienna",
-    sublabel: "Austria",
-    wisp: "/api/alt-wisp-4/",
-    config: "/static/alt-config-4.js",
   },
   {
     id: "tor",
