@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -14,10 +14,12 @@ import {
   Upload,
   X,
   MessageCircle,
+  Info,
   type LucideIcon,
 } from "lucide-react";
 import { Tab } from "@/hooks/useBrowserState";
-import { PX, getMuxRoot, openMuxConnection, setMuxTransport } from "@/lib/px";
+import { applyVpnRegion, isSignedIn, VPN_REGION_DEFS } from "@/lib/vpn";
+import { setPendingAuth } from "@/lib/authPending";
 import GamesPage from "./GamesPage";
 import GameViewerPage from "./GameViewerPage";
 import AIPage from "./AIPage";
@@ -110,207 +112,81 @@ const ICON_MAP: Record<string, LucideIcon> = {
   chat: MessageCircle,
 };
 
-const VPN_REGIONS = [
-  {
-    id: "default",
-    label: "Default",
-    sublabel: "International",
-    wisp: "/wisp/",
-    config: "config.js",
-    flag: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        className="w-4 h-4"
-      >
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
-        <path d="M2 12h20" />
-      </svg>
-    ),
-  },
-  {
-    id: "1",
-    label: "Quebec",
-    sublabel: "Canada",
-    wisp: "/api/alt-wisp-5/",
-    config: "/static/alt-config-5.js",
-    flag: (
-      <svg viewBox="0 0 900 600" className="w-4 h-4 rounded-[2px]">
-        <rect width="900" height="600" fill="#fff" />
-        <rect width="225" height="600" fill="#d80621" />
-        <rect x="675" width="225" height="600" fill="#d80621" />
-        {/* Fleur-de-lis simplified */}
-        <g fill="#d80621" transform="translate(450,300) scale(0.55)">
-          <path d="M0-80 C-10-40-40-30-40 0 C-40 25-20 30 0 20 C20 30 40 25 40 0 C40-30 10-40 0-80Z" />
-          <rect x="-8" y="20" width="16" height="50" />
-          <path d="M-40-10 C-60-20-70 0-50 10 C-40 14-30 10-30 10Z" />
-          <path d="M40-10 C60-20 70 0 50 10 C40 14 30 10 30 10Z" />
-          <rect x="-30" y="5" width="60" height="10" rx="5" />
-        </g>
-      </svg>
-    ),
-  },
-  {
-    id: "2",
-    label: "Massachusetts",
-    sublabel: "USA",
-    wisp: "/api/alt-wisp-1/",
-    config: "/static/alt-config-1.js",
-    flag: (
-      <svg viewBox="0 0 19 10" className="w-4 h-4 rounded-[2px]">
-        <rect width="19" height="10" fill="#B22234" />
-        {[0, 2, 4, 6, 8].map((y) => (
-          <rect
-            key={y}
-            y={y}
-            width="19"
-            height="1"
-            fill={y === 0 ? "#B22234" : "#fff"}
-          />
-        ))}
-        {[1, 3, 5, 7].map((y) => (
-          <rect key={y} y={y} width="19" height="1" fill="#fff" />
-        ))}
-        <rect width="8" height="5.4" fill="#3C3B6E" />
-        {[0.9, 2.7, 4.5].map((y, i) =>
-          [
-            0.8,
-            2.4,
-            4.0,
-            5.6,
-            7.2,
-            ...(i % 2 === 0 ? [1.6, 3.2, 4.8, 6.4] : []),
-          ]
-            .slice(0, i % 2 === 0 ? 9 : 6)
-            .map((x, j) => (
-              <circle key={`${i}-${j}`} cx={x} cy={y} r="0.35" fill="#fff" />
-            ))
-        )}
-      </svg>
-    ),
-  },
-  {
-    id: "3",
-    label: "Phoenix",
-    sublabel: "USA",
-    wisp: "/api/alt-wisp-2/",
-    config: "/static/alt-config-2.js",
-    flag: (
-      <svg viewBox="0 0 19 10" className="w-4 h-4 rounded-[2px]">
-        <rect width="19" height="10" fill="#B22234" />
-        {[1, 3, 5, 7].map((y) => (
-          <rect key={y} y={y} width="19" height="1" fill="#fff" />
-        ))}
-        <rect width="8" height="5.4" fill="#3C3B6E" />
-        {[0.9, 2.7, 4.5].map((y, i) =>
-          [
-            0.8,
-            2.4,
-            4.0,
-            5.6,
-            7.2,
-            ...(i % 2 === 0 ? [1.6, 3.2, 4.8, 6.4] : []),
-          ]
-            .slice(0, i % 2 === 0 ? 9 : 6)
-            .map((x, j) => (
-              <circle key={`${i}-${j}`} cx={x} cy={y} r="0.35" fill="#fff" />
-            ))
-        )}
-      </svg>
-    ),
-  },
-  {
-    id: "4",
-    label: "Virginia",
-    sublabel: "USA",
-    wisp: "/api/alt-wisp-3/",
-    config: "/static/alt-config-3.js",
-    flag: (
-      <svg viewBox="0 0 19 10" className="w-4 h-4 rounded-[2px]">
-        <rect width="19" height="10" fill="#B22234" />
-        {[1, 3, 5, 7].map((y) => (
-          <rect key={y} y={y} width="19" height="1" fill="#fff" />
-        ))}
-        <rect width="8" height="5.4" fill="#3C3B6E" />
-        {[0.9, 2.7, 4.5].map((y, i) =>
-          [
-            0.8,
-            2.4,
-            4.0,
-            5.6,
-            7.2,
-            ...(i % 2 === 0 ? [1.6, 3.2, 4.8, 6.4] : []),
-          ]
-            .slice(0, i % 2 === 0 ? 9 : 6)
-            .map((x, j) => (
-              <circle key={`${i}-${j}`} cx={x} cy={y} r="0.35" fill="#fff" />
-            ))
-        )}
-      </svg>
-    ),
-  },
-  {
-    id: "5",
-    label: "Vienna",
-    sublabel: "Austria",
-    wisp: "/api/alt-wisp-4/",
-    config: "/static/alt-config-4.js",
-    flag: (
-      <svg viewBox="0 0 3 2" className="w-4 h-4 rounded-[2px]">
-        <rect width="3" height="2" fill="#ED2939" />
-        <rect y="0.667" width="3" height="0.667" fill="#fff" />
-      </svg>
-    ),
-  },
-];
+const VPN_FLAGS: Record<string, ReactNode> = {
+  default: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+      <path d="M2 12h20" />
+    </svg>
+  ),
+  "1": (
+    <svg viewBox="0 0 900 600" className="w-4 h-4 rounded-[2px]">
+      <rect width="900" height="600" fill="#fff" />
+      <rect width="225" height="600" fill="#d80621" />
+      <rect x="675" width="225" height="600" fill="#d80621" />
+      <g fill="#d80621" transform="translate(450,300) scale(0.55)">
+        <path d="M0-80 C-10-40-40-30-40 0 C-40 25-20 30 0 20 C20 30 40 25 40 0 C40-30 10-40 0-80Z" />
+        <rect x="-8" y="20" width="16" height="50" />
+        <path d="M-40-10 C-60-20-70 0-50 10 C-40 14-30 10-30 10Z" />
+        <path d="M40-10 C60-20 70 0 50 10 C40 14 30 10 30 10Z" />
+        <rect x="-30" y="5" width="60" height="10" rx="5" />
+      </g>
+    </svg>
+  ),
+  "2": (
+    <svg viewBox="0 0 19 10" className="w-4 h-4 rounded-[2px]">
+      <rect width="19" height="10" fill="#B22234" />
+      {[0, 2, 4, 6, 8].map((y) => (
+        <rect key={y} y={y} width="19" height="1" fill={y === 0 ? "#B22234" : "#fff"} />
+      ))}
+      {[1, 3, 5, 7].map((y) => (
+        <rect key={y} y={y} width="19" height="1" fill="#fff" />
+      ))}
+      <rect width="8" height="5.4" fill="#3C3B6E" />
+    </svg>
+  ),
+  "3": (
+    <svg viewBox="0 0 19 10" className="w-4 h-4 rounded-[2px]">
+      <rect width="19" height="10" fill="#B22234" />
+      {[1, 3, 5, 7].map((y) => (
+        <rect key={y} y={y} width="19" height="1" fill="#fff" />
+      ))}
+      <rect width="8" height="5.4" fill="#3C3B6E" />
+    </svg>
+  ),
+  "4": (
+    <svg viewBox="0 0 19 10" className="w-4 h-4 rounded-[2px]">
+      <rect width="19" height="10" fill="#B22234" />
+      {[1, 3, 5, 7].map((y) => (
+        <rect key={y} y={y} width="19" height="1" fill="#fff" />
+      ))}
+      <rect width="8" height="5.4" fill="#3C3B6E" />
+    </svg>
+  ),
+  "5": (
+    <svg viewBox="0 0 3 2" className="w-4 h-4 rounded-[2px]">
+      <rect width="3" height="2" fill="#ED2939" />
+      <rect y="0.667" width="3" height="0.667" fill="#fff" />
+    </svg>
+  ),
+  tor: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+      <circle cx="12" cy="12" r="7" strokeDasharray="2 2" />
+    </svg>
+  ),
+};
 
-async function applyVpnRegion(regionId: string) {
-  const region = VPN_REGIONS.find((r) => r.id === regionId);
-  if (!region) return;
+const VPN_REGIONS = VPN_REGION_DEFS.map((r) => ({
+  ...r,
+  flag: VPN_FLAGS[r.id] ?? VPN_FLAGS.default,
+}));
 
-  try {
-    localStorage.setItem("selectedVpnRegion", regionId);
-
-    const old = document.getElementById("config-script");
-    if (old) old.remove();
-    await new Promise<void>((resolve) => {
-      const s = document.createElement("script");
-      s.id = "config-script";
-      s.src = region.config;
-      s.onload = () => resolve();
-      s.onerror = () => resolve(); 
-      document.body.appendChild(s);
-    });
-
-    const cfg = (window as any)._CONFIG;
-    const wispUrl =
-      cfg?.wispurl ??
-      (location.protocol === "https:" ? "wss" : "ws") +
-        "://" +
-        location.host +
-        region.wisp;
-
-    if (getMuxRoot()) {
-      const conn = openMuxConnection(PX.muxWorker);
-      await setMuxTransport(conn, PX.epoxyMod, wispUrl).catch(() => {});
-    }
-
-    window.dispatchEvent(
-      new StorageEvent("storage", {
-        key: "selectedVpnRegion",
-        newValue: regionId,
-      })
-    );
-  } catch (e) {
-    console.error("[vpn] region switch failed", e);
-  }
-}
-
-function VpnSelector() {
+function VpnSelector({ onNavigate }: { onNavigate: (url: string) => void }) {
   const [open, setOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const [selected, setSelected] = useState<string>(
     () => localStorage.getItem("selectedVpnRegion") ?? "default"
   );
@@ -318,25 +194,47 @@ function VpnSelector() {
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node))
+      if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
+        setInfoOpen(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const current = VPN_REGIONS.find(r => r.id === selected) ?? VPN_REGIONS[0];
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "selectedVpnRegion" && e.newValue) setSelected(e.newValue);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  const current = VPN_REGIONS.find((r) => r.id === selected) ?? VPN_REGIONS[0];
 
   const handleSelect = async (id: string) => {
+    const region = VPN_REGIONS.find((r) => r.id === id);
+    if (!region) return;
+    if (region.requiresAuth) {
+      const ok = await isSignedIn();
+      if (!ok) {
+        setPendingAuth({ type: "tor" });
+        setOpen(false);
+        onNavigate("petezah://account");
+        return;
+      }
+    }
     setSelected(id);
     setOpen(false);
+    setInfoOpen(false);
     await applyVpnRegion(id);
   };
 
   return (
     <div ref={ref} className="relative mt-2">
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2 px-3 py-1.5 rounded-full glass-subtle border border-border text-[10px] text-muted-foreground hover:text-foreground transition-colors"
       >
         <ShieldCheck size={11} className="flex-shrink-0" />
@@ -354,29 +252,63 @@ function VpnSelector() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 w-44 rounded-2xl glass-heavy border border-border shadow-2xl p-2 flex flex-col gap-1"
+            className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 w-56 rounded-2xl glass-heavy border border-border shadow-2xl p-2 flex flex-col gap-1"
           >
             <p className="text-[9px] uppercase tracking-widest text-muted-foreground px-2 pb-1">VPN Region</p>
-            {VPN_REGIONS.map(region => (
-              <button
-                key={region.id}
-                onClick={() => handleSelect(region.id)}
-                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-left transition-colors w-full
-                  ${selected === region.id
-                    ? "bg-primary/10 text-foreground border border-primary/20"
-                    : "hover:bg-accent text-muted-foreground hover:text-foreground"
-                  }`}
-              >
-                <span className="flex-shrink-0">{region.flag}</span>
-                <span className="flex flex-col">
-                  <span className="text-[11px] font-medium leading-tight">{region.label}</span>
-                  <span className="text-[9px] opacity-60 leading-tight">{region.sublabel}</span>
-                </span>
-                {selected === region.id && (
-                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+            {VPN_REGIONS.map((region) => (
+              <div key={region.id} className="relative flex items-center gap-1">
+                <button
+                  onClick={() => handleSelect(region.id)}
+                  className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-left transition-colors flex-1 min-w-0
+                    ${selected === region.id
+                      ? "bg-primary/10 text-foreground border border-primary/20"
+                      : "hover:bg-accent text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                  <span className="flex-shrink-0">{region.flag}</span>
+                  <span className="flex flex-col min-w-0">
+                    <span className="text-[11px] font-medium leading-tight">{region.label}</span>
+                    <span className="text-[9px] opacity-60 leading-tight">{region.sublabel}</span>
+                  </span>
+                  {selected === region.id && (
+                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                  )}
+                </button>
+                {region.id === "tor" && (
+                  <button
+                    type="button"
+                    aria-label="About Tor"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInfoOpen((v) => !v);
+                    }}
+                    className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  >
+                    <Info size={12} />
+                  </button>
                 )}
-              </button>
+              </div>
             ))}
+            <AnimatePresence>
+              {infoOpen && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-1 mx-1 p-2.5 rounded-xl text-[10px] leading-relaxed text-muted-foreground border border-border bg-background/80 space-y-1.5">
+                    <p className="font-semibold text-foreground text-[11px]">About Tor</p>
+                    <p>
+                      Tor routes your traffic through volunteer onion relays so the destination site sees a Tor exit IP instead of yours. It is slower and some sites block Tor exits.
+                    </p>
+                    <p>
+                      By selecting Tor you agree to use it only for lawful browsing on this site, accept reduced speed and reliability, and understand exit nodes can see unencrypted traffic to destinations. You must be signed in. Misuse may result in loss of access.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>
@@ -860,7 +792,7 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.42 + presets.length * 0.03, ease }}
         >
-          <VpnSelector />
+          <VpnSelector onNavigate={onNavigate} />
         </motion.div>
       </div>
       <AnimatePresence>

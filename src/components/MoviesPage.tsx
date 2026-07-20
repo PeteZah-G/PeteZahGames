@@ -5,6 +5,8 @@ import {
   ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { pxEncode, pxReady } from "@/lib/px";
+import { applyVpnRegion, isSignedIn } from "@/lib/vpn";
+import { setPendingAuth } from "@/lib/authPending";
 
 interface CatalogItem {
   id: number;
@@ -85,6 +87,12 @@ const TMDB_BACKDROP = "https://image.tmdb.org/t/p/w1280";
 const TMDB_STILL = "https://image.tmdb.org/t/p/w300";
 
 const PROVIDERS = [
+  {
+    id: "vidking",
+    label: "VidKing",
+    movie: (id: number) => `https://www.vidking.net/embed/movie/${id}`,
+    tv: (id: number, s: number, e: number) => `https://www.vidking.net/embed/tv/${id}/${s}/${e}`,
+  },
   {
     id: "vidlink",
     label: "VidLink",
@@ -240,13 +248,23 @@ function MoviePlayer({
 }) {
   const frameHostRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const [provider, setProvider] = useState("vidlink");
+  const [provider, setProvider] = useState("vidking");
   const [season, setSeason] = useState(state.season || 1);
   const [episode, setEpisode] = useState(state.episode || 1);
   const [seasons, setSeasons] = useState<SeasonInfo[]>([]);
   const [episodes, setEpisodes] = useState<EpisodeInfo[]>([]);
   const [frameReady, setFrameReady] = useState(false);
   const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    const prev = localStorage.getItem("selectedVpnRegion") || "default";
+    if (prev !== "tor") localStorage.setItem("pz-vpn-before-movies", prev);
+    applyVpnRegion("tor");
+    return () => {
+      const restore = localStorage.getItem("pz-vpn-before-movies") || "default";
+      applyVpnRegion(restore);
+    };
+  }, []);
 
   useEffect(() => {
     setSeason(state.season || 1);
@@ -574,7 +592,7 @@ function MoviePlayer({
   );
 }
 
-export default function MoviesPage(_props: { onNavigate?: (url: string) => void }) {
+export default function MoviesPage({ onNavigate }: { onNavigate?: (url: string) => void }) {
   const [data, setData] = useState(getSavedMovies);
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [trending, setTrending] = useState<CatalogItem[]>([]);
@@ -615,6 +633,26 @@ export default function MoviesPage(_props: { onNavigate?: (url: string) => void 
         }, ...prev.items],
       }));
     }
+  };
+
+  const openPlayer = async (item: CatalogItem, type: "movie" | "tv") => {
+    const ok = await isSignedIn();
+    if (!ok) {
+      setPendingAuth({ type: "movies" });
+      onNavigate?.("petezah://account");
+      return;
+    }
+    const saved = items.find((i) => i.tmdbId === item.id && i.type === type);
+    setPlayerState({
+      type,
+      tmdbId: item.id,
+      title: item.title || item.name || "Untitled",
+      poster_path: item.poster_path,
+      backdrop_path: item.backdrop_path,
+      overview: item.overview,
+      season: type === "tv" ? saved?.season || 1 : undefined,
+      episode: type === "tv" ? saved?.episode || 1 : undefined,
+    });
   };
 
   useEffect(() => { saveFavorites(data); }, [data]);
@@ -663,20 +701,6 @@ export default function MoviesPage(_props: { onNavigate?: (url: string) => void 
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
   }, [searchQuery, sortBy]);
-
-  const openPlayer = (item: CatalogItem, type: "movie" | "tv") => {
-    const saved = items.find((i) => i.tmdbId === item.id && i.type === type);
-    setPlayerState({
-      type,
-      tmdbId: item.id,
-      title: item.title || item.name || "Untitled",
-      poster_path: item.poster_path,
-      backdrop_path: item.backdrop_path,
-      overview: item.overview,
-      season: type === "tv" ? saved?.season || 1 : undefined,
-      episode: type === "tv" ? saved?.episode || 1 : undefined,
-    });
-  };
 
   const continueList = items.slice(0, 12);
   const featured = (!searchQuery && (trending[0] || catalog[0])) || null;
@@ -850,15 +874,18 @@ export default function MoviesPage(_props: { onNavigate?: (url: string) => void 
                     }}
                     type={item.type}
                     onPlay={() =>
-                      setPlayerState({
-                        type: item.type,
-                        tmdbId: item.tmdbId,
-                        title: item.title,
-                        poster_path: item.poster_path,
-                        backdrop_path: item.backdrop_path,
-                        season: item.season,
-                        episode: item.episode,
-                      })
+                      openPlayer(
+                        {
+                          id: item.tmdbId,
+                          title: item.title,
+                          poster_path: item.poster_path,
+                          backdrop_path: item.backdrop_path,
+                          release_date: item.release_date,
+                          first_air_date: item.first_air_date,
+                          media_type: item.type,
+                        },
+                        item.type
+                      )
                     }
                   />
                 ))}

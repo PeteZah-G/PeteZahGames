@@ -14,6 +14,8 @@ import {
   schedulePushSettings,
 } from "@/lib/settingsSync";
 import { notifyAuthChanged } from "@/hooks/useAuth";
+import { consumePendingAuth } from "@/lib/authPending";
+import { applyVpnRegion } from "@/lib/vpn";
 
 interface AuthUser {
   id: string; email: string; username?: string; bio?: string;
@@ -674,6 +676,15 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
         if (result === "pulled") setSyncNote("Synced from your account");
         else if (result === "pushed") setSyncNote("Local settings uploaded");
         setTimeout(() => setSyncNote(""), 3000);
+        const pending = consumePendingAuth();
+        if (pending?.type === "tor") {
+          await applyVpnRegion("tor");
+          onNavigate("petezah://newtab");
+        } else if (pending?.type === "movies") {
+          onNavigate("petezah://movies");
+        } else if (pending?.type === "feedback") {
+          onNavigate("petezah://feedback");
+        }
       }
     } catch { setAuthErr("Network error. Please try again."); }
     finally { setAuthLoading(false); }

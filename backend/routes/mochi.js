@@ -47,6 +47,7 @@ const mochiLimiter = rateLimit({
   },
 });
 
+// I host mochi on port 3005, change this if you want it to be on a different port or host
 const mochiProxy = createProxyMiddleware({
   target: 'http://localhost:3005',
   changeOrigin: false,

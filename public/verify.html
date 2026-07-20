@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>PeteZah — Verify</title>
+  <link rel="icon" type="image/png" href="/logo.png" />
+  <style>
+    :root {
+      --bg0: #020810;
+      --bg1: #06101c;
+      --line: hsla(210, 40%, 80%, 0.12);
+      --text: #e8f0fa;
+      --muted: hsla(210, 20%, 70%, 0.55);
+      --accent: #4d8dff;
+      --accent2: #6a5cff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100%;
+      background: radial-gradient(1200px 700px at 50% -10%, #0a1a33 0%, var(--bg0) 55%);
+      color: var(--text);
+      font-family: "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 18px;
+      min-height: 100vh;
+    }
+    .shell {
+      width: 100%;
+      max-width: 420px;
+      position: relative;
+    }
+    .glow {
+      position: absolute;
+      inset: -40px;
+      background: radial-gradient(circle at 50% 20%, hsla(213, 90%, 55%, 0.18), transparent 60%);
+      pointer-events: none;
+      filter: blur(8px);
+    }
+    .card {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: linear-gradient(180deg, hsla(216, 35%, 10%, 0.92), hsla(216, 40%, 6%, 0.96));
+      box-shadow: 0 24px 80px hsla(210, 80%, 10%, 0.55);
+      padding: 36px 28px 30px;
+      backdrop-filter: blur(14px);
+      text-align: center;
+    }
+    .logo {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      object-fit: cover;
+      margin: 0 auto 18px;
+      border: 1px solid var(--line);
+      box-shadow: 0 0 0 4px hsla(213, 80%, 55%, 0.08);
+    }
+    .brand {
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    h1 {
+      font-size: 1.55rem;
+      font-weight: 750;
+      letter-spacing: -0.03em;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #fff, #9ec4ff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .sub {
+      font-size: 0.9rem;
+      line-height: 1.55;
+      color: var(--muted);
+      margin-bottom: 26px;
+    }
+    .widget-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 18px;
+      min-height: 58px;
+    }
+    cap-widget {
+      --cap-background: hsla(216, 30%, 12%, 0.95);
+      --cap-border-color: hsla(210, 40%, 80%, 0.16);
+      --cap-border-radius: 14px;
+      --cap-color: #e8f0fa;
+      --cap-checkbox-background: hsla(216, 28%, 16%, 0.9);
+      --cap-checkbox-border: 1px solid hsla(210, 40%, 80%, 0.22);
+      --cap-spinner-color: var(--accent);
+      --cap-spinner-background-color: hsla(213, 40%, 30%, 0.35);
+      --cap-font: inherit;
+      --cap-widget-width: 260px;
+    }
+    .status {
+      font-size: 0.78rem;
+      color: var(--muted);
+      min-height: 1.2em;
+    }
+    .status.ok { color: #7ddea8; }
+    .status.err { color: #f0a0a8; }
+    .bar {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--line), transparent);
+      margin: 22px 0 14px;
+    }
+    .foot {
+      font-size: 0.72rem;
+      color: hsla(210, 20%, 70%, 0.4);
+      letter-spacing: 0.04em;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="glow" aria-hidden="true"></div>
+    <div class="card">
+      <img class="logo" src="/logo.png" alt="PeteZah" width="56" height="56" />
+      <p class="brand">PeteZah</p>
+      <h1>Verify to continue</h1>
+      <p class="sub">A quick check keeps the community safe. This only takes a moment the first time you visit.</p>
+      <div class="widget-wrap">
+        <cap-widget
+          id="cap"
+          data-cap-api-endpoint="/cap/"
+          data-cap-i18n-initial-state="I'm not a robot"
+          data-cap-i18n-verifying-label="Verifying…"
+          data-cap-i18n-solved-label="Verified"
+          data-cap-i18n-error-label="Try again"
+        ></cap-widget>
+      </div>
+      <p class="status" id="status"></p>
+      <div class="bar"></div>
+      <p class="foot">Secure access · PeteZah</p>
+    </div>
+  </div>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@cap.js/widget@0.1.56"></script>
+  <script type="module">
+    const status = document.getElementById("status");
+    const el = document.getElementById("cap");
+    el.addEventListener("solve", () => {
+      status.textContent = "You're in — redirecting…";
+      status.className = "status ok";
+      setTimeout(() => { location.replace("/"); }, 350);
+    });
+    el.addEventListener("error", (e) => {
+      status.textContent = e.detail?.message || "Verification failed. Please try again.";
+      status.className = "status err";
+    });
+  </script>
+</body>
+</html>

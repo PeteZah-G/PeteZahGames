@@ -158,11 +158,23 @@ db.exec(`
     updated_at INTEGER NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS cap_nonces (
+    sig TEXT PRIMARY KEY,
+    expires_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS cap_tokens (
+    token_key TEXT PRIMARY KEY,
+    expires_at INTEGER NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   CREATE INDEX IF NOT EXISTS idx_users_ip ON users(ip);
   CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
   CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON user_sessions(user_id);
   CREATE INDEX IF NOT EXISTS idx_sessions_expires ON user_sessions(expires_at);
+  CREATE INDEX IF NOT EXISTS idx_cap_nonces_exp ON cap_nonces(expires_at);
+  CREATE INDEX IF NOT EXISTS idx_cap_tokens_exp ON cap_tokens(expires_at);
 `);
 
 export default db;

@@ -229,7 +229,7 @@ export function adjustPowDifficulty(shield) {
 
 const BOT_PATTERNS = [/googlebot/i, /bingbot/i, /slurp/i, /duckduckbot/i, /baiduspider/i, /yandexbot/i, /facebookexternalhit/i, /twitterbot/i, /discordbot/i, /telegrambot/i, /whatsapp/i, /linkedinbot/i, /slackbot/i, /archive\.org_bot/i, /ia_archiver/i, /semrushbot/i, /ahrefsbot/i, /mj12bot/i, /dotbot/i];
 
-const OPEN_PATHS = new Set(['/api/signin', '/api/signup', '/api/bot-challenge', '/api/bot-verify', '/api/verify-email', '/api/me', '/api/signout', '/api/comments', '/api/likes', '/api/changelog', '/api/presence', '/api/announcements/active']);
+const OPEN_PATHS = new Set(['/api/signin', '/api/signup', '/api/bot-challenge', '/api/bot-verify', '/api/verify-email', '/api/me', '/api/signout', '/api/comments', '/api/likes', '/api/changelog', '/api/presence', '/api/announcements/active', '/api/websocket/normal', '/api/websocket/normal/', '/api/websocket/tor', '/api/websocket/tor/']);
 
 function needsToken(reqPath) {
   if (OPEN_PATHS.has(reqPath)) return false;
@@ -241,6 +241,7 @@ function needsToken(reqPath) {
   if (reqPath.startsWith('/api/changelog')) return false;
   if (reqPath.startsWith('/api/settings')) return false;
   if (reqPath.startsWith('/api/me')) return false;
+  if (reqPath.startsWith('/api/websocket/')) return false;
   return false;
 }
 
@@ -284,6 +285,10 @@ export function createMemoryProtection(shield) {
       updateIPReputation(toIPv4(null, req), -15);
       shield.incrementBlocked(toIPv4(null, req), 'header_oversized');
       return res.status(431).json({ error: 'Headers too large' });
+    }
+    const ua = req.headers['user-agent'];
+    if (!ua || (typeof ua === 'string' && ua.length < 8)) {
+      updateIPReputation(toIPv4(null, req), -2);
     }
     next();
   };

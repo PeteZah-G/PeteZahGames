@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquare, Heart, Trash2, Send, Loader2, Lock } from "lucide-react";
+import { setPendingAuth } from "@/lib/authPending";
 
 interface Entry { id: string; content: string; username?: string; user_id: string; created_at: number; }
 interface Comment { id: string; content: string; username?: string; avatar_url?: string; created_at: number; user_id?: string; }
@@ -184,7 +185,10 @@ export default function FeedbackPage({ onNavigate }: { onNavigate: (url: string)
               <p className="text-sm font-medium mb-1" style={{ color: "hsl(220 15% 55%)" }}>Sign in to leave feedback</p>
               <p className="text-xs" style={{ color: "hsl(220 15% 32%)" }}>Sign in to view and submit community feedback</p>
             </div>
-            <button onClick={() => onNavigate("petezah://account")}
+            <button onClick={() => {
+              setPendingAuth({ type: "feedback" });
+              onNavigate("petezah://account");
+            }}
               className="px-5 py-2.5 rounded-xl text-sm font-semibold"
               style={{ background: "linear-gradient(135deg, hsl(215 85% 50%), hsl(250 75% 55%))", color: "#fff" }}>
               Sign In

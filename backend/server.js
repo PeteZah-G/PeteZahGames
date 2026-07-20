@@ -54,6 +54,10 @@ import {
   createAnnouncementHandler,
   setAnnouncementActiveHandler,
 } from './api/admin-presence.js';
+import { websocketNormalHandler, websocketTorHandler } from './api/websocket-auth.js';
+import capRouter from './routes/cap.js';
+import { createCapGateMiddleware, sendVerifyPage, requireGateUpgrade } from './middleware/cap-gate.js';
+import { cleanupCapStore } from './cap/store.js';
 
 const { createBareServer } = bareServerPkg;
 const SqliteStore = BetterSqlite3Session(session);
@@ -114,9 +118,24 @@ app.use(session({
 app.use(createMemoryProtection(shield));
 app.use(createIpBanMiddleware());
 app.use(createGateMiddleware(shield));
+app.use(createCapGateMiddleware());
+
+app.get('/verify', sendVerifyPage);
+app.get('/verify.html', sendVerifyPage);
+app.use('/cap', capRouter);
+
+app.get('/api/websocket/normal/', websocketNormalHandler);
+app.get('/api/websocket/normal', websocketNormalHandler);
+app.get('/api/websocket/tor/', websocketTorHandler);
+app.get('/api/websocket/tor', websocketTorHandler);
 
 const AUTH_PATHS = new Set(['/api/signin', '/api/signup', '/api/bot-challenge', '/api/bot-verify', '/api/verify-email']);
-app.use('/api/', (req, res, next) => AUTH_PATHS.has(req.path) ? authLimiter(req, res, next) : apiLimiter(req, res, next));
+app.use('/api/', (req, res, next) => {
+  if (req.path === '/websocket/normal' || req.path === '/websocket/normal/' || req.path === '/websocket/tor' || req.path === '/websocket/tor/') {
+    return next();
+  }
+  return AUTH_PATHS.has(req.path) ? authLimiter(req, res, next) : apiLimiter(req, res, next);
+});
 app.use(PX.edge, apiLimiter);
 
 app.use((req, res, next) => {
@@ -263,6 +282,11 @@ server.on('upgrade', (req, socket, head) => {
     return socket.destroy();
   }
 
+  if (!requireGateUpgrade(req)) {
+    shield.incrementBlocked(ip, 'cap_gate');
+    return socket.destroy();
+  }
+
   const current = wsConnections.get(ip) || 0;
   if (current >= MAX_WS_PER_IP || systemState.totalWS >= MAX_TOTAL_WS) {
     shield.incrementBlocked(ip, 'ws_cap');
@@ -324,6 +348,7 @@ setInterval(() => {
   adjustPowDifficulty(shield);
   shield.checkAttackConditions('system', systemState);
   cleanupSecurityMaps();
+  cleanupCapStore();
 }, 10000);
 
 server.listen({ port }, () => {

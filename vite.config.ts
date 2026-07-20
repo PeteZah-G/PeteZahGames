@@ -16,6 +16,11 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         ws: true,
       },
+      "/api/wisp-tor": {
+        target: "ws://localhost:8080",
+        changeOrigin: true,
+        ws: true,
+      },
       "/api/alt-wisp-1": {
         target: "ws://localhost:8080",
         changeOrigin: true,
