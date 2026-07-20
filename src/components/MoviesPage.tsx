@@ -88,16 +88,16 @@ const TMDB_STILL = "https://image.tmdb.org/t/p/w300";
 
 const PROVIDERS = [
   {
-    id: "vidking",
-    label: "VidKing",
-    movie: (id: number) => `https://www.vidking.net/embed/movie/${id}`,
-    tv: (id: number, s: number, e: number) => `https://www.vidking.net/embed/tv/${id}/${s}/${e}`,
-  },
-  {
     id: "vidlink",
     label: "VidLink",
     movie: (id: number) => `https://vidlink.pro/movie/${id}`,
     tv: (id: number, s: number, e: number) => `https://vidlink.pro/tv/${id}/${s}/${e}`,
+  },
+  {
+    id: "vidking",
+    label: "VidKing",
+    movie: (id: number) => `https://www.vidking.net/embed/movie/${id}`,
+    tv: (id: number, s: number, e: number) => `https://www.vidking.net/embed/tv/${id}/${s}/${e}`,
   },
   {
     id: "vidsrc",
