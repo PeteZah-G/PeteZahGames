@@ -1,13 +1,13 @@
 :root {
   color-scheme: dark;
-  --bg0: #020810;
-  --bg1: #06101c;
-  --bg2: #0a1628;
+  --bg0: #010509;
+  --bg1: #040c16;
+  --bg2: #071120;
   --line: hsla(210, 40%, 80%, 0.12);
   --line-strong: hsla(210, 40%, 80%, 0.2);
-  --text: #e8f0fa;
-  --muted: hsla(210, 18%, 70%, 0.58);
-  --faint: hsla(210, 14%, 60%, 0.42);
+  --text: #f4f8fd;
+  --muted: hsla(210, 20%, 78%, 0.68);
+  --faint: hsla(210, 16%, 68%, 0.5);
   --accent: #4d8dff;
   --accent2: #6a5cff;
   --accent-soft: hsla(213, 70%, 55%, 0.16);
@@ -29,10 +29,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow: hidden;
-  background:
-    radial-gradient(1100px 620px at 50% -12%, #0c2244 0%, transparent 55%),
-    radial-gradient(720px 420px at 92% 108%, hsla(250, 65%, 40%, 0.14), transparent 52%),
-    var(--bg0);
+  background: var(--bg0);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
 }
@@ -45,7 +42,7 @@ button, input { font: inherit; }
   height: 100vh;
   border: 0;
   image-rendering: pixelated;
-  background: #0a0f18;
+  background: #05080f;
   outline: none;
 }
 #screen.ready { display: block; }
@@ -67,7 +64,7 @@ button, input { font: inherit; }
   justify-content: space-between;
   gap: 16px;
   padding: 10px 20px;
-  background: hsla(216, 30%, 7%, 0.88);
+  background: hsla(216, 34%, 5%, 0.92);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
   border-bottom: 1px solid var(--line);
@@ -88,7 +85,7 @@ button, input { font: inherit; }
   border-radius: 9px;
   border: 1px solid var(--line);
   background: var(--accent-soft);
-  color: #9ec5ff;
+  color: #b7d3ff;
   font-size: 12px;
   font-weight: 650;
   text-decoration: none;
@@ -126,7 +123,7 @@ button, input { font: inherit; }
 .labs-badge {
   padding: 2px 8px;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  background: hsl(213, 55%, 30%);
   color: #fff;
   font-size: 10px;
   font-weight: 700;
@@ -189,7 +186,7 @@ button, input { font: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(160deg, hsla(216, 28%, 14%, 0.95), hsla(216, 32%, 9%, 0.98));
+  background: hsl(216, 30%, 9%);
   border: 1px solid var(--line);
   border-radius: 18px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
@@ -214,10 +211,7 @@ button, input { font: inherit; }
   line-height: 1.12;
   font-weight: 800;
   letter-spacing: -0.03em;
-  background: linear-gradient(135deg, #fff 12%, #9ec5ff 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: #ffffff;
 }
 
 .project-copy {
@@ -255,7 +249,7 @@ button, input { font: inherit; }
   padding: 8px 14px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: hsla(216, 28%, 9%, 0.9);
+  background: hsl(216, 30%, 7%);
   color: var(--muted);
   font-size: 12px;
   font-weight: 500;
@@ -276,7 +270,6 @@ button, input { font: inherit; }
   height: 7px;
   border-radius: 999px;
   background: var(--accent);
-  box-shadow: 0 0 10px hsla(213, 70%, 58%, 0.7);
 }
 .stage[data-phase="console"] .powered-badge { display: none; }
 
@@ -292,7 +285,7 @@ button, input { font: inherit; }
   padding: 22px 18px 18px;
   border-radius: 18px;
   border: 1px solid var(--line);
-  background: linear-gradient(165deg, hsla(216, 32%, 12%, 0.98), hsla(216, 36%, 7%, 0.99));
+  background: hsl(216, 34%, 6%);
   box-shadow: var(--shadow);
   position: relative;
   overflow: visible;
@@ -303,7 +296,7 @@ button, input { font: inherit; }
   inset: 0 0 auto 0;
   height: 2px;
   border-radius: 18px 18px 0 0;
-  background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+  background: hsla(213, 60%, 55%, 0.5);
   pointer-events: none;
   z-index: 1;
 }
@@ -342,9 +335,8 @@ button, input { font: inherit; }
   width: 0%;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  background: var(--accent);
   transition: width 0.12s ease;
-  box-shadow: 0 0 12px hsla(213, 70%, 55%, 0.45);
 }
 .progress-meta {
   display: flex;
@@ -373,7 +365,7 @@ button, input { font: inherit; }
   justify-content: center;
   gap: 8px;
   width: 100%;
-  border: 1px solid hsla(213, 70%, 70%, 0.35);
+  border: 1px solid hsla(213, 55%, 45%, 0.5);
   border-radius: 14px;
   color: #fff;
   font-size: 15px;
@@ -382,22 +374,16 @@ button, input { font: inherit; }
   line-height: 1.2;
   padding: 15px 22px;
   cursor: pointer;
-  background: linear-gradient(135deg, #3d7fff 0%, #4d8dff 42%, #6a5cff 100%);
-  box-shadow:
-    0 1px 0 hsla(0, 0%, 100%, 0.18) inset,
-    0 12px 28px hsla(213, 70%, 40%, 0.42);
-  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  background: hsl(213, 55%, 32%);
+  transition: transform 0.15s ease, filter 0.15s ease, background 0.15s ease;
 }
 .start-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  filter: brightness(1.07);
-  box-shadow:
-    0 1px 0 hsla(0, 0%, 100%, 0.22) inset,
-    0 16px 34px hsla(213, 70%, 42%, 0.5);
+  background: hsl(213, 55%, 36%);
 }
 .start-btn:active:not(:disabled) {
   transform: translateY(0);
-  filter: brightness(0.98);
+  filter: brightness(0.96);
 }
 .start-btn:focus-visible {
   outline: 2px solid hsla(213, 80%, 70%, 0.85);
@@ -442,7 +428,7 @@ button, input { font: inherit; }
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 11px;
-  background: hsla(216, 28%, 10%, 0.9);
+  background: hsl(216, 30%, 8%);
   color: var(--text);
   cursor: pointer;
   user-select: none;
@@ -496,7 +482,7 @@ button, input { font: inherit; }
   padding: 9px 11px;
   border: 1px solid var(--line);
   border-radius: 9px;
-  background: hsla(216, 32%, 8%, 0.95);
+  background: hsl(216, 34%, 6%);
   color: var(--text);
   font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
@@ -531,7 +517,7 @@ button, input { font: inherit; }
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 11px;
-  background: hsla(216, 28%, 10%, 0.9);
+  background: hsl(216, 30%, 8%);
   color: var(--muted);
   font-size: 12px;
   font-weight: 400;
@@ -565,14 +551,14 @@ button, input { font: inherit; }
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: hsla(216, 36%, 6%, 0.95);
-  color: #c8d4e4;
+  background: hsl(216, 40%, 4%);
+  color: #d6e0ee;
   font: 12px/1.45 Menlo, Monaco, Consolas, monospace;
   white-space: pre-wrap;
   word-break: break-word;
 }
 .console-line { margin: 0; }
-.console-line.log { color: #c8d4e4; }
+.console-line.log { color: #d6e0ee; }
 .console-line.warn { color: #ffc56d; }
 .console-line.error { color: #ff8b8b; }
 .console-prefix {

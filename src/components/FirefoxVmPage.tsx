@@ -56,12 +56,9 @@ export default function FirefoxVmPage({ onNavigate }: { onNavigate: (url: string
     return (
       <div
         className="h-full flex items-center justify-center"
-        style={{
-          background:
-            "radial-gradient(900px 500px at 50% -10%, #0c2244 0%, transparent 55%), hsl(216 32% 6%)",
-        }}
+        style={{ background: "transparent" }}
       >
-        <Loader2 className="animate-spin" size={18} style={{ color: "hsl(213 70% 58%)" }} />
+        <Loader2 className="animate-spin" size={18} style={{ color: "hsl(213 70% 62%)" }} />
       </div>
     );
   }
@@ -70,37 +67,28 @@ export default function FirefoxVmPage({ onNavigate }: { onNavigate: (url: string
     return (
       <div
         className="h-full flex flex-col items-center justify-center gap-5 px-6"
-        style={{
-          background:
-            "radial-gradient(900px 500px at 50% -10%, #0c2244 0%, transparent 55%), hsl(216 32% 6%)",
-        }}
+        style={{ background: "transparent" }}
       >
         <div
           className="w-14 h-14 rounded-2xl flex items-center justify-center"
           style={{
-            background: "linear-gradient(135deg, hsl(213 70% 48% / 0.25), hsl(250 65% 52% / 0.2))",
-            border: "1px solid hsl(213 70% 58% / 0.35)",
-            boxShadow: "0 0 40px hsl(213 70% 50% / 0.15)",
+            background: "hsl(216 30% 10%)",
+            border: "1px solid hsl(213 40% 30%)",
           }}
         >
-          <Lock size={20} style={{ color: "hsl(213 70% 70%)" }} />
+          <Lock size={20} style={{ color: "hsl(213 80% 78%)" }} />
         </div>
         <div className="text-center max-w-sm">
           <p
             className="text-lg font-extrabold mb-1 tracking-tight"
-            style={{
-              background: "linear-gradient(135deg, #fff 20%, #9ec5ff 100%)",
-              WebkitBackgroundClip: "text",
-              backgroundClip: "text",
-              color: "transparent",
-            }}
+            style={{ color: "hsl(0 0% 100%)" }}
           >
             PeteZah VM
           </p>
-          <p className="text-sm font-medium mb-1" style={{ color: "hsl(0 0% 90%)" }}>
+          <p className="text-sm font-medium mb-1" style={{ color: "hsl(0 0% 96%)" }}>
             Sign in to launch
           </p>
-          <p className="text-xs leading-relaxed" style={{ color: "hsl(216 12% 48%)" }}>
+          <p className="text-xs leading-relaxed" style={{ color: "hsl(216 15% 68%)" }}>
             Firefox in WebAssembly — a real Gecko browser inside PeteZah. Account required.
           </p>
         </div>
@@ -111,19 +99,19 @@ export default function FirefoxVmPage({ onNavigate }: { onNavigate: (url: string
           }}
           className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white"
           style={{
-            background: "linear-gradient(135deg, hsl(213 70% 48%), hsl(250 65% 52%))",
-            boxShadow: "0 8px 28px hsl(213 70% 40% / 0.35)",
+            background: "hsl(213 55% 32%)",
+            border: "1px solid hsl(213 45% 42%)",
           }}
         >
           Sign In
         </button>
-        <p className="text-[10px]" style={{ color: "hsl(216 12% 40%)" }}>
+        <p className="text-[10px]" style={{ color: "hsl(216 15% 55%)" }}>
           Powered by{" "}
           <a
             href="https://developer.puter.com/labs/firefox-wasm/"
             target="_blank"
             rel="noreferrer"
-            style={{ color: "hsl(213 70% 58%)" }}
+            style={{ color: "hsl(213 75% 68%)" }}
           >
             Puter Labs
           </a>
@@ -136,14 +124,14 @@ export default function FirefoxVmPage({ onNavigate }: { onNavigate: (url: string
     return (
       <div
         className="h-full flex flex-col items-center justify-center gap-3 px-6 text-center"
-        style={{ background: "hsl(216 32% 6%)" }}
+        style={{ background: "transparent" }}
       >
-        <Monitor size={22} style={{ color: "hsl(216 12% 40%)" }} />
-        <p className="text-sm" style={{ color: "hsl(0 0% 90%)" }}>
+        <Monitor size={22} style={{ color: "hsl(216 15% 60%)" }} />
+        <p className="text-sm" style={{ color: "hsl(0 0% 96%)" }}>
           VM assets are not installed on this server.
         </p>
-        <p className="text-xs max-w-md" style={{ color: "hsl(216 12% 45%)" }}>
-          Run <code style={{ color: "hsl(213 70% 58%)" }}>npm run vendor:firefox-wasm</code> then redeploy.
+        <p className="text-xs max-w-md" style={{ color: "hsl(216 15% 65%)" }}>
+          Run <code style={{ color: "hsl(213 75% 68%)" }}>npm run vendor:firefox-wasm</code> then redeploy.
         </p>
       </div>
     );
@@ -152,49 +140,37 @@ export default function FirefoxVmPage({ onNavigate }: { onNavigate: (url: string
   return (
     <div
       className="h-full flex flex-col items-center justify-center px-6 relative overflow-hidden"
-      style={{
-        background:
-          "radial-gradient(1000px 560px at 50% -8%, #0c2244 0%, transparent 55%), radial-gradient(700px 400px at 90% 100%, hsla(250, 65%, 40%, 0.1), transparent 50%), hsl(216 32% 6%)",
-      }}
+      style={{ background: "transparent" }}
     >
       <div
         className="absolute inset-x-0 top-0 h-px"
-        style={{
-          background: "linear-gradient(90deg, transparent, hsl(213 70% 58%), hsl(250 65% 55%), transparent)",
-        }}
+        style={{ background: "hsl(213 40% 30%)" }}
       />
       <div className="relative z-10 flex flex-col items-center text-center max-w-md gap-4">
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mb-1"
           style={{
-            background: "linear-gradient(145deg, hsl(213 70% 48% / 0.3), hsl(250 65% 52% / 0.22))",
-            border: "1px solid hsl(213 70% 58% / 0.4)",
-            boxShadow: "0 0 50px hsl(213 70% 50% / 0.2)",
+            background: "hsl(216 30% 10%)",
+            border: "1px solid hsl(213 40% 32%)",
           }}
         >
-          <Monitor size={26} style={{ color: "hsl(213 70% 75%)" }} />
+          <Monitor size={26} style={{ color: "hsl(213 80% 80%)" }} />
         </div>
         <div>
           <p
             className="text-[10px] font-bold uppercase tracking-[0.16em] mb-2"
-            style={{ color: "hsl(213 70% 58%)" }}
+            style={{ color: "hsl(213 75% 68%)" }}
           >
             PeteZah VMs
           </p>
           <h1
             className="text-3xl font-extrabold tracking-tight mb-2"
-            style={{
-              background: "linear-gradient(135deg, #fff 15%, #9ec5ff 100%)",
-              WebkitBackgroundClip: "text",
-              backgroundClip: "text",
-              color: "transparent",
-            }}
+            style={{ color: "hsl(0 0% 100%)" }}
           >
             Firefox VM
           </h1>
-          <p className="text-sm leading-relaxed" style={{ color: "hsl(216 12% 52%)" }}>
-            Opens as a full-page Gecko browser (WebAssembly). Threaded WASM can’t run inside PeteZah’s
-            iframe — so Launch takes over this tab securely.
+          <p className="text-sm leading-relaxed" style={{ color: "hsl(216 15% 72%)" }}>
+            Opens as a full-page browser (WebAssembly).
           </p>
         </div>
         <button
@@ -202,8 +178,8 @@ export default function FirefoxVmPage({ onNavigate }: { onNavigate: (url: string
           disabled={!ready || launching}
           className="mt-2 inline-flex items-center gap-2 px-7 py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
           style={{
-            background: "linear-gradient(135deg, hsl(213 70% 48%), hsl(250 65% 52%))",
-            boxShadow: "0 10px 32px hsl(213 70% 40% / 0.4)",
+            background: "hsl(213 55% 32%)",
+            border: "1px solid hsl(213 45% 42%)",
           }}
         >
           {launching || !ready ? (
@@ -218,19 +194,19 @@ export default function FirefoxVmPage({ onNavigate }: { onNavigate: (url: string
             </>
           )}
         </button>
-        <p className="text-[11px] mt-1" style={{ color: "hsl(216 12% 40%)" }}>
+        <p className="text-[11px] mt-1" style={{ color: "hsl(216 15% 58%)" }}>
           Uses Virginia Wisp · Credit{" "}
           <a
             href="https://github.com/HeyPuter/firefox-wasm"
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-0.5"
-            style={{ color: "hsl(213 70% 58%)" }}
+            style={{ color: "hsl(213 75% 68%)" }}
           >
             Puter / firefox-wasm <ExternalLink size={9} />
           </a>
         </p>
-        <p className="text-[10px] flex items-center gap-1" style={{ color: "hsl(216 12% 36%)" }}>
+        <p className="text-[10px] flex items-center gap-1" style={{ color: "hsl(216 15% 52%)" }}>
           <Sparkles size={10} />
           Use Exit on the VM splash to return to PeteZah
         </p>
