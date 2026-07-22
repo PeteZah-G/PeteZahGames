@@ -64,12 +64,14 @@ function patchJs(jsPath) {
 function applyShell(dir) {
   const indexTpl = path.join(templates, 'firefox-wasm-index.html');
   const thanksTpl = path.join(templates, 'firefox-wasm-thanks.html');
+  const cssTpl = path.join(templates, 'pete-vm.css');
+  if (existsSync(cssTpl)) {
+    copyFileSync(cssTpl, path.join(dir, 'pete-vm.css'));
+  }
   if (existsSync(indexTpl)) {
     let html = readFileSync(indexTpl, 'utf8');
     const jsName = readdirSync(path.join(dir, 'assets')).find((f) => f.startsWith('index-') && f.endsWith('.js'));
-    const cssName = readdirSync(path.join(dir, 'assets')).find((f) => f.startsWith('index-') && f.endsWith('.css'));
     if (jsName) html = html.replace(/\.\/assets\/index-[^"]+\.js/, `./assets/${jsName}`);
-    if (cssName) html = html.replace(/\.\/assets\/index-[^"]+\.css/, `./assets/${cssName}`);
     writeFileSync(path.join(dir, 'index.html'), html);
   }
   if (existsSync(thanksTpl)) {

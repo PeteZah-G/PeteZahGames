@@ -290,7 +290,10 @@ if (IS_DEV) {
       }
     },
   }));
-  app.get('*', (_req, res) => {
+  app.get('*', (req, res) => {
+    if ((req.path || '').startsWith('/firefox-wasm')) {
+      return res.status(404).type('text/plain').send('Firefox WASM asset not found');
+    }
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
