@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { createWriteStream, existsSync, mkdirSync, rmSync, readFileSync, writeFileSync, copyFileSync, readdirSync } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, rmSync, readFileSync, writeFileSync, copyFileSync, readdirSync, cpSync } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
@@ -11,12 +11,58 @@ const root = path.join(__dirname, '..');
 const dest = path.join(root, 'public', 'firefox-wasm');
 const templates = path.join(__dirname, 'templates');
 const tag = process.env.FIREFOX_WASM_TAG || 'v0.0.1';
-const url = `https://github.com/HeyPuter/firefox-wasm/releases/download/${tag}/chrome-demo.tar.gz`;
 
 async function download(u, out) {
-  const res = await fetch(u, { redirect: 'follow' });
+  const res = await fetch(u, {
+    redirect: 'follow',
+    headers: { 'User-Agent': 'PeteZah-firefox-wasm-vendor' },
+  });
   if (!res.ok) throw new Error(`Download failed: ${res.status} ${u}`);
   await pipeline(Readable.fromWeb(res.body), createWriteStream(out));
+}
+
+async function resolveChromeDemoUrl() {
+  if (process.env.FIREFOX_WASM_URL) return process.env.FIREFOX_WASM_URL;
+
+  const api = `https://api.github.com/repos/HeyPuter/firefox-wasm/releases/tags/${tag}`;
+  try {
+    const res = await fetch(api, {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'PeteZah-firefox-wasm-vendor',
+      },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const asset = (data.assets || []).find(
+        (a) =>
+          /^chrome-demo.*\.tar\.gz$/i.test(a.name) ||
+          /^chrome-demo.*\.tgz$/i.test(a.name)
+      );
+      if (asset?.browser_download_url) {
+        console.log('Resolved release asset:', asset.name);
+        return asset.browser_download_url;
+      }
+    } else {
+      console.warn('GitHub API', res.status, '- falling back to known filenames');
+    }
+  } catch (err) {
+    console.warn('GitHub API lookup failed:', err.message);
+  }
+
+  const candidates = [
+    `https://github.com/HeyPuter/firefox-wasm/releases/download/${tag}/chrome-demo-${tag}.tar.gz`,
+    `https://github.com/HeyPuter/firefox-wasm/releases/download/${tag}/chrome-demo.tar.gz`,
+  ];
+  for (const u of candidates) {
+    const head = await fetch(u, {
+      method: 'HEAD',
+      redirect: 'follow',
+      headers: { 'User-Agent': 'PeteZah-firefox-wasm-vendor' },
+    });
+    if (head.ok) return u;
+  }
+  return candidates[0];
 }
 
 function findJs(dir) {
@@ -85,7 +131,27 @@ function applyShell(dir) {
   }
 }
 
+function syncToDist(dir) {
+  const distRoot = path.join(root, 'dist');
+  if (!existsSync(distRoot)) return;
+  const distDest = path.join(distRoot, 'firefox-wasm');
+  rmSync(distDest, { recursive: true, force: true });
+  mkdirSync(path.dirname(distDest), { recursive: true });
+  cpSync(dir, distDest, { recursive: true });
+  console.log('Synced to', distDest);
+}
+
+function assertBinaries(dir) {
+  const needed = ['gecko.wasm.zst', 'chrome-assets.tar.zst', 'index.html'];
+  const missing = needed.filter((f) => !existsSync(path.join(dir, f)));
+  if (missing.length) {
+    throw new Error(`Missing after vendor: ${missing.join(', ')}`);
+  }
+  console.log('Binaries OK:', needed.join(', '));
+}
+
 async function main() {
+  const url = await resolveChromeDemoUrl();
   const tmp = path.join(root, '.tmp-firefox-wasm');
   mkdirSync(tmp, { recursive: true });
   const tarball = path.join(tmp, 'chrome-demo.tar.gz');
@@ -98,17 +164,25 @@ async function main() {
     path.join(tmp, 'dist'),
     path.join(tmp, 'chrome-demo'),
     path.join(tmp, 'chrome-demo', 'dist'),
+    path.join(tmp, `chrome-demo-${tag}`),
+    path.join(tmp, `chrome-demo-${tag}`, 'dist'),
     tmp,
   ];
-  const src = candidates.find((p) => existsSync(path.join(p, 'index.html')) && existsSync(path.join(p, 'gecko.wasm.zst')));
+  const src = candidates.find(
+    (p) => existsSync(path.join(p, 'index.html')) && existsSync(path.join(p, 'gecko.wasm.zst'))
+  );
   if (!src) throw new Error('Could not locate chrome-demo files in tarball');
+  console.log('Extracted from', src);
   execFileSync('sh', ['-c', `cp -R "${src}/." "${dest}/"`], { stdio: 'inherit' });
   const jsPath = findJs(dest);
   if (!jsPath) throw new Error('demo JS not found');
   patchJs(jsPath);
   applyShell(dest);
+  assertBinaries(dest);
+  syncToDist(dest);
   rmSync(tmp, { recursive: true, force: true });
   console.log('Vendored to', dest);
+  console.log('Next: pm2 restart PeteZahGames  (rebuild optional if dist was synced)');
 }
 
 main().catch((err) => {

@@ -282,27 +282,30 @@ button, input { font: inherit; }
 
 .launch-panel {
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
   margin: 28px 0 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 92px;
+  min-height: 110px;
   justify-content: center;
-  padding: 18px 16px;
-  border-radius: 16px;
+  padding: 22px 18px 18px;
+  border-radius: 18px;
   border: 1px solid var(--line);
-  background: linear-gradient(165deg, hsla(216, 32%, 11%, 0.96), hsla(216, 36%, 7%, 0.98));
+  background: linear-gradient(165deg, hsla(216, 32%, 12%, 0.98), hsla(216, 36%, 7%, 0.99));
   box-shadow: var(--shadow);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 .launch-panel::before {
   content: "";
   position: absolute;
   inset: 0 0 auto 0;
   height: 2px;
+  border-radius: 18px 18px 0 0;
   background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .panel-loading {
@@ -311,13 +314,17 @@ button, input { font: inherit; }
   align-items: stretch;
   gap: 12px;
   width: 100%;
+  position: relative;
+  z-index: 2;
 }
 .panel-ready {
   display: none;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: 14px;
   width: 100%;
+  position: relative;
+  z-index: 2;
 }
 #stage-card[data-phase="loading"] .panel-loading,
 #stage-card[data-phase="ready"] .panel-ready,
@@ -360,32 +367,52 @@ button, input { font: inherit; }
 
 .start-btn {
   appearance: none;
-  border: none;
-  border-radius: 12px;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid hsla(213, 70%, 70%, 0.35);
+  border-radius: 14px;
   color: #fff;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 750;
   letter-spacing: 0.01em;
-  padding: 14px 40px;
+  line-height: 1.2;
+  padding: 15px 22px;
   cursor: pointer;
-  background: linear-gradient(135deg, hsl(213 70% 48%), hsl(250 65% 52%));
-  box-shadow: 0 10px 28px hsla(213, 70%, 40%, 0.38);
-  transition: transform 0.15s ease, filter 0.15s ease;
+  background: linear-gradient(135deg, #3d7fff 0%, #4d8dff 42%, #6a5cff 100%);
+  box-shadow:
+    0 1px 0 hsla(0, 0%, 100%, 0.18) inset,
+    0 12px 28px hsla(213, 70%, 40%, 0.42);
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
 }
 .start-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  filter: brightness(1.06);
+  filter: brightness(1.07);
+  box-shadow:
+    0 1px 0 hsla(0, 0%, 100%, 0.22) inset,
+    0 16px 34px hsla(213, 70%, 42%, 0.5);
 }
-.start-btn:active:not(:disabled) { transform: translateY(0); }
+.start-btn:active:not(:disabled) {
+  transform: translateY(0);
+  filter: brightness(0.98);
+}
+.start-btn:focus-visible {
+  outline: 2px solid hsla(213, 80%, 70%, 0.85);
+  outline-offset: 3px;
+}
 .start-btn:disabled {
   opacity: 0.55;
-  cursor: default;
+  cursor: not-allowed;
   box-shadow: none;
+  filter: grayscale(0.15);
 }
 
 .advanced {
   width: 100%;
-  max-width: 320px;
+  max-width: none;
 }
 .advanced > summary {
   list-style: none;
