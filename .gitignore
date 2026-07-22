@@ -239,3 +239,9 @@ ssh-keygen
 # Or use husky + a simple check:
 # package.json scripts:
 # "precommit": "node scripts/check-secrets.js"public/storage/ag/
+
+# Firefox WASM demo assets (large; run npm run vendor:firefox-wasm)
+public/firefox-wasm/gecko.wasm.zst
+public/firefox-wasm/chrome-assets.tar.zst
+public/firefox-wasm/assets/
+.tmp-firefox-wasm/

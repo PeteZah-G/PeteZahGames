@@ -54,10 +54,18 @@ import {
   createAnnouncementHandler,
   setAnnouncementActiveHandler,
 } from './api/admin-presence.js';
+import {
+  firefoxVmLimiter,
+  firefoxVmHeartbeatHandler,
+  firefoxVmEndHandler,
+  getFirefoxVmLiveHandler,
+  getFirefoxVmHistoryHandler,
+} from './api/firefox-vm.js';
 import { websocketNormalHandler, websocketTorHandler } from './api/websocket-auth.js';
 import capRouter from './routes/cap.js';
 import { createCapGateMiddleware, sendVerifyPage, requireGateUpgrade } from './middleware/cap-gate.js';
 import { cleanupCapStore } from './cap/store.js';
+import { existsSync } from 'node:fs';
 
 const { createBareServer } = bareServerPkg;
 const SqliteStore = BetterSqlite3Session(session);
@@ -159,6 +167,36 @@ app.use(PX.curl, express.static(l9Path, { index: false }));
 app.use(PX.curl, express.static(libcurlPath, { index: false }));
 app.use('/uploads', createUploadGuard(), express.static(path.join(__dirname, '../uploads'), { dotfiles: 'deny', index: false }));
 
+const firefoxWasmCandidates = [
+  path.join(__dirname, '../public/firefox-wasm'),
+  path.join(__dirname, '../dist/firefox-wasm'),
+];
+const firefoxWasmPath = firefoxWasmCandidates.find((p) => existsSync(p));
+
+if (firefoxWasmPath) {
+  app.use(
+    '/firefox-wasm',
+    (req, res, next) => {
+      const p = req.path || '';
+      const isThanks = p === '/thanks.html';
+      if (!isThanks && !req.session?.user?.id) {
+        return res.status(401).type('text/plain').send('Sign in required');
+      }
+      if (isThanks) {
+        res.setHeader('Cache-Control', 'public, max-age=300');
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      } else {
+        res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+        res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+        res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+        res.setHeader('Cache-Control', 'private, max-age=3600');
+      }
+      next();
+    },
+    express.static(firefoxWasmPath, { index: false, fallthrough: false, dotfiles: 'deny' })
+  );
+}
+
 app.get(PX.sw, (_req, res) => {
   res.setHeader('Content-Type', 'application/javascript');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -216,6 +254,11 @@ app.post('/api/admin/announcements/:id/active', setAnnouncementActiveHandler);
 
 app.post('/api/presence', reportPresenceHandler);
 app.get('/api/announcements/active', getActiveAnnouncementHandler);
+
+app.post('/api/firefox-vm/heartbeat', firefoxVmLimiter, firefoxVmHeartbeatHandler);
+app.post('/api/firefox-vm/end', firefoxVmLimiter, firefoxVmEndHandler);
+app.get('/api/admin/firefox-vm/live', getFirefoxVmLiveHandler);
+app.get('/api/admin/firefox-vm/history', getFirefoxVmHistoryHandler);
 
 app.use(mochiRouter);
 

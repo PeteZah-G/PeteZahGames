@@ -15,6 +15,7 @@ import {
   X,
   MessageCircle,
   Info,
+  Monitor,
   type LucideIcon,
 } from "lucide-react";
 import { Tab } from "@/hooks/useBrowserState";
@@ -27,6 +28,7 @@ import AppsPage from "./AppsPage";
 import MusicPage from "./MusicPage";
 import ChatPage from "./ChatPage";
 import MoviesPage from "./MoviesPage";
+import FirefoxVmPage from "./FirefoxVmPage";
 import AppViewerPage from "./AppViewerPage";
 import ChangelogPage from "./ChangelogPage";
 import FeedbackPage from "./FeedbackPage";
@@ -88,6 +90,13 @@ const DEFAULT_PRESETS: Preset[] = [
     builtIn: true,
   },
   {
+    id: "vm",
+    label: "VM",
+    url: "petezah://vm",
+    icon: "monitor",
+    builtIn: true,
+  },
+  {
     id: "apps",
     label: "Apps",
     url: "petezah://apps",
@@ -110,6 +119,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   gamepad: Gamepad2,
   appwindow: AppWindow,
   chat: MessageCircle,
+  monitor: Monitor,
 };
 
 const VPN_FLAGS: Record<string, ReactNode> = {
@@ -319,7 +329,18 @@ function VpnSelector({ onNavigate }: { onNavigate: (url: string) => void }) {
 function getStoredPresets(): Preset[] {
   try {
     const stored = localStorage.getItem("petezah-presets");
-    if (stored) return JSON.parse(stored);
+    if (stored) {
+      const parsed = JSON.parse(stored) as Preset[];
+      if (!Array.isArray(parsed)) return DEFAULT_PRESETS;
+      const ids = new Set(parsed.map((p) => p.id));
+      const missing = DEFAULT_PRESETS.filter((p) => p.builtIn && !ids.has(p.id));
+      if (missing.length === 0) return parsed;
+      const moviesIdx = parsed.findIndex((p) => p.id === "movies" || p.url === "petezah://movies");
+      const next = [...parsed];
+      if (moviesIdx >= 0) next.splice(moviesIdx + 1, 0, ...missing);
+      else next.push(...missing);
+      return next;
+    }
   } catch {}
   return DEFAULT_PRESETS;
 }
@@ -949,6 +970,7 @@ function TabPane({
   const isMusic = tab.url === "petezah://music" || tab.url.startsWith("petezah://music?");
   const isChat = tab.url === "petezah://chat";
   const isMovies = tab.url === "petezah://movies";
+  const isFirefox = tab.url === "petezah://vm" || tab.url === "petezah://firefox";
   const isUserProfile = tab.url.startsWith("petezah://user/");
   const isGameViewer = tab.url.startsWith("petezah://gameviewer");
   const displayUrl = isGameViewer ? "petezah://gameviewer" : tab.url;
@@ -1058,6 +1080,17 @@ function TabPane({
         style={{ display: isVisible ? "block" : "none" }}
       >
         <MoviesPage onNavigate={onNavigate} />
+      </div>
+    );
+  }
+
+  if (isFirefox) {
+    return (
+      <div
+        className="absolute inset-0"
+        style={{ display: isVisible ? "block" : "none" }}
+      >
+        <FirefoxVmPage onNavigate={onNavigate} />
       </div>
     );
   }

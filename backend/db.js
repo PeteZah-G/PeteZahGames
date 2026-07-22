@@ -168,6 +168,20 @@ db.exec(`
     expires_at INTEGER NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS firefox_vm_sessions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    username TEXT,
+    day TEXT NOT NULL,
+    started_at INTEGER NOT NULL,
+    last_seen INTEGER NOT NULL,
+    ended_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ffvm_day ON firefox_vm_sessions(day);
+  CREATE INDEX IF NOT EXISTS idx_ffvm_started ON firefox_vm_sessions(started_at);
+  CREATE INDEX IF NOT EXISTS idx_ffvm_user ON firefox_vm_sessions(user_id);
+
   CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   CREATE INDEX IF NOT EXISTS idx_users_ip ON users(ip);
   CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);

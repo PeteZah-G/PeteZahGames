@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PeteZah VM · Firefox WASM</title>
+    <link id="favicon" rel="icon" type="image/png" href="/logo.png" />
+    <script type="module" crossorigin src="./assets/index-D39giZCc.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CJZf4zMx.css">
+    <style>
+      :root {
+        --pz-bg: #020810;
+        --pz-accent: #4d8dff;
+        --pz-accent2: #6a5cff;
+        --pz-text: #e8f0fa;
+        --pz-muted: hsla(210, 20%, 70%, 0.55);
+        --pz-line: hsla(210, 40%, 80%, 0.12);
+      }
+      html, body {
+        background:
+          radial-gradient(1000px 560px at 50% -8%, #0c2244 0%, transparent 55%),
+          radial-gradient(700px 400px at 85% 100%, hsla(250, 65%, 40%, 0.1), transparent 50%),
+          var(--pz-bg) !important;
+        color: var(--pz-text);
+      }
+      #splash {
+        background: transparent !important;
+      }
+      .top-nav {
+        background: hsla(216, 28%, 8%, 0.85) !important;
+        border-bottom: 1px solid var(--pz-line) !important;
+        backdrop-filter: blur(12px);
+      }
+      .nav-brand-label, .splash-title, .project-copy, .phase-kicker {
+        color: var(--pz-text) !important;
+      }
+      .nav-brand-label {
+        font-weight: 800 !important;
+        letter-spacing: -0.02em;
+      }
+      .labs-badge {
+        background: linear-gradient(135deg, var(--pz-accent), var(--pz-accent2)) !important;
+        color: #fff !important;
+      }
+      .start-btn {
+        background: linear-gradient(135deg, hsl(213 70% 48%), hsl(250 65% 52%)) !important;
+        border: none !important;
+        box-shadow: 0 10px 28px hsla(213, 70%, 40%, 0.35) !important;
+        color: #fff !important;
+        font-weight: 700 !important;
+      }
+      .start-btn:hover {
+        filter: brightness(1.06);
+      }
+      .launch-panel, .console-box, .option-card, .advanced {
+        background: hsla(216, 32%, 10%, 0.92) !important;
+        border-color: var(--pz-line) !important;
+      }
+      .progress-fill {
+        background: linear-gradient(90deg, var(--pz-accent), var(--pz-accent2)) !important;
+      }
+      .powered-badge {
+        color: var(--pz-muted) !important;
+      }
+      .powered-badge strong {
+        color: var(--pz-accent) !important;
+      }
+      .branding-note, .wisp-copy, .splash-status, .jspi-note {
+        color: var(--pz-muted) !important;
+      }
+      .nav-link {
+        color: var(--pz-muted) !important;
+      }
+      .pz-exit {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-right: 12px;
+        padding: 6px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--pz-line);
+        background: hsla(213, 70%, 48%, 0.12);
+        color: #9ec5ff;
+        font-size: 12px;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .pz-exit:hover { filter: brightness(1.08); }
+      #pz-coi-warn {
+        display: none;
+        max-width: 420px;
+        margin: 12px auto 0;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid hsla(20, 90%, 50%, 0.35);
+        background: hsla(20, 90%, 40%, 0.12);
+        color: #ffd0b0;
+        font-size: 12px;
+        line-height: 1.45;
+        text-align: left;
+      }
+    </style>
+  </head>
+  <body>
+  <script>
+    try {
+      var k = "chrome-demo-opts";
+      var o = JSON.parse(localStorage.getItem(k) || "{}");
+      var proto = location.protocol === "https:" ? "wss:" : "ws:";
+      o.wisp = proto + "//" + location.host + "/api/alt-wisp-3/";
+      if (o.gpu === undefined) o.gpu = true;
+      if (o.jit === undefined) o.jit = false;
+      localStorage.setItem(k, JSON.stringify(o));
+    } catch (e) {}
+
+    (function () {
+      if (window.top !== window.self) {
+        window.top.location.replace(location.href);
+        return;
+      }
+      var sid = "";
+      function beat() {
+        fetch("/api/firefox-vm/heartbeat", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: sid || undefined }),
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (d) { if (d && d.sessionId) sid = d.sessionId; })
+          .catch(function () {});
+      }
+      beat();
+      setInterval(beat, 15000);
+      function end() {
+        if (!sid) return;
+        var body = JSON.stringify({ sessionId: sid });
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon("/api/firefox-vm/end", new Blob([body], { type: "application/json" }));
+        }
+      }
+      window.addEventListener("pagehide", end);
+      document.addEventListener("DOMContentLoaded", function () {
+        if (!self.crossOriginIsolated) {
+          var w = document.getElementById("pz-coi-warn");
+          if (w) w.style.display = "block";
+        }
+      });
+    })();
+  </script>
+
+    <section id="splash" aria-live="polite">
+      <header class="top-nav">
+        <div class="nav-left">
+          <a class="pz-exit" href="/">← Exit to PeteZah</a>
+          <a class="nav-brand" href="/" rel="noreferrer" aria-label="PeteZah">
+            <img src="/logo.png" alt="PeteZah" height="28" style="border-radius:6px" onerror="this.style.display='none'" />
+          </a>
+          <a class="nav-brand-label" href="/" rel="noreferrer">
+            PeteZah <span class="labs-badge">VM</span>
+          </a>
+        </div>
+        <div class="nav-links">
+          <a
+            class="nav-link"
+            href="https://github.com/HeyPuter/firefox-wasm"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="GitHub"
+          >
+            <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+            </svg>
+          </a>
+        </div>
+      </header>
+      <main class="stage">
+        <div id="splash-shell" class="stage-inner" data-phase="loading">
+          <div class="logo-lockup">
+            <span class="logo-tile firefox-tile">
+              <img class="project-logo" src="logo.webp" alt="Firefox" />
+            </span>
+            <span class="logo-x" aria-hidden="true">&times;</span>
+            <span class="logo-tile wasm-tile">
+              <svg class="wasm-mark" viewBox="97.43 0 107.62 107.62" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="WebAssembly">
+                <rect x="97.43" y="0" width="107.62" height="107.62" fill="#fff" />
+                <path fill="#4d8dff" transform="translate(-0.21)" d="M163.76,0c0,.19,0,.38,0,.58a12.34,12.34,0,0,1-24.68,0c0-.2,0-.39,0-.58H97.64V107.62H205.26V0ZM149,96.1l-5.24-25.93h-.09L138,96.1h-7.22L122.6,58h7.13l4.88,25.93h.09L140.58,58h6.67l5.28,26.25h.09L158.19,58h7L156.1,96.1Zm39.26,0-2.43-8.48H173l-1.87,8.48H164L173.22,58h11.25l11.21,38.1Z"/>
+                <polygon fill="#4d8dff" transform="translate(-0.21)" points="177.3 67.39 174.19 81.37 183.87 81.37 180.3 67.39 177.3 67.39"/>
+              </svg>
+            </span>
+          </div>
+          <h1 id="project-title" class="splash-title">PeteZah Firefox VM</h1>
+          <p class="project-copy">
+            Gecko compiled to WebAssembly.<br />
+            A real Firefox UI, running entirely inside PeteZah.
+          </p>
+          <div id="pz-coi-warn">
+            This tab is not cross-origin isolated, so WASM workers cannot start.
+            Open <strong>/firefox-wasm/</strong> as a top-level page (not an iframe) and ensure COOP/COEP headers are present.
+          </div>
+
+          <div id="stage-card" class="launch-panel" data-phase="loading">
+            <div class="panel-loading" aria-label="Loading Firefox">
+              <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <div id="progress-fill" class="progress-fill"></div>
+              </div>
+              <div class="progress-meta">
+                <span id="progress-phase">Preparing</span>
+                <span id="progress-percent"></span>
+              </div>
+              <p id="splash-status" class="splash-status">Preparing PeteZah VM…</p>
+            </div>
+
+            <div class="panel-ready" aria-label="Launch">
+              <button id="start-btn" type="button" class="start-btn">
+                Launch PeteZah VM
+              </button>
+              <p id="jspi-note" class="jspi-note" hidden></p>
+              <details class="advanced">
+                <summary>Advanced options</summary>
+                <div class="splash-controls">
+                  <label class="option-card">
+                    <input type="checkbox" id="opt-gpu" />
+                    <span class="option-copy">
+                      <strong>GPU acceleration</strong>
+                      <span>WebGL-based rendering for web content.</span>
+                    </span>
+                  </label>
+                  <label class="option-card">
+                    <input type="checkbox" id="opt-jit" />
+                    <span class="option-copy">
+                      <strong>Enable JIT</strong>
+                      <span>Experimental JS → WASM JIT. Expect bugs.</span>
+                    </span>
+                  </label>
+                  <label class="wisp-field">
+                    <span>Wisp server</span>
+                    <span class="wisp-copy">
+                      WebSocket proxy that tabs load web content through.
+                    </span>
+                    <input type="text" id="opt-wisp" spellcheck="false" autocomplete="off" aria-label="Wisp server" />
+                  </label>
+                  <p class="branding-note">
+                    Virginia Wisp by default (/api/alt-wisp-3/). Fallback: /wisp/
+                  </p>
+                </div>
+              </details>
+            </div>
+          </div>
+
+          <section class="startup-console" aria-label="Startup console">
+            <p class="phase-kicker">Startup log</p>
+            <div id="console-output" class="console-box" role="log" aria-label="Startup console output"></div>
+          </section>
+        </div>
+
+        <a
+          class="powered-badge"
+          href="https://developer.puter.com/labs/firefox-wasm/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span class="powered-dot" aria-hidden="true"></span>
+          Engine by <strong>Puter</strong> · Firefox in WebAssembly
+        </a>
+      </main>
+    </section>
+    <canvas id="screen" width="1024" height="768" tabindex="0"></canvas>
+  </body>
+</html>

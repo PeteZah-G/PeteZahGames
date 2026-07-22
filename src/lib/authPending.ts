@@ -1,5 +1,5 @@
 export type PendingAuth = {
-  type: "tor" | "movies" | "feedback";
+  type: "tor" | "movies" | "feedback" | "firefox" | "vm";
 };
 
 const KEY = "pz-pending-auth";
@@ -16,7 +16,13 @@ export function consumePendingAuth(): PendingAuth | null {
     sessionStorage.removeItem(KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (parsed?.type === "tor" || parsed?.type === "movies" || parsed?.type === "feedback") {
+    if (
+      parsed?.type === "tor" ||
+      parsed?.type === "movies" ||
+      parsed?.type === "feedback" ||
+      parsed?.type === "firefox" ||
+      parsed?.type === "vm"
+    ) {
       return parsed;
     }
   } catch {}

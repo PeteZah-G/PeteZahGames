@@ -53,6 +53,8 @@ const TabItem = forwardRef<HTMLDivElement, TabItemProps>(
       "petezah://apps": "AP",
       "petezah://music": "M",
       "petezah://movies": "MV",
+      "petezah://firefox": "VM",
+      "petezah://vm": "VM",
       "petezah://gameviewer": "GV",
       "petezah://settings": "S",
       "petezah://account": "AC",

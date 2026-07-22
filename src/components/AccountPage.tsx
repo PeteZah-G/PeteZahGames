@@ -5,7 +5,7 @@ import {
   Zap, ChevronRight, Lock, Mail, KeyRound, Download, Upload, Trash2,
   Megaphone, MessageSquare, Palette, Shield, Sliders, Camera,
   UserCog, Users, Ban, UserMinus, ShieldCheck, ShieldOff, Plus, ExternalLink, Image, Pipette,
-  Music2, MapPin, Link2, Heart, Globe2, Radio,
+  Music2, MapPin, Link2, Heart, Globe2, Radio, Monitor,
 } from "lucide-react";
 import {
   reconcileSettings,
@@ -469,6 +469,16 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   const [liveLoading, setLiveLoading] = useState(false);
   const [liveClients, setLiveClients] = useState(0);
   const [liveUnique, setLiveUnique] = useState(0);
+  const [ffLive, setFfLive] = useState<{ sessionId: string; userId: string; username?: string | null; startedAt: number; lastSeen: number }[]>([]);
+  const [ffLiveCount, setFfLiveCount] = useState(0);
+  const [ffDay, setFfDay] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  });
+  const [ffQuery, setFfQuery] = useState("");
+  const [ffHistory, setFfHistory] = useState<{ sessionId: string; userId: string; username?: string | null; startedAt: number; lastSeen: number; endedAt?: number | null; active?: boolean }[]>([]);
+  const [ffHistoryTotal, setFfHistoryTotal] = useState(0);
+  const [ffHistoryLoading, setFfHistoryLoading] = useState(false);
   const [announcements, setAnnouncements] = useState<{ id: string; title: string; content: string; active: number; created_at: number }[]>([]);
   const [annTitle, setAnnTitle] = useState("");
   const [annContent, setAnnContent] = useState("");
@@ -567,13 +577,17 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
     let cancelled = false;
     const load = () => {
       setLiveLoading(true);
-      fetch("/api/admin/live-sites", { credentials: "include" })
-        .then((r) => r.json())
-        .then((d) => {
+      Promise.all([
+        fetch("/api/admin/live-sites", { credentials: "include" }).then((r) => r.json()),
+        fetch("/api/admin/firefox-vm/live", { credentials: "include" }).then((r) => r.json()).catch(() => ({ sessions: [], active: 0 })),
+      ])
+        .then(([sites, ff]) => {
           if (cancelled) return;
-          setLiveSites(d.sites || []);
-          setLiveClients(d.clients || 0);
-          setLiveUnique(d.unique || 0);
+          setLiveSites(sites.sites || []);
+          setLiveClients(sites.clients || 0);
+          setLiveUnique(sites.unique || 0);
+          setFfLive(ff.sessions || []);
+          setFfLiveCount(ff.active || 0);
         })
         .finally(() => {
           if (!cancelled) setLiveLoading(false);
@@ -586,6 +600,29 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       window.clearInterval(t);
     };
   }, [section, user]);
+
+  const loadFfHistory = useCallback(() => {
+    if (!(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
+    setFfHistoryLoading(true);
+    const params = new URLSearchParams({ day: ffDay, limit: "100" });
+    if (ffQuery.trim()) params.set("q", ffQuery.trim());
+    fetch(`/api/admin/firefox-vm/history?${params}`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        setFfHistory(d.sessions || []);
+        setFfHistoryTotal(d.total || 0);
+      })
+      .catch(() => {
+        setFfHistory([]);
+        setFfHistoryTotal(0);
+      })
+      .finally(() => setFfHistoryLoading(false));
+  }, [user, ffDay, ffQuery]);
+
+  useEffect(() => {
+    if (section !== "live" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
+    loadFfHistory();
+  }, [section, user, loadFfHistory]);
 
   useEffect(() => {
     if (section !== "updates" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
@@ -684,6 +721,8 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
           onNavigate("petezah://movies");
         } else if (pending?.type === "feedback") {
           onNavigate("petezah://feedback");
+        } else if (pending?.type === "firefox" || pending?.type === "vm") {
+          onNavigate("petezah://vm");
         }
       }
     } catch { setAuthErr("Network error. Please try again."); }
@@ -1834,6 +1873,99 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                     ))}
                   </div>
                 )}
+                <div style={{ marginTop: 22, paddingTop: 18, borderTop: `1px solid ${C.border}` }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                    <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                      <Monitor size={14} style={{ color: C.accent }} />
+                      Firefox VM
+                    </h3>
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: `${C.accentDim}40`, border: `1px solid ${C.borderFocus}`, color: C.accent }}>
+                      {ffLiveCount} active
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 12px" }}>
+                    Live sessions (heartbeat) · history searchable by day
+                  </p>
+                  {ffLive.length === 0 ? (
+                    <p style={{ fontSize: 12, color: C.textMuted, margin: "0 0 14px" }}>No active Firefox VM sessions</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: "28vh", overflowY: "auto", marginBottom: 14 }}>
+                      {ffLive.map((s) => (
+                        <div key={s.sessionId} style={{
+                          display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9,
+                          background: C.surface, border: `1px solid ${C.border}`,
+                        }}>
+                          <Monitor size={12} style={{ color: C.accent, flexShrink: 0 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ margin: 0, fontSize: 12, color: C.text }}>
+                              {s.username ? `@${s.username}` : s.userId.slice(0, 8)}
+                            </p>
+                            <p style={{ margin: "2px 0 0", fontSize: 10, color: C.textMuted }}>
+                              opened {new Date(s.startedAt).toLocaleString()} · last seen {Math.max(0, Math.round((Date.now() - s.lastSeen) / 1000))}s ago
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10, alignItems: "center" }}>
+                    <input
+                      type="date"
+                      value={ffDay}
+                      onChange={(e) => setFfDay(e.target.value)}
+                      style={{
+                        background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
+                        color: C.text, fontSize: 12, padding: "7px 10px", outline: "none",
+                      }}
+                    />
+                    <input
+                      value={ffQuery}
+                      onChange={(e) => setFfQuery(e.target.value)}
+                      placeholder="Search user / id"
+                      style={{
+                        flex: 1, minWidth: 120, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
+                        color: C.text, fontSize: 12, padding: "7px 10px", outline: "none",
+                      }}
+                    />
+                    <button
+                      onClick={loadFfHistory}
+                      disabled={ffHistoryLoading}
+                      style={{
+                        padding: "7px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                        border: `1px solid ${C.borderFocus}`, background: C.accentDim, color: C.accent,
+                        opacity: ffHistoryLoading ? 0.6 : 1,
+                      }}
+                    >
+                      {ffHistoryLoading ? "…" : "Search"}
+                    </button>
+                  </div>
+                  <p style={{ fontSize: 10, color: C.textMuted, margin: "0 0 8px" }}>
+                    {ffHistoryTotal} session{ffHistoryTotal === 1 ? "" : "s"} on {ffDay}
+                  </p>
+                  {ffHistory.length === 0 ? (
+                    <p style={{ fontSize: 12, color: C.textMuted }}>No sessions for this day</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: "32vh", overflowY: "auto" }}>
+                      {ffHistory.map((s) => (
+                        <div key={s.sessionId} style={{
+                          padding: "9px 12px", borderRadius: 9, background: C.surface, border: `1px solid ${C.border}`,
+                        }}>
+                          <p style={{ margin: 0, fontSize: 12, color: C.text }}>
+                            {s.username ? `@${s.username}` : s.userId.slice(0, 8)}
+                            {s.active ? (
+                              <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: C.success }}>LIVE</span>
+                            ) : null}
+                          </p>
+                          <p style={{ margin: "2px 0 0", fontSize: 10, color: C.textMuted }}>
+                            {new Date(s.startedAt).toLocaleString()}
+                            {" → "}
+                            {s.endedAt ? new Date(s.endedAt).toLocaleString() : "open"}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

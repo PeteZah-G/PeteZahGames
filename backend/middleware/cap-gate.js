@@ -11,6 +11,7 @@ const OPEN_EXACT = new Set([
   '/logo.png',
   '/favicon.ico',
   '/robots.txt',
+  '/firefox-wasm/thanks.html',
 ]);
 
 const OPEN_PREFIX = ['/cap/'];

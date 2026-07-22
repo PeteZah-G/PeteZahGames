@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "start": "NODE_ENV=production node backend/server.js",
-    "start:dev": "concurrently \"vite\" \"node backend/server.js\""
+    "start:dev": "concurrently \"vite\" \"node backend/server.js\"",
+    "vendor:firefox-wasm": "node scripts/vendor-firefox-wasm.mjs"
   },
   "engines": {
     "node": ">=22.0.0"

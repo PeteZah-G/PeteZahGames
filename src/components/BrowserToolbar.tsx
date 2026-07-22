@@ -18,6 +18,7 @@ import {
   Music,
   Film,
   AppWindow,
+  Monitor,
   Plus,
   ZoomIn,
   ZoomOut,
@@ -436,6 +437,16 @@ export default function Toolbar({
                 >
                   <Film size={13} className="text-foreground/40" />
                   <span className="flex-1 text-left">Movies</span>
+                </button>
+                <button
+                  onClick={() => {
+                    onNavigate("petezah://vm");
+                    setMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
+                >
+                  <Monitor size={13} className="text-foreground/40" />
+                  <span className="flex-1 text-left">VM</span>
                 </button>
                 <button
                   onClick={() => {

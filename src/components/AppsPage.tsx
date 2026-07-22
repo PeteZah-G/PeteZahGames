@@ -25,6 +25,7 @@ const BUILT_IN_APPS: App[] = [
   { id: "pete-ai", label: "PeteAI", url: "petezah://ai", imageUrl: "/storage/images/PeteAI.png", external: true },
   { id: "pete-music", label: "Music", url: "petezah://music", imageUrl: "/storage/images/petemusic-removebg-preview.png", external: true },
   { id: "pete-movies", label: "Movies", url: "petezah://movies", imageUrl: "/storage/images/pete-movies.png", external: true },
+  { id: "pete-firefox", label: "VM", url: "petezah://vm", imageUrl: "/storage/images/pete-firefox.webp", external: true },
   { id: "pete-chat", label: "PeteChat", url: "petezah://chat", imageUrl: "/storage/images/vortex-petezah.webp", external: true },
   { id: "google", label: "Google", url: "https://www.google.com", imageUrl: "/storage/ag/apps/google/IMG_5324.webp" },
   { id: "youtube", label: "YouTube", url: "https://youtube.com", imageUrl: "/storage/ag/apps/youtube/IMG_5338.webp" },

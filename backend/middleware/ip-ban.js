@@ -24,7 +24,7 @@ export function createIpBanMiddleware() {
   return (req, res, next) => {
     const ip = getClientIP(req);
     if (ip && isIpBanned(ip)) {
-      return res.status(403).json({ error: 'Access denied.' });
+      return res.status(403).json({ error: 'Access denied.  You have been banned for violating our terms of service, please do not enter the site again.' });
     }
     next();
   };

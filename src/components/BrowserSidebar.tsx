@@ -14,6 +14,7 @@ import {
   Gamepad2,
   AppWindow,
   MessageCircle,
+  Monitor,
 } from "lucide-react";
 import { TabList } from "@/components/TabItem";
 import { Tab, Space } from "@/hooks/useBrowserState";
@@ -49,6 +50,7 @@ const SIDEBAR_FEATURES = [
   { icon: Bot, label: "AI", url: "petezah://ai" },
   { icon: Music, label: "Music", url: "petezah://music" },
   { icon: Film, label: "Movies", url: "petezah://movies" },
+  { icon: Monitor, label: "VM", url: "petezah://vm" },
   { icon: MessageCircle, label: "Chat", url: "petezah://chat" },
 ];
 
