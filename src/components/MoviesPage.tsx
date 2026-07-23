@@ -68,7 +68,7 @@ interface PlayerState {
 }
 
 const S = {
-  bg: "hsl(216 32% 6%)",
+  bg: "transparent",
   surface: "hsl(216 26% 9%)",
   elevated: "hsl(216 22% 12%)",
   border: "hsl(216 20% 16%)",

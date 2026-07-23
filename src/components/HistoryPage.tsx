@@ -11,91 +11,7 @@ export interface HistoryEntry {
   isProxied: boolean;
 }
 
-function FluidCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const mouseRef = useRef({ x: -1000, y: -1000 });
-  const animRef = useRef<number>(0);
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const resize = () => {
-      const dpr = window.devicePixelRatio || 1;
-      const parent = canvas.parentElement;
-      const w = parent ? parent.clientWidth : canvas.offsetWidth;
-      const h = parent ? parent.clientHeight : canvas.offsetHeight;
-      canvas.width = Math.floor(w * dpr);
-      canvas.height = Math.floor(h * dpr);
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.scale(dpr, dpr);
-    };
-    resize();
-    window.addEventListener("resize", resize);
-    const blobs = Array.from({ length: 6 }, (_, i) => ({
-      x: Math.random() * (canvas.offsetWidth || 800),
-      y: Math.random() * (canvas.offsetHeight || 600),
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: (Math.random() - 0.5) * 0.3,
-      radius: 140 + Math.random() * 200,
-      hue: 200 + i * 10,
-      saturation: 60 + Math.random() * 25,
-      lightness: 40 + Math.random() * 15,
-      opacity: 0.15 + Math.random() * 0.12,
-    }));
-    let time = 0;
-    const animate = () => {
-      time += 0.003;
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-      ctx.clearRect(0, 0, w, h);
-      blobs.forEach((b) => {
-        b.x += b.vx + Math.sin(time + b.hue) * 0.15;
-        b.y += b.vy + Math.cos(time * 0.7 + b.hue) * 0.15;
-        const dx = mouseRef.current.x - b.x;
-        const dy = mouseRef.current.y - b.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 300) { b.x += dx * 0.003; b.y += dy * 0.003; }
-        if (b.x < -b.radius) b.x = w + b.radius;
-        if (b.x > w + b.radius) b.x = -b.radius;
-        if (b.y < -b.radius) b.y = h + b.radius;
-        if (b.y > h + b.radius) b.y = -b.radius;
-        const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.radius);
-        grad.addColorStop(0, `hsla(${b.hue},${b.saturation}%,${b.lightness}%,${b.opacity * 2.2})`);
-        grad.addColorStop(0.4, `hsla(${b.hue},${b.saturation}%,${b.lightness}%,${b.opacity * 1.1})`);
-        grad.addColorStop(1, `hsla(${b.hue},${b.saturation}%,${b.lightness}%,0)`);
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, w, h);
-      });
-      for (let i = 0; i < 3; i++) {
-        const wx = w * (0.2 + i * 0.3) + Math.sin(time * 0.5 + i) * 60;
-        const wy = h * (0.3 + i * 0.2) + Math.cos(time * 0.4 + i * 2) * 40;
-        const wg = ctx.createRadialGradient(wx, wy, 0, wx, wy, 120);
-        wg.addColorStop(0, "hsla(210,70%,90%,0.07)");
-        wg.addColorStop(1, "hsla(210,60%,90%,0)");
-        ctx.fillStyle = wg;
-        ctx.fillRect(0, 0, w, h);
-      }
-      animRef.current = requestAnimationFrame(animate);
-    };
-    animate();
-    const handleMouse = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    };
-    canvas.addEventListener("mousemove", handleMouse);
-    return () => {
-      window.removeEventListener("resize", resize);
-      canvas.removeEventListener("mousemove", handleMouse);
-      cancelAnimationFrame(animRef.current);
-    };
-  }, []);
-  return (
-    <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
-      <canvas ref={canvasRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "block" }} />
-    </div>
-  );
-}
+
 
 export function getHistory(): HistoryEntry[] {
   try { return JSON.parse(localStorage.getItem("petezah-history") || "[]"); } catch { return []; }
@@ -145,7 +61,6 @@ function getDomain(url: string) {
 }
 
 const S = {
-  bg: "hsl(216 32% 6%)",
   surface: "hsl(216 26% 9%)",
   elevated: "hsl(216 22% 12%)",
   border: "hsl(216 20% 16%)",
@@ -196,8 +111,7 @@ export default function HistoryPage({ onNavigate }: { onNavigate: (url: string) 
   }
 
   return (
-    <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: S.bg }}>
-      <FluidCanvas />
+    <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "transparent" }}>
       <div style={{ position: "relative", zIndex: 10, height: "100%", display: "flex", flexDirection: "column" }}>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "28px 32px 16px", flexShrink: 0 }}>

@@ -88,79 +88,6 @@ function saveHiddenApps(hidden: string[]) {
   try { localStorage.setItem("hiddenApps", JSON.stringify(hidden)); requestSyncSoon(); } catch {}
 }
 
-function FluidCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animRef = useRef<number>(0);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const resize = () => {
-      const dpr = window.devicePixelRatio || 1;
-      const parent = canvas.parentElement;
-      const w = parent ? parent.clientWidth : canvas.offsetWidth;
-      const h = parent ? parent.clientHeight : canvas.offsetHeight;
-      canvas.width = Math.floor(w * dpr);
-      canvas.height = Math.floor(h * dpr);
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.scale(dpr, dpr);
-    };
-    resize();
-    window.addEventListener("resize", resize);
-    const blobs = Array.from({ length: 6 }, (_, i) => ({
-      x: Math.random() * (canvas.offsetWidth || 800),
-      y: Math.random() * (canvas.offsetHeight || 600),
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: (Math.random() - 0.5) * 0.3,
-      radius: 140 + Math.random() * 200,
-      hue: 200 + i * 10,
-      saturation: 60 + Math.random() * 25,
-      lightness: 40 + Math.random() * 15,
-      opacity: 0.15 + Math.random() * 0.12,
-    }));
-    let time = 0;
-    const animate = () => {
-      time += 0.003;
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-      ctx.clearRect(0, 0, w, h);
-      blobs.forEach((b) => {
-        b.x += b.vx + Math.sin(time + b.hue) * 0.15;
-        b.y += b.vy + Math.cos(time * 0.7 + b.hue) * 0.15;
-        if (b.x < -b.radius) b.x = w + b.radius;
-        if (b.x > w + b.radius) b.x = -b.radius;
-        if (b.y < -b.radius) b.y = h + b.radius;
-        if (b.y > h + b.radius) b.y = -b.radius;
-        const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.radius);
-        grad.addColorStop(0, `hsla(${b.hue}, ${b.saturation}%, ${b.lightness}%, ${b.opacity * 2.2})`);
-        grad.addColorStop(0.4, `hsla(${b.hue}, ${b.saturation}%, ${b.lightness}%, ${b.opacity * 1.1})`);
-        grad.addColorStop(1, `hsla(${b.hue}, ${b.saturation}%, ${b.lightness}%, 0)`);
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, w, h);
-      });
-      for (let i = 0; i < 3; i++) {
-        const wx = w * (0.2 + i * 0.3) + Math.sin(time * 0.5 + i) * 60;
-        const wy = h * (0.3 + i * 0.2) + Math.cos(time * 0.4 + i * 2) * 40;
-        const wg = ctx.createRadialGradient(wx, wy, 0, wx, wy, 120);
-        wg.addColorStop(0, "hsla(210, 70%, 90%, 0.07)");
-        wg.addColorStop(1, "hsla(210, 60%, 90%, 0)");
-        ctx.fillStyle = wg;
-        ctx.fillRect(0, 0, w, h);
-      }
-      animRef.current = requestAnimationFrame(animate);
-    };
-    animate();
-    return () => { window.removeEventListener("resize", resize); cancelAnimationFrame(animRef.current); };
-  }, []);
-
-  return (
-    <div style={{ position: "fixed", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
-      <canvas ref={canvasRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "block" }} />
-    </div>
-  );
-}
 
 function HypeAd() {
   const ref = useRef<HTMLDivElement>(null);
@@ -398,7 +325,6 @@ export default function AppsPage({ onNavigate }: AppsPageProps) {
 
   return (
     <div className="absolute inset-0 flex flex-col overflow-hidden">
-      <FluidCanvas />
       <div className="flex-shrink-0 relative z-10 px-6 pt-5 pb-3"
         style={{ backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", background: "rgba(5, 10, 20, 0.35)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
         <div className="max-w-4xl mx-auto">
