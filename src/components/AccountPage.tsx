@@ -5,7 +5,7 @@ import {
   Zap, ChevronRight, Lock, Mail, KeyRound, Download, Upload, Trash2,
   Megaphone, MessageSquare, Palette, Shield, Sliders, Camera,
   UserCog, Users, Ban, UserMinus, ShieldCheck, ShieldOff, Plus, ExternalLink, Image, Pipette,
-  Music2, MapPin, Link2, Heart, Globe2, Radio, Monitor,
+  Music2, MapPin, Link2, Heart, Globe2, Radio, Monitor, BarChart3, Copy,
 } from "lucide-react";
 import {
   reconcileSettings,
@@ -23,6 +23,7 @@ interface AuthUser {
   profile_color?: string; banner_url?: string | null;
   favorite_music?: FavTrack[]; profile_public?: boolean; show_activity?: boolean;
   avatar_url?: string; is_admin?: number; is_owner?: boolean; created_at?: number;
+  email_verified?: boolean | number; totp_enabled?: boolean | number;
 }
 interface FavTrack {
   id: string; title: string; artist: string; artwork: string | null;
@@ -57,7 +58,7 @@ const SITE_PRESETS = [
   { id: "petezah",   label: "PeteZah",           favicon: "/logo.png" },
 ];
 
-type Section = "profile" | "appearance" | "cloaking" | "behavior" | "data" | "admin" | "live" | "updates";
+type Section = "profile" | "get-links" | "appearance" | "cloaking" | "behavior" | "data" | "admin" | "live" | "firefox-vm" | "link-stats" | "updates";
 
 const THEME_COLORS: Record<string, { bgColor: string; textColor: string }> = {
   "default":         { bgColor: "#020810", textColor: "#e8f0fa" },
@@ -392,12 +393,15 @@ function ApplyBtn({ saved, onClick }: { saved: boolean; onClick: () => void }) {
 
 const NAV: { id: Section; label: string; icon: any; adminOnly?: boolean }[] = [
   { id: "profile",    label: "Profile",     icon: User },
+  { id: "get-links",  label: "Get Links",   icon: Link2 },
   { id: "appearance", label: "Appearance",  icon: Palette },
   { id: "cloaking",   label: "Cloaking",    icon: Shield },
   { id: "behavior",   label: "Behavior",    icon: Sliders },
   { id: "data",       label: "Data",        icon: Download },
   { id: "admin",      label: "Admin",       icon: UserCog, adminOnly: true },
   { id: "live",       label: "Live Sites",  icon: Radio, adminOnly: true },
+  { id: "firefox-vm", label: "Firefox VM",  icon: Monitor, adminOnly: true },
+  { id: "link-stats", label: "Link Stats",  icon: BarChart3, adminOnly: true },
   { id: "updates",    label: "Global Update", icon: Megaphone, adminOnly: true },
 ];
 
@@ -485,6 +489,31 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   const [annBusy, setAnnBusy] = useState(false);
   const [annMsg, setAnnMsg] = useState("");
 
+  const [linksStatus, setLinksStatus] = useState<{
+    emailVerified: boolean;
+    totpEnabled: boolean;
+    weeklyLimit: number;
+    remaining: number;
+    weekEndsAt: number;
+    claims: { id: string; blocker: string; link: string; claimedAt: number }[];
+    blockers: string[];
+    availableBlockers: string[];
+  } | null>(null);
+  const [linksLoading, setLinksLoading] = useState(false);
+  const [linksErr, setLinksErr] = useState("");
+  const [linksMsg, setLinksMsg] = useState("");
+  const [selectedBlocker, setSelectedBlocker] = useState("securly");
+  const [claimCode, setClaimCode] = useState("");
+  const [claimBusy, setClaimBusy] = useState(false);
+  const [totpSetup, setTotpSetup] = useState<{ secret: string; qrDataUrl: string } | null>(null);
+  const [totpCode, setTotpCode] = useState("");
+  const [totpBusy, setTotpBusy] = useState(false);
+  const [disablePassword, setDisablePassword] = useState("");
+  const [disableCode, setDisableCode] = useState("");
+  const [linkStats, setLinkStats] = useState<any>(null);
+  const [linkStatsLoading, setLinkStatsLoading] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+
   function hydrateProfile(u: AuthUser) {
     setUsername(u.username || "");
     setBio(u.bio || "");
@@ -512,6 +541,16 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
         }
       })
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    try {
+      const wanted = sessionStorage.getItem("pz-account-section");
+      if (wanted === "get-links" || wanted === "profile" || wanted === "appearance") {
+        sessionStorage.removeItem("pz-account-section");
+        setSection(wanted as Section);
+      }
+    } catch {}
   }, []);
 
   const loadLocalSettings = useCallback(() => {
@@ -577,17 +616,13 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
     let cancelled = false;
     const load = () => {
       setLiveLoading(true);
-      Promise.all([
-        fetch("/api/admin/live-sites", { credentials: "include" }).then((r) => r.json()),
-        fetch("/api/admin/firefox-vm/live", { credentials: "include" }).then((r) => r.json()).catch(() => ({ sessions: [], active: 0 })),
-      ])
-        .then(([sites, ff]) => {
+      fetch("/api/admin/live-sites", { credentials: "include" })
+        .then((r) => r.json())
+        .then((sites) => {
           if (cancelled) return;
           setLiveSites(sites.sites || []);
           setLiveClients(sites.clients || 0);
           setLiveUnique(sites.unique || 0);
-          setFfLive(ff.sessions || []);
-          setFfLiveCount(ff.active || 0);
         })
         .finally(() => {
           if (!cancelled) setLiveLoading(false);
@@ -620,9 +655,82 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   }, [user, ffDay, ffQuery]);
 
   useEffect(() => {
-    if (section !== "live" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
+    if (section !== "firefox-vm" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
+    let cancelled = false;
+    const load = () => {
+      fetch("/api/admin/firefox-vm/live", { credentials: "include" })
+        .then((r) => r.json())
+        .then((ff) => {
+          if (cancelled) return;
+          setFfLive(ff.sessions || []);
+          setFfLiveCount(ff.active || 0);
+        })
+        .catch(() => {});
+    };
+    load();
+    const t = window.setInterval(load, 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
+  }, [section, user]);
+
+  useEffect(() => {
+    if (section !== "firefox-vm" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
     loadFfHistory();
   }, [section, user, loadFfHistory]);
+
+  const loadLinksStatus = useCallback(() => {
+    if (!user) return;
+    setLinksLoading(true);
+    setLinksErr("");
+    fetch("/api/links/status", { credentials: "include" })
+      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (!ok) {
+          setLinksErr(d.error || "Failed to load");
+          return;
+        }
+        setLinksStatus(d);
+        setSelectedBlocker((prev) => {
+          if (d.availableBlockers?.length && !d.availableBlockers.includes(prev)) {
+            return d.availableBlockers[0];
+          }
+          return prev;
+        });
+      })
+      .catch(() => setLinksErr("Network error"))
+      .finally(() => setLinksLoading(false));
+  }, [user]);
+
+  useEffect(() => {
+    if (section === "get-links" && user) loadLinksStatus();
+  }, [section, user, loadLinksStatus]);
+
+  useEffect(() => {
+    if (section !== "link-stats" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
+    let cancelled = false;
+    const load = () => {
+      setLinkStatsLoading(true);
+      fetch("/api/admin/link-stats", { credentials: "include" })
+        .then((r) => r.json())
+        .then((d) => {
+          if (!cancelled) setLinkStats(d);
+        })
+        .catch(() => {
+          if (!cancelled) setLinkStats(null);
+        })
+        .finally(() => {
+          if (!cancelled) setLinkStatsLoading(false);
+        });
+    };
+    load();
+    const t = window.setInterval(load, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
+  }, [section, user]);
 
   useEffect(() => {
     if (section !== "updates" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
@@ -703,7 +811,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       });
       const d = await r.json();
       if (!r.ok) setAuthErr(d.error || "Something went wrong");
-      else if (authMode === "signup") { setAuthOk(d.message || "Account created! Sign in now."); setAuthMode("signin"); setPassword(""); }
+      else if (authMode === "signup") { setAuthOk(d.message || "Account created! Check your email to verify."); setAuthMode("signin"); setPassword(""); }
       else {
         setUser(d.user);
         hydrateProfile(d.user);
@@ -727,6 +835,143 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       }
     } catch { setAuthErr("Network error. Please try again."); }
     finally { setAuthLoading(false); }
+  }
+
+  async function resendVerification() {
+    if (!email.trim()) {
+      setAuthErr("Enter your email first.");
+      return;
+    }
+    setResendBusy(true);
+    setAuthErr("");
+    setAuthOk("");
+    try {
+      const r = await fetch("/api/verify-email/resend", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const d = await r.json();
+      if (!r.ok) setAuthErr(d.error || "Could not resend");
+      else setAuthOk(d.message || "Check your inbox.");
+    } catch {
+      setAuthErr("Network error.");
+    } finally {
+      setResendBusy(false);
+    }
+  }
+
+  async function startTotpSetup() {
+    setTotpBusy(true);
+    setLinksErr("");
+    setLinksMsg("");
+    try {
+      const r = await fetch("/api/links/2fa/setup", { method: "POST", credentials: "include" });
+      const d = await r.json();
+      if (!r.ok) {
+        setLinksErr(d.error || "Setup failed");
+        return;
+      }
+      setTotpSetup({ secret: d.secret, qrDataUrl: d.qrDataUrl });
+      setTotpCode("");
+    } catch {
+      setLinksErr("Network error");
+    } finally {
+      setTotpBusy(false);
+    }
+  }
+
+  async function enableTotp() {
+    setTotpBusy(true);
+    setLinksErr("");
+    try {
+      const r = await fetch("/api/links/2fa/enable", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: totpCode.trim() }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        setLinksErr(d.error || "Invalid code");
+        return;
+      }
+      setTotpSetup(null);
+      setTotpCode("");
+      setLinksMsg("2FA enabled");
+      setUser((u) => (u ? { ...u, totp_enabled: true } : u));
+      loadLinksStatus();
+      setTimeout(() => setLinksMsg(""), 2500);
+    } catch {
+      setLinksErr("Network error");
+    } finally {
+      setTotpBusy(false);
+    }
+  }
+
+  async function disableTotp() {
+    setTotpBusy(true);
+    setLinksErr("");
+    try {
+      const r = await fetch("/api/links/2fa/disable", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: disableCode.trim(), password: disablePassword }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        setLinksErr(d.error || "Could not disable 2FA");
+        return;
+      }
+      setDisableCode("");
+      setDisablePassword("");
+      setLinksMsg("2FA disabled");
+      setUser((u) => (u ? { ...u, totp_enabled: false } : u));
+      loadLinksStatus();
+      setTimeout(() => setLinksMsg(""), 2500);
+    } catch {
+      setLinksErr("Network error");
+    } finally {
+      setTotpBusy(false);
+    }
+  }
+
+  async function claimLink() {
+    setClaimBusy(true);
+    setLinksErr("");
+    setLinksMsg("");
+    try {
+      const body: Record<string, string> = { blocker: selectedBlocker };
+      if (linksStatus?.totpEnabled) body.code = claimCode.trim();
+      const r = await fetch("/api/links/claim", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        setLinksErr(d.error || "Claim failed");
+        return;
+      }
+      setClaimCode("");
+      setLinksMsg(`Got link: ${d.claim?.link}`);
+      loadLinksStatus();
+    } catch {
+      setLinksErr("Network error");
+    } finally {
+      setClaimBusy(false);
+    }
+  }
+
+  async function copyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setLinksMsg("Copied");
+      setTimeout(() => setLinksMsg(""), 1500);
+    } catch {}
   }
 
   async function saveProfile() {
@@ -996,6 +1241,19 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
             onMouseLeave={e => (e.currentTarget.style.color = C.textSub)}>
             {authMode === "signin" ? "No account? Create one" : "Already have an account? Sign in"}
           </button>
+          {authMode === "signin" && (
+            <button
+              type="button"
+              onClick={resendVerification}
+              disabled={resendBusy}
+              style={{
+                width: "100%", marginTop: 8, background: "none", border: "none", cursor: resendBusy ? "not-allowed" : "pointer",
+                fontSize: 11, color: C.accent, textAlign: "center", opacity: resendBusy ? 0.6 : 1,
+              }}
+            >
+              {resendBusy ? "Sending…" : "Resend verification email"}
+            </button>
+          )}
         </div>
         <div style={{ marginTop: "12px" }}>
           <HypeAd />
@@ -1246,6 +1504,220 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {section === "get-links" && (
+              <div style={{ maxWidth: "520px" }}>
+                <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: "0 0 3px" }}>Get Links</h2>
+                <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 18px" }}>
+                  Verified accounts get {linksStatus?.weeklyLimit ?? 2} links per week. This week&apos;s claims stay visible until the week resets.
+                </p>
+
+                {linksLoading && !linksStatus ? (
+                  <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
+                    <Loader2 size={18} className="animate-spin" style={{ color: C.accent }} />
+                  </div>
+                ) : (
+                  <>
+                    <div style={{
+                      display: "flex", flexDirection: "column", gap: 8, padding: "12px 14px", borderRadius: 10,
+                      background: C.surface, border: `1px solid ${C.border}`, marginBottom: 16,
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
+                        <span style={{ color: C.textSub }}>Email</span>
+                        <span style={{ color: linksStatus?.emailVerified ? C.success : C.danger, fontWeight: 600 }}>
+                          {linksStatus?.emailVerified ? "Verified" : "Not verified"}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
+                        <span style={{ color: C.textSub }}>Remaining this week</span>
+                        <span style={{ color: C.text, fontWeight: 600 }}>
+                          {linksStatus?.remaining ?? 0} / {linksStatus?.weeklyLimit ?? 2}
+                        </span>
+                      </div>
+                      {linksStatus?.weekEndsAt ? (
+                        <p style={{ margin: 0, fontSize: 10, color: C.textMuted }}>
+                          Week resets {new Date(linksStatus.weekEndsAt).toLocaleString()}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    {!linksStatus?.emailVerified && (
+                      <div style={{
+                        padding: "12px 14px", borderRadius: 10, marginBottom: 16,
+                        background: "hsl(0 60% 50% / 0.08)", border: "1px solid hsl(0 60% 50% / 0.2)",
+                        color: "hsl(0 60% 68%)", fontSize: 12, lineHeight: 1.45,
+                      }}>
+                        Verify your email to request links. Check your inbox or use Resend on the sign-in screen if needed.
+                      </div>
+                    )}
+
+                    <Divider />
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 10px", display: "flex", alignItems: "center", gap: 6 }}>
+                      <ShieldCheck size={11} /> Two-factor authentication
+                    </p>
+                    <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 12px" }}>
+                      Optional but recommended. When enabled, claiming a link requires your authenticator code.
+                    </p>
+
+                    {linksStatus?.totpEnabled ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                        <div style={{
+                          display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8,
+                          background: "hsl(145 50% 42% / 0.1)", border: "1px solid hsl(145 50% 42% / 0.25)",
+                          color: C.success, fontSize: 12, fontWeight: 600,
+                        }}>
+                          <ShieldCheck size={12} /> 2FA is on
+                        </div>
+                        <Field type="password" value={disablePassword} onChange={(e: any) => setDisablePassword(e.target.value)} placeholder="Account password" icon={Lock} />
+                        <Field value={disableCode} onChange={(e: any) => setDisableCode(e.target.value)} placeholder="6-digit code" icon={KeyRound} maxLength={6} />
+                        <button
+                          onClick={disableTotp}
+                          disabled={totpBusy}
+                          style={{
+                            alignSelf: "flex-start", padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                            background: "hsl(0 60% 50% / 0.1)", border: "1px solid hsl(0 60% 50% / 0.25)", color: C.danger,
+                            opacity: totpBusy ? 0.6 : 1,
+                          }}
+                        >
+                          Disable 2FA
+                        </button>
+                      </div>
+                    ) : totpSetup ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+                        <img src={totpSetup.qrDataUrl} alt="2FA QR" style={{ width: 160, height: 160, borderRadius: 10, alignSelf: "flex-start", background: "#fff" }} />
+                        <p style={{ margin: 0, fontSize: 11, color: C.textSub, wordBreak: "break-all" }}>
+                          Secret: <span style={{ color: C.text, fontFamily: "monospace" }}>{totpSetup.secret}</span>
+                        </p>
+                        <Field value={totpCode} onChange={(e: any) => setTotpCode(e.target.value)} placeholder="Enter code from app" icon={KeyRound} maxLength={6} />
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            onClick={enableTotp}
+                            disabled={totpBusy || totpCode.trim().length !== 6}
+                            style={{
+                              padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                              background: C.accentDim, border: `1px solid ${C.borderFocus}`, color: C.accent,
+                              opacity: totpBusy ? 0.6 : 1,
+                            }}
+                          >
+                            Confirm & enable
+                          </button>
+                          <button
+                            onClick={() => { setTotpSetup(null); setTotpCode(""); }}
+                            style={{
+                              padding: "8px 14px", borderRadius: 8, fontSize: 12, cursor: "pointer",
+                              background: C.elevated, border: `1px solid ${C.border}`, color: C.textSub,
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={startTotpSetup}
+                        disabled={totpBusy || !linksStatus?.emailVerified}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 7, padding: "8px 14px", borderRadius: 8, marginBottom: 16,
+                          background: C.accentDim, border: `1px solid ${C.borderFocus}`, color: C.accent,
+                          fontSize: 12, fontWeight: 600, cursor: linksStatus?.emailVerified ? "pointer" : "not-allowed",
+                          opacity: !linksStatus?.emailVerified || totpBusy ? 0.55 : 1,
+                        }}
+                      >
+                        <Shield size={12} /> Set up 2FA
+                      </button>
+                    )}
+
+                    <Divider />
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 10px" }}>
+                      Request a link
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+                      <label style={{ display: "block", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: C.textMuted }}>Blocker</label>
+                      <select
+                        value={selectedBlocker}
+                        onChange={(e) => setSelectedBlocker(e.target.value)}
+                        style={{
+                          width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
+                          color: C.text, fontSize: 12, padding: "9px 11px", outline: "none",
+                        }}
+                      >
+                        {(linksStatus?.blockers || []).map((b) => (
+                          <option key={b} value={b} disabled={linksStatus?.availableBlockers && !linksStatus.availableBlockers.includes(b)}>
+                            {b.replace(/_/g, " ")}
+                            {linksStatus?.availableBlockers && !linksStatus.availableBlockers.includes(b) ? " (empty)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                      {linksStatus?.totpEnabled && (
+                        <Field value={claimCode} onChange={(e: any) => setClaimCode(e.target.value)} placeholder="Authenticator code" icon={KeyRound} maxLength={6} />
+                      )}
+                      <button
+                        onClick={claimLink}
+                        disabled={
+                          claimBusy ||
+                          !linksStatus?.emailVerified ||
+                          (linksStatus?.remaining ?? 0) <= 0 ||
+                          (linksStatus?.totpEnabled && claimCode.trim().length !== 6)
+                        }
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                          padding: "10px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                          background: C.accentDim, border: `1px solid ${C.borderFocus}`, color: C.accent,
+                          opacity: claimBusy || !linksStatus?.emailVerified || (linksStatus?.remaining ?? 0) <= 0 ? 0.55 : 1,
+                        }}
+                      >
+                        {claimBusy ? <Loader2 size={12} className="animate-spin" /> : <Link2 size={12} />}
+                        Get link
+                      </button>
+                    </div>
+
+                    {(linksErr || linksMsg) && (
+                      <p style={{ fontSize: 11, margin: "0 0 14px", color: linksErr ? C.danger : C.success }}>
+                        {linksErr || linksMsg}
+                      </p>
+                    )}
+
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px" }}>
+                      This week&apos;s links
+                    </p>
+                    {!linksStatus?.claims?.length ? (
+                      <p style={{ fontSize: 12, color: C.textMuted }}>No links claimed this week yet.</p>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {linksStatus.claims.map((c) => (
+                          <div
+                            key={c.id}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9,
+                              background: C.surface, border: `1px solid ${C.border}`,
+                            }}
+                          >
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ margin: 0, fontSize: 12, color: C.text, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {c.link}
+                              </p>
+                              <p style={{ margin: "2px 0 0", fontSize: 10, color: C.textMuted }}>
+                                {c.blocker.replace(/_/g, " ")} · {new Date(c.claimedAt).toLocaleString()}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => copyText(c.link)}
+                              title="Copy"
+                              style={{
+                                width: 28, height: 28, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center",
+                                background: C.elevated, border: `1px solid ${C.border}`, color: C.textSub, cursor: "pointer",
+                              }}
+                            >
+                              <Copy size={11} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
@@ -1851,7 +2323,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                 ) : liveSites.length === 0 ? (
                   <p style={{ fontSize: 12, color: C.textMuted, textAlign: "center", padding: 28 }}>No active proxied sites right now</p>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: "58vh", overflowY: "auto" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: "70vh", overflowY: "auto" }}>
                     {liveSites.map((site) => (
                       <div key={site.url} style={{
                         display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9,
@@ -1873,99 +2345,208 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                     ))}
                   </div>
                 )}
-                <div style={{ marginTop: 22, paddingTop: 18, borderTop: `1px solid ${C.border}` }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-                      <Monitor size={14} style={{ color: C.accent }} />
-                      Firefox VM
-                    </h3>
-                    <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: `${C.accentDim}40`, border: `1px solid ${C.borderFocus}`, color: C.accent }}>
-                      {ffLiveCount} active
-                    </span>
-                  </div>
-                  <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 12px" }}>
-                    Live sessions (heartbeat) · history searchable by day
-                  </p>
-                  {ffLive.length === 0 ? (
-                    <p style={{ fontSize: 12, color: C.textMuted, margin: "0 0 14px" }}>No active Firefox VM sessions</p>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: "28vh", overflowY: "auto", marginBottom: 14 }}>
-                      {ffLive.map((s) => (
-                        <div key={s.sessionId} style={{
-                          display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9,
-                          background: C.surface, border: `1px solid ${C.border}`,
-                        }}>
-                          <Monitor size={12} style={{ color: C.accent, flexShrink: 0 }} />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ margin: 0, fontSize: 12, color: C.text }}>
-                              {s.username ? `@${s.username}` : s.userId.slice(0, 8)}
-                            </p>
-                            <p style={{ margin: "2px 0 0", fontSize: 10, color: C.textMuted }}>
-                              opened {new Date(s.startedAt).toLocaleString()} · last seen {Math.max(0, Math.round((Date.now() - s.lastSeen) / 1000))}s ago
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10, alignItems: "center" }}>
-                    <input
-                      type="date"
-                      value={ffDay}
-                      onChange={(e) => setFfDay(e.target.value)}
-                      style={{
-                        background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
-                        color: C.text, fontSize: 12, padding: "7px 10px", outline: "none",
-                      }}
-                    />
-                    <input
-                      value={ffQuery}
-                      onChange={(e) => setFfQuery(e.target.value)}
-                      placeholder="Search user / id"
-                      style={{
-                        flex: 1, minWidth: 120, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
-                        color: C.text, fontSize: 12, padding: "7px 10px", outline: "none",
-                      }}
-                    />
-                    <button
-                      onClick={loadFfHistory}
-                      disabled={ffHistoryLoading}
-                      style={{
-                        padding: "7px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer",
-                        border: `1px solid ${C.borderFocus}`, background: C.accentDim, color: C.accent,
-                        opacity: ffHistoryLoading ? 0.6 : 1,
-                      }}
-                    >
-                      {ffHistoryLoading ? "…" : "Search"}
-                    </button>
-                  </div>
-                  <p style={{ fontSize: 10, color: C.textMuted, margin: "0 0 8px" }}>
-                    {ffHistoryTotal} session{ffHistoryTotal === 1 ? "" : "s"} on {ffDay}
-                  </p>
-                  {ffHistory.length === 0 ? (
-                    <p style={{ fontSize: 12, color: C.textMuted }}>No sessions for this day</p>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: "32vh", overflowY: "auto" }}>
-                      {ffHistory.map((s) => (
-                        <div key={s.sessionId} style={{
-                          padding: "9px 12px", borderRadius: 9, background: C.surface, border: `1px solid ${C.border}`,
-                        }}>
+              </div>
+            )}
+
+            {section === "firefox-vm" && isAdmin && (
+              <div style={{ maxWidth: "620px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                  <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                    <Monitor size={14} style={{ color: C.accent }} />
+                    Firefox VM
+                  </h2>
+                  <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: `${C.accentDim}40`, border: `1px solid ${C.borderFocus}`, color: C.accent }}>
+                    {ffLiveCount} active
+                  </span>
+                </div>
+                <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 14px" }}>
+                  Live sessions (heartbeat) · history searchable by day
+                </p>
+                {ffLive.length === 0 ? (
+                  <p style={{ fontSize: 12, color: C.textMuted, margin: "0 0 14px" }}>No active Firefox VM sessions</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: "28vh", overflowY: "auto", marginBottom: 14 }}>
+                    {ffLive.map((s) => (
+                      <div key={s.sessionId} style={{
+                        display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9,
+                        background: C.surface, border: `1px solid ${C.border}`,
+                      }}>
+                        <Monitor size={12} style={{ color: C.accent, flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ margin: 0, fontSize: 12, color: C.text }}>
                             {s.username ? `@${s.username}` : s.userId.slice(0, 8)}
-                            {s.active ? (
-                              <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: C.success }}>LIVE</span>
-                            ) : null}
                           </p>
                           <p style={{ margin: "2px 0 0", fontSize: 10, color: C.textMuted }}>
-                            {new Date(s.startedAt).toLocaleString()}
-                            {" → "}
-                            {s.endedAt ? new Date(s.endedAt).toLocaleString() : "open"}
+                            opened {new Date(s.startedAt).toLocaleString()} · last seen {Math.max(0, Math.round((Date.now() - s.lastSeen) / 1000))}s ago
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10, alignItems: "center" }}>
+                  <input
+                    type="date"
+                    value={ffDay}
+                    onChange={(e) => setFfDay(e.target.value)}
+                    style={{
+                      background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
+                      color: C.text, fontSize: 12, padding: "7px 10px", outline: "none",
+                    }}
+                  />
+                  <input
+                    value={ffQuery}
+                    onChange={(e) => setFfQuery(e.target.value)}
+                    placeholder="Search user / id"
+                    style={{
+                      flex: 1, minWidth: 120, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
+                      color: C.text, fontSize: 12, padding: "7px 10px", outline: "none",
+                    }}
+                  />
+                  <button
+                    onClick={loadFfHistory}
+                    disabled={ffHistoryLoading}
+                    style={{
+                      padding: "7px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                      border: `1px solid ${C.borderFocus}`, background: C.accentDim, color: C.accent,
+                      opacity: ffHistoryLoading ? 0.6 : 1,
+                    }}
+                  >
+                    {ffHistoryLoading ? "…" : "Search"}
+                  </button>
+                </div>
+                <p style={{ fontSize: 10, color: C.textMuted, margin: "0 0 8px" }}>
+                  {ffHistoryTotal} session{ffHistoryTotal === 1 ? "" : "s"} on {ffDay}
+                </p>
+                {ffHistory.length === 0 ? (
+                  <p style={{ fontSize: 12, color: C.textMuted }}>No sessions for this day</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: "42vh", overflowY: "auto" }}>
+                    {ffHistory.map((s) => (
+                      <div key={s.sessionId} style={{
+                        padding: "9px 12px", borderRadius: 9, background: C.surface, border: `1px solid ${C.border}`,
+                      }}>
+                        <p style={{ margin: 0, fontSize: 12, color: C.text }}>
+                          {s.username ? `@${s.username}` : s.userId.slice(0, 8)}
+                          {s.active ? (
+                            <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: C.success }}>LIVE</span>
+                          ) : null}
+                        </p>
+                        <p style={{ margin: "2px 0 0", fontSize: 10, color: C.textMuted }}>
+                          {new Date(s.startedAt).toLocaleString()}
+                          {" → "}
+                          {s.endedAt ? new Date(s.endedAt).toLocaleString() : "open"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {section === "link-stats" && isAdmin && (
+              <div style={{ maxWidth: "680px" }}>
+                <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: "0 0 3px", display: "flex", alignItems: "center", gap: 8 }}>
+                  <BarChart3 size={14} style={{ color: C.accent }} />
+                  Link Stats
+                </h2>
+                <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 16px" }}>
+                  Distribution across blockers · refreshes every 15s
+                </p>
+                {linkStatsLoading && !linkStats ? (
+                  <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
+                    <Loader2 size={18} className="animate-spin" style={{ color: C.accent }} />
+                  </div>
+                ) : !linkStats ? (
+                  <p style={{ fontSize: 12, color: C.textMuted }}>Could not load stats</p>
+                ) : (
+                  <>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 8, marginBottom: 16 }}>
+                      {[
+                        ["Today", linkStats.totals?.today],
+                        ["This week", linkStats.totals?.thisWeek],
+                        ["Last week", linkStats.totals?.lastWeek],
+                        ["All time", linkStats.totals?.allTime],
+                        ["Users (week)", linkStats.uniqueUsers?.thisWeek],
+                        ["At weekly limit", linkStats.usersAtWeeklyLimit],
+                      ].map(([label, val]) => (
+                        <div key={String(label)} style={{
+                          padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}`,
+                        }}>
+                          <p style={{ margin: 0, fontSize: 10, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</p>
+                          <p style={{ margin: "4px 0 0", fontSize: 18, fontWeight: 700, color: C.text }}>{val ?? 0}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px" }}>
+                      Per blocker (this week)
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 16, maxHeight: "28vh", overflowY: "auto" }}>
+                      {Object.entries(linkStats.perBlocker?.week || {}).map(([blocker, count]) => (
+                        <div key={blocker} style={{
+                          display: "flex", alignItems: "center", justifyContent: "space-between",
+                          padding: "8px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.border}`,
+                        }}>
+                          <span style={{ fontSize: 12, color: C.text }}>{String(blocker).replace(/_/g, " ")}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: C.accent }}>{count as number}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px" }}>
+                      Pool sizes
+                    </p>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 6, marginBottom: 16 }}>
+                      {Object.entries(linkStats.poolSizes || {}).map(([blocker, size]) => (
+                        <div key={blocker} style={{
+                          padding: "8px 10px", borderRadius: 8, background: C.elevated, border: `1px solid ${C.border}`,
+                          display: "flex", justifyContent: "space-between", gap: 8,
+                        }}>
+                          <span style={{ fontSize: 10, color: C.textSub }}>{String(blocker).replace(/_/g, " ")}</span>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: C.text }}>{size as number}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px" }}>
+                      Top users this week
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 16 }}>
+                      {(linkStats.topUsersWeek || []).length === 0 ? (
+                        <p style={{ fontSize: 12, color: C.textMuted }}>None yet</p>
+                      ) : (
+                        (linkStats.topUsersWeek || []).map((u: any) => (
+                          <div key={u.userId} style={{
+                            display: "flex", justifyContent: "space-between", padding: "8px 12px", borderRadius: 8,
+                            background: C.surface, border: `1px solid ${C.border}`, fontSize: 12,
+                          }}>
+                            <span style={{ color: C.text }}>{u.username ? `@${u.username}` : (u.email || u.userId.slice(0, 8))}</span>
+                            <span style={{ color: C.accent, fontWeight: 700 }}>{u.count}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px" }}>
+                      Recent claims
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: "32vh", overflowY: "auto" }}>
+                      {(linkStats.recent || []).map((r: any) => (
+                        <div key={r.id} style={{
+                          padding: "8px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.border}`,
+                        }}>
+                          <p style={{ margin: 0, fontSize: 11, color: C.text, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {r.link}
+                          </p>
+                          <p style={{ margin: "2px 0 0", fontSize: 10, color: C.textMuted }}>
+                            {r.blocker?.replace(/_/g, " ")} · {r.username ? `@${r.username}` : r.userId?.slice(0, 8)} · {new Date(r.claimedAt).toLocaleString()}
                           </p>
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
+                  </>
+                )}
               </div>
             )}
 

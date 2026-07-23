@@ -61,6 +61,20 @@ import {
   getFirefoxVmLiveHandler,
   getFirefoxVmHistoryHandler,
 } from './api/firefox-vm.js';
+import {
+  verifyEmailHandler,
+  resendVerificationHandler,
+} from './api/verify-email.js';
+import {
+  linksClaimLimiter,
+  linksTotpLimiter,
+  getLinksStatusHandler,
+  setupLinksTotpHandler,
+  enableLinksTotpHandler,
+  disableLinksTotpHandler,
+  claimLinkHandler,
+  getAdminLinkStatsHandler,
+} from './api/get-links.js';
 import { websocketNormalHandler, websocketTorHandler } from './api/websocket-auth.js';
 import capRouter from './routes/cap.js';
 import { createCapGateMiddleware, sendVerifyPage, requireGateUpgrade } from './middleware/cap-gate.js';
@@ -137,7 +151,14 @@ app.get('/api/websocket/normal', websocketNormalHandler);
 app.get('/api/websocket/tor/', websocketTorHandler);
 app.get('/api/websocket/tor', websocketTorHandler);
 
-const AUTH_PATHS = new Set(['/api/signin', '/api/signup', '/api/bot-challenge', '/api/bot-verify', '/api/verify-email']);
+const AUTH_PATHS = new Set([
+  '/api/signin',
+  '/api/signup',
+  '/api/bot-challenge',
+  '/api/bot-verify',
+  '/api/verify-email',
+  '/api/verify-email/resend',
+]);
 app.use('/api/', (req, res, next) => {
   if (req.path === '/websocket/normal' || req.path === '/websocket/normal/' || req.path === '/websocket/tor' || req.path === '/websocket/tor/') {
     return next();
@@ -217,12 +238,21 @@ app.use('/api/music', musicRouter);
 app.post('/api/signup', signupLimiter, signupHandler);
 app.post('/api/signin', signinHandler);
 app.post('/api/signout', signoutHandler);
+app.get('/api/verify-email', verifyEmailHandler);
+app.post('/api/verify-email/resend', authLimiter, resendVerificationHandler);
 
 app.get('/api/me', getMeHandler);
 app.put('/api/me', updateProfileHandler);
 app.post('/api/me/avatar', pfpLimiter, uploadAvatarHandler);
 app.post('/api/me/banner', pfpLimiter, uploadBannerHandler);
 app.get('/api/user/:username', getPublicProfileHandler);
+
+app.get('/api/links/status', getLinksStatusHandler);
+app.post('/api/links/2fa/setup', linksTotpLimiter, setupLinksTotpHandler);
+app.post('/api/links/2fa/enable', linksTotpLimiter, enableLinksTotpHandler);
+app.post('/api/links/2fa/disable', linksTotpLimiter, disableLinksTotpHandler);
+app.post('/api/links/claim', linksClaimLimiter, claimLinkHandler);
+app.get('/api/admin/link-stats', getAdminLinkStatsHandler);
 
 app.get('/api/settings', getSettingsHandler);
 app.put('/api/settings', localStorageLimiter, saveSettingsHandler);

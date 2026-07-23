@@ -14,7 +14,7 @@ const OPEN_EXACT = new Set([
   '/firefox-wasm/thanks.html',
 ]);
 
-const OPEN_PREFIX = ['/cap/'];
+const OPEN_PREFIX = ['/cap/', '/api/verify-email'];
 
 function isOpenPath(p) {
   if (OPEN_EXACT.has(p)) return true;

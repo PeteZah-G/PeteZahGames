@@ -84,6 +84,18 @@ try {
   if (!columnNames.includes('show_activity')) {
     db.exec('ALTER TABLE users ADD COLUMN show_activity INTEGER DEFAULT 1');
   }
+  if (!columnNames.includes('verification_expires')) {
+    db.exec('ALTER TABLE users ADD COLUMN verification_expires INTEGER');
+  }
+  if (!columnNames.includes('totp_secret')) {
+    db.exec('ALTER TABLE users ADD COLUMN totp_secret TEXT');
+  }
+  if (!columnNames.includes('totp_enabled')) {
+    db.exec('ALTER TABLE users ADD COLUMN totp_enabled INTEGER DEFAULT 0');
+  }
+  if (!columnNames.includes('totp_pending_secret')) {
+    db.exec('ALTER TABLE users ADD COLUMN totp_pending_secret TEXT');
+  }
 } catch (error) {
   console.error('Migration error:', error);
 }
@@ -181,6 +193,20 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_ffvm_day ON firefox_vm_sessions(day);
   CREATE INDEX IF NOT EXISTS idx_ffvm_started ON firefox_vm_sessions(started_at);
   CREATE INDEX IF NOT EXISTS idx_ffvm_user ON firefox_vm_sessions(user_id);
+
+  CREATE TABLE IF NOT EXISTS link_claims (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    blocker TEXT NOT NULL,
+    link TEXT NOT NULL,
+    claimed_at INTEGER NOT NULL,
+    week_start INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_link_claims_user_week ON link_claims(user_id, week_start);
+  CREATE INDEX IF NOT EXISTS idx_link_claims_claimed ON link_claims(claimed_at);
+  CREATE INDEX IF NOT EXISTS idx_link_claims_blocker ON link_claims(blocker, claimed_at);
 
   CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   CREATE INDEX IF NOT EXISTS idx_users_ip ON users(ip);

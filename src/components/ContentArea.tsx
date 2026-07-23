@@ -24,6 +24,7 @@ import {
   MessageCircle,
   Info,
   Monitor,
+  Link2,
   type LucideIcon,
 } from "lucide-react";
 import { Tab } from "@/hooks/useBrowserState";
@@ -621,24 +622,48 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
 
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden bg-transparent">
-      <motion.a
-        href="https://discord.gg/cYjHFDguxS"
-        target="_blank"
-        rel="noopener noreferrer"
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.55, ease }}
-        className="absolute top-3 right-3 z-9 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all"
-        style={{
-          background: "hsla(220, 35%, 6%, 0.92)",
-          border: "1px solid hsla(210, 40%, 80%, 0.14)",
-          color: "hsla(0,0%,100%,0.88)",
-          backdropFilter: "blur(10px)",
-        }}
-      >
-        <MessageCircle size={11} style={{ color: "hsla(0,0%,100%,0.92)" }} />
-        <span>Discord</span>
-      </motion.a>
+      <div className="absolute top-3 right-3 z-9 flex flex-col items-end gap-1.5">
+        <motion.a
+          href="https://discord.gg/cYjHFDguxS"
+          target="_blank"
+          rel="noopener noreferrer"
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.55, ease }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all"
+          style={{
+            background: "hsla(220, 35%, 6%, 0.92)",
+            border: "1px solid hsla(210, 40%, 80%, 0.14)",
+            color: "hsla(0,0%,100%,0.88)",
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <MessageCircle size={11} style={{ color: "hsla(0,0%,100%,0.92)" }} />
+          <span>Discord</span>
+        </motion.a>
+        <motion.button
+          type="button"
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.62, ease }}
+          onClick={() => {
+            try {
+              sessionStorage.setItem("pz-account-section", "get-links");
+            } catch {}
+            onNavigate("petezah://account");
+          }}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all"
+          style={{
+            background: "hsla(220, 35%, 6%, 0.78)",
+            border: "1px solid hsla(210, 40%, 80%, 0.12)",
+            color: "hsla(0,0%,100%,0.72)",
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <Link2 size={10} style={{ color: "hsla(0,0%,100%,0.78)" }} />
+          <span>Get Links</span>
+        </motion.button>
+      </div>
 
       <div className="relative z-10 flex flex-col items-center gap-5 max-w-2xl w-full px-6 text-center">
         <motion.h1

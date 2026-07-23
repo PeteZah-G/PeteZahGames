@@ -4,6 +4,7 @@ import db from '../db.js';
 import { getClientIP } from '../utils/client-ip.js';
 import { isOwnerEmail } from '../utils/auth-roles.js';
 import { isIpBanned } from '../middleware/ip-ban.js';
+import { sendUserVerificationEmail } from './verify-email.js';
 
 const requestTimestamps = new Map();
 const suspiciousIPs = new Map();
@@ -89,10 +90,22 @@ export async function signupHandler(req, res) {
     db.prepare(`
       INSERT INTO users (id, email, password_hash, created_at, updated_at, is_admin, email_verified, school, age, ip)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(userId, email, passwordHash, now, now, isAdmin ? 1 : 0, 1, school || null, age || null, ip);
+    `).run(userId, email, passwordHash, now, now, isAdmin ? 1 : 0, 0, school || null, age || null, ip);
+
+    let emailSent = true;
+    try {
+      await sendUserVerificationEmail(req, userId, email);
+    } catch (err) {
+      console.error('Signup verification email failed:', err);
+      emailSent = false;
+    }
 
     res.status(201).json({
-      message: isFirstUser ? 'Admin account created!' : 'Account created! You can now sign in.'
+      message: emailSent
+        ? 'Account created! Check your email to verify before signing in.'
+        : 'Account created, but we could not send the verification email. Use Resend verification from the sign-in screen.',
+      emailSent,
+      needsVerification: true,
     });
   } catch (error) {
     console.error('Signup error:', error);

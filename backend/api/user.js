@@ -9,7 +9,7 @@ import { randomUUID } from 'crypto';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PROFILE_COLS =
-  'id, email, username, display_name, bio, avatar_url, status, location, website, profile_color, banner_url, favorite_music, profile_public, show_activity, is_admin, email_verified, school, age, created_at';
+  'id, email, username, display_name, bio, avatar_url, status, location, website, profile_color, banner_url, favorite_music, profile_public, show_activity, is_admin, email_verified, totp_enabled, school, age, created_at';
 
 function parseFavoriteMusic(raw) {
   try {
@@ -75,6 +75,8 @@ export async function getMeHandler(req, res) {
       favorite_music: parseFavoriteMusic(user.favorite_music),
       profile_public: user.profile_public !== 0,
       show_activity: user.show_activity !== 0,
+      email_verified: !!user.email_verified,
+      totp_enabled: !!user.totp_enabled,
       is_owner,
     },
   });
