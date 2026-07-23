@@ -39,6 +39,13 @@ export const VPN_REGION_DEFS: VpnRegionDef[] = [
     config: "/static/alt-config-3.js",
   },
   {
+    id: "5",
+    label: "Durham",
+    sublabel: "UK",
+    wisp: "/api/alt-wisp-1/",
+    config: "/static/alt-config-1.js",
+  },
+  {
     id: "tor",
     label: "Tor",
     sublabel: "Onion relay",
