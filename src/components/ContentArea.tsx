@@ -1,4 +1,12 @@
-import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  type ReactNode,
+  type CSSProperties,
+  type RefObject,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -50,6 +58,8 @@ interface ContentAreaProps {
   onNavigate: (url: string) => void;
   onNewTab: () => void;
   onCloseSplit: () => void;
+  zoomLevel?: number;
+  contentRef?: RefObject<HTMLDivElement | null>;
 }
 
 interface Preset {
@@ -1132,8 +1142,16 @@ export default function ContentArea({
   onNavigate,
   onNewTab,
   onCloseSplit,
+  zoomLevel = 100,
+  contentRef,
 }: ContentAreaProps) {
-  if (!activeTab && tabs.length === 0) return <EmptyState />;
+  if (!activeTab && tabs.length === 0) {
+    return (
+      <div ref={contentRef} className="flex-1 flex relative w-full bg-transparent" style={{ overflow: "clip" }}>
+        <EmptyState />
+      </div>
+    );
+  }
 
   const mainTabs = tabs.filter((t) => !splitTab || t.id !== splitTab.id);
   const leftActive =
@@ -1141,52 +1159,69 @@ export default function ContentArea({
       ? mainTabs[0]
       : activeTab;
 
+  const scale = zoomLevel / 100;
+  const zoomStyle: CSSProperties =
+    scale === 1
+      ? { width: "100%", height: "100%" }
+      : {
+          width: `${100 / scale}%`,
+          height: `${100 / scale}%`,
+          transform: `scale(${scale})`,
+          transformOrigin: "top left",
+        };
+
   return (
-    <div className="flex-1 flex relative w-full bg-transparent" style={{ overflow: "clip" }}>
-      <div
-        className="flex-1 relative bg-transparent"
-        onMouseDown={() => onFocusPane?.("main")}
-        style={{
-          outline: focusedPane === "main" && splitTab ? "1px solid hsl(210 100% 65% / 0.25)" : undefined,
-          outlineOffset: -1,
-        }}
-      >
-        {mainTabs.length === 0 ? (
-          <EmptyState />
-        ) : (
-          mainTabs.map((tab) => (
-            <TabPane
-              key={tab.id}
-              tab={tab}
-              isVisible={leftActive?.id === tab.id}
-              onNavigate={onNavigate}
-            />
-          ))
+    <div
+      ref={contentRef}
+      className="flex-1 flex relative w-full bg-transparent [&:fullscreen]:bg-[hsla(220,35%,5%,1)]"
+      style={{ overflow: scale === 1 ? "clip" : "auto" }}
+    >
+      <div className="flex flex-1 relative w-full h-full min-h-0" style={zoomStyle}>
+        <div
+          className="flex-1 relative bg-transparent min-w-0"
+          onMouseDown={() => onFocusPane?.("main")}
+          style={{
+            outline: focusedPane === "main" && splitTab ? "1px solid hsl(210 100% 65% / 0.25)" : undefined,
+            outlineOffset: -1,
+          }}
+        >
+          {mainTabs.length === 0 ? (
+            <EmptyState />
+          ) : (
+            mainTabs.map((tab) => (
+              <TabPane
+                key={tab.id}
+                tab={tab}
+                isVisible={leftActive?.id === tab.id}
+                onNavigate={onNavigate}
+              />
+            ))
+          )}
+        </div>
+
+        {splitTab && (
+          <>
+            <div className="w-px bg-border/40 flex-shrink-0" />
+            <div
+              className="flex-1 relative min-w-0"
+              onMouseDown={() => onFocusPane?.("split")}
+              style={{
+                outline: focusedPane === "split" ? "1px solid hsl(210 100% 65% / 0.25)" : undefined,
+                outlineOffset: -1,
+              }}
+            >
+              <TabPane tab={splitTab} isVisible onNavigate={onNavigate} />
+              <button
+                onClick={onCloseSplit}
+                className="absolute top-2 right-2 z-50 p-1.5 rounded-lg glass-heavy border border-border text-foreground/70 hover:text-white transition-colors"
+                title="Close split view"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          </>
         )}
       </div>
-
-      {splitTab && (
-        <>
-          <div className="w-px bg-border/40 flex-shrink-0" />
-          <div
-            className="flex-1 relative min-w-0"
-            onMouseDown={() => onFocusPane?.("split")}
-            style={{
-              outline: focusedPane === "split" ? "1px solid hsl(210 100% 65% / 0.25)" : undefined,
-              outlineOffset: -1,
-            }}
-          >
-            <TabPane tab={splitTab} isVisible onNavigate={onNavigate} />
-            <button
-              onClick={onCloseSplit}
-              className="absolute top-2 right-2 z-50 p-1.5 rounded-lg glass-heavy border border-border text-foreground/70 hover:text-white transition-colors"
-              title="Close split view"
-            >
-              <X size={11} />
-            </button>
-          </div>
-        </>
-      )}
     </div>
   );
 }

@@ -19,6 +19,7 @@ import {
   Film,
   AppWindow,
   Monitor,
+  MessageCircle,
   Plus,
   ZoomIn,
   ZoomOut,
@@ -43,6 +44,7 @@ interface ToolbarProps {
   onZoomIn?: () => void;
   onZoomOut?: () => void;
   onResetZoom?: () => void;
+  onFullscreen?: () => void;
   onShowHistory?: () => void;
   onShowBookmarks?: () => void;
   onShowDownloads?: () => void;
@@ -63,6 +65,7 @@ export default function Toolbar({
   onZoomIn,
   onZoomOut,
   onResetZoom,
+  onFullscreen,
   onShowHistory,
   onShowBookmarks,
   onShowDownloads,
@@ -276,10 +279,8 @@ export default function Toolbar({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: -4 }}
                 transition={{ duration: 0.15 }}
-                // z-50 keeps the dropdown above everything including iframes
                 className="absolute top-full right-0 mt-1.5 w-64 bg-card border border-border rounded-xl shadow-2xl py-1 z-50 overflow-hidden"
               >
-                {/* Tab actions */}
                 <button
                   onClick={() => {
                     onNewTab?.();
@@ -319,7 +320,6 @@ export default function Toolbar({
 
                 <div className="h-px bg-border my-1 mx-3" />
 
-                {/* Zoom controls */}
                 <div className="flex items-center gap-1 px-4 py-1.5">
                   <span className="text-[12px] text-foreground/60 mr-auto">
                     Zoom
@@ -344,7 +344,7 @@ export default function Toolbar({
                   </button>
                   <button
                     onClick={() => {
-                      document.documentElement.requestFullscreen?.();
+                      onFullscreen?.();
                       setMenuOpen(false);
                     }}
                     className="p-1 rounded hover:bg-accent text-foreground/60 hover:text-foreground transition-colors ml-1"
@@ -447,6 +447,16 @@ export default function Toolbar({
                 >
                   <Monitor size={13} className="text-foreground/40" />
                   <span className="flex-1 text-left">VM</span>
+                </button>
+                <button
+                  onClick={() => {
+                    onNavigate("petezah://chat");
+                    setMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
+                >
+                  <MessageCircle size={13} className="text-foreground/40" />
+                  <span className="flex-1 text-left">Chat</span>
                 </button>
                 <button
                   onClick={() => {

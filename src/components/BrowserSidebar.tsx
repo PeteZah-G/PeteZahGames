@@ -83,7 +83,6 @@ export default function Sidebar({
       transition={{ type: "spring", duration: 0.4, bounce: 0.1 }}
       className="h-full flex flex-col overflow-hidden flex-shrink-0 chrome-bar"
       style={{
-        background: "hsla(220, 35%, 5%, 0.92)",
         borderRight: "1px solid hsla(210, 40%, 80%, 0.08)",
       }}
     >
@@ -200,21 +199,21 @@ export default function Sidebar({
           </div>
 
           <div
-            className="px-2 py-1.5 flex-shrink-0"
+            className="px-2 py-1 flex-shrink-0"
             style={{ borderTop: "1px solid hsla(210, 40%, 80%, 0.08)" }}
           >
-            <div className="grid grid-cols-3 gap-1 mb-2">
+            <div className="grid grid-cols-4 gap-x-0 gap-y-0 mb-1.5">
               {SIDEBAR_FEATURES.map(({ icon: Icon, label, url }) => (
                 <button
                   key={label}
                   onClick={() => onNavigate(url)}
-                  className="group flex flex-col items-center gap-1 py-1 bg-transparent border-none cursor-pointer"
+                  className="group flex flex-col items-center gap-0.5 py-0 bg-transparent border-none cursor-pointer"
                   style={{ color: "hsla(0,0%,100%,0.78)" }}
                 >
-                  <span className="w-9 h-9 rounded-full flex items-center justify-center transition-colors group-hover:bg-white/[0.08]">
-                    <Icon size={13} />
+                  <span className="w-8 h-8 rounded-full flex items-center justify-center transition-colors group-hover:bg-white/[0.08]">
+                    <Icon size={14} />
                   </span>
-                  <span className="text-[9px]" style={{ color: "hsla(0,0%,100%,0.55)" }}>{label}</span>
+                  <span className="text-[9px] leading-tight" style={{ color: "hsla(0,0%,100%,0.55)" }}>{label}</span>
                 </button>
               ))}
             </div>

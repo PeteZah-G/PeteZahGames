@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useBrowserState } from "@/hooks/useBrowserState";
 import { useAuth } from "@/hooks/useAuth";
 import { schedulePushSettings } from "@/lib/settingsSync";
@@ -23,6 +23,14 @@ function getPresenceClientId() {
   }
 }
 
+function isTypingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  if (target.isContentEditable) return true;
+  return !!target.closest("[contenteditable='true']");
+}
+
 export default function ArcBrowser() {
   const state = useBrowserState();
   const { user } = useAuth();
@@ -30,6 +38,23 @@ export default function ArcBrowser() {
     ? state.tabs.find((t) => t.id === state.splitTabId)
     : undefined;
   const [zoomLevel, setZoomLevel] = useState(100);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const zoomIn = useCallback(() => setZoomLevel((z) => Math.min(z + 10, 200)), []);
+  const zoomOut = useCallback(() => setZoomLevel((z) => Math.max(z - 10, 50)), []);
+  const resetZoom = useCallback(() => setZoomLevel(100), []);
+
+  const toggleContentFullscreen = useCallback(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    try {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        el.requestFullscreen();
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -96,6 +121,79 @@ export default function ArcBrowser() {
     } catch {}
   }, []);
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      const key = e.key.toLowerCase();
+
+      if (e.key === "F11") {
+        e.preventDefault();
+        toggleContentFullscreen();
+        return;
+      }
+
+      if (!mod) return;
+      if (isTypingTarget(e.target) && !["t", "w", "l"].includes(key)) return;
+
+      if (key === "t") {
+        e.preventDefault();
+        state.addTab();
+        return;
+      }
+      if (key === "w") {
+        e.preventDefault();
+        if (state.focusedTab) state.closeTab(state.focusedTab.id);
+        return;
+      }
+      if (key === "l") {
+        e.preventDefault();
+        state.setIsUrlFocused(true);
+        return;
+      }
+      if (key === "h") {
+        e.preventDefault();
+        state.navigateToUrl("petezah://history");
+        return;
+      }
+      if (key === "e") {
+        e.preventDefault();
+        state.navigateToUrl("petezah://extensions");
+        return;
+      }
+      if (key === "d") {
+        e.preventDefault();
+        state.navigateToUrl("petezah://bookmarks");
+        return;
+      }
+      if (key === "=" || key === "+") {
+        e.preventDefault();
+        zoomIn();
+        return;
+      }
+      if (key === "-") {
+        e.preventDefault();
+        zoomOut();
+        return;
+      }
+      if (key === "0") {
+        e.preventDefault();
+        resetZoom();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [
+    state.addTab,
+    state.closeTab,
+    state.focusedTab,
+    state.setIsUrlFocused,
+    state.navigateToUrl,
+    zoomIn,
+    zoomOut,
+    resetZoom,
+    toggleContentFullscreen,
+  ]);
+
   return (
     <div
       style={{
@@ -150,9 +248,10 @@ export default function ArcBrowser() {
             onCloseAllTabs={state.closeAllTabs}
             onNewTab={() => state.addTab()}
             zoomLevel={zoomLevel}
-            onZoomIn={() => setZoomLevel((z) => Math.min(z + 10, 200))}
-            onZoomOut={() => setZoomLevel((z) => Math.max(z - 10, 50))}
-            onResetZoom={() => setZoomLevel(100)}
+            onZoomIn={zoomIn}
+            onZoomOut={zoomOut}
+            onResetZoom={resetZoom}
+            onFullscreen={toggleContentFullscreen}
           />
           <ContentArea
             tabs={state.tabs}
@@ -163,6 +262,8 @@ export default function ArcBrowser() {
             onNavigate={state.navigateToUrl}
             onNewTab={() => state.addTab()}
             onCloseSplit={state.closeSplit}
+            zoomLevel={zoomLevel}
+            contentRef={contentRef}
           />
           <StatusBar tabCount={state.tabs.length} spaceCount={state.spaces.length} />
         </main>

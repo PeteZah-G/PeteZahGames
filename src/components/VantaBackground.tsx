@@ -155,7 +155,7 @@ export default function VantaBackground() {
           ...theme,
           blurFactor: 0.85,
           speed: 1.35,
-          zoom: 0.92,
+          zoom: 1.30,
         });
       } else {
         fogEffect.current = FOG({
@@ -168,7 +168,7 @@ export default function VantaBackground() {
           minWidth: 200,
           blurFactor: 0.85,
           speed: 1.35,
-          zoom: 0.92,
+          zoom: 1.30,
           ...theme,
         });
       }
