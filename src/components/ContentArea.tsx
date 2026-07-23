@@ -135,7 +135,13 @@ const ICON_MAP: Record<string, LucideIcon> = {
 
 const VPN_FLAGS: Record<string, ReactNode> = {
   default: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      className="w-4 h-4"
+    >
       <circle cx="12" cy="12" r="10" />
       <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
       <path d="M2 12h20" />
@@ -159,7 +165,13 @@ const VPN_FLAGS: Record<string, ReactNode> = {
     <svg viewBox="0 0 19 10" className="w-4 h-4 rounded-[2px]">
       <rect width="19" height="10" fill="#B22234" />
       {[0, 2, 4, 6, 8].map((y) => (
-        <rect key={y} y={y} width="19" height="1" fill={y === 0 ? "#B22234" : "#fff"} />
+        <rect
+          key={y}
+          y={y}
+          width="19"
+          height="1"
+          fill={y === 0 ? "#B22234" : "#fff"}
+        />
       ))}
       {[1, 3, 5, 7].map((y) => (
         <rect key={y} y={y} width="19" height="1" fill="#fff" />
@@ -186,13 +198,32 @@ const VPN_FLAGS: Record<string, ReactNode> = {
     </svg>
   ),
   "5": (
-    <svg viewBox="0 0 3 2" className="w-4 h-4 rounded-[2px]">
-      <rect width="3" height="2" fill="#ED2939" />
-      <rect y="0.667" width="3" height="0.667" fill="#fff" />
+    <svg viewBox="0 0 60 40" className="w-4 h-4 rounded-[2px]">
+      <clipPath id="uk-clip">
+        <rect width="60" height="40" />
+      </clipPath>
+      <g clipPath="url(#uk-clip)">
+        <rect width="60" height="40" fill="#00247d" />
+        <path d="M0,0 L60,40 M60,0 L0,40" stroke="#fff" strokeWidth="8" />
+        <path
+          d="M0,0 L60,40 M60,0 L0,40"
+          stroke="#cf142b"
+          strokeWidth="4"
+          clipPath="url(#uk-diag-clip)"
+        />
+        <path d="M30,0 V40 M0,20 H60" stroke="#fff" strokeWidth="14" />
+        <path d="M30,0 V40 M0,20 H60" stroke="#cf142b" strokeWidth="8" />
+      </g>
     </svg>
   ),
   tor: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      className="w-4 h-4"
+    >
       <circle cx="12" cy="12" r="3" />
       <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
       <circle cx="12" cy="12" r="7" strokeDasharray="2 2" />
@@ -209,7 +240,7 @@ function VpnSelector({ onNavigate }: { onNavigate: (url: string) => void }) {
   const [open, setOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [selected, setSelected] = useState<string>(
-    () => localStorage.getItem("selectedVpnRegion") ?? "default"
+    () => localStorage.getItem("selectedVpnRegion") ?? "default",
   );
   const ref = useRef<HTMLDivElement>(null);
 
@@ -263,7 +294,11 @@ function VpnSelector({ onNavigate }: { onNavigate: (url: string) => void }) {
           {current.flag}
           {current.label}
         </span>
-        <span className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}>▾</span>
+        <span
+          className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        >
+          ▾
+        </span>
       </button>
 
       <AnimatePresence>
@@ -275,21 +310,28 @@ function VpnSelector({ onNavigate }: { onNavigate: (url: string) => void }) {
             transition={{ duration: 0.15 }}
             className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 w-56 rounded-2xl glass-heavy border border-border shadow-2xl p-2 flex flex-col gap-1"
           >
-            <p className="text-[9px] uppercase tracking-widest text-muted-foreground px-2 pb-1">VPN Region</p>
+            <p className="text-[9px] uppercase tracking-widest text-muted-foreground px-2 pb-1">
+              VPN Region
+            </p>
             {VPN_REGIONS.map((region) => (
               <div key={region.id} className="relative flex items-center gap-1">
                 <button
                   onClick={() => handleSelect(region.id)}
                   className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-left transition-colors flex-1 min-w-0
-                    ${selected === region.id
-                      ? "bg-primary/10 text-foreground border border-primary/20"
-                      : "hover:bg-accent text-muted-foreground hover:text-foreground"
+                    ${
+                      selected === region.id
+                        ? "bg-primary/10 text-foreground border border-primary/20"
+                        : "hover:bg-accent text-muted-foreground hover:text-foreground"
                     }`}
                 >
                   <span className="flex-shrink-0">{region.flag}</span>
                   <span className="flex flex-col min-w-0">
-                    <span className="text-[11px] font-medium leading-tight">{region.label}</span>
-                    <span className="text-[9px] opacity-60 leading-tight">{region.sublabel}</span>
+                    <span className="text-[11px] font-medium leading-tight">
+                      {region.label}
+                    </span>
+                    <span className="text-[9px] opacity-60 leading-tight">
+                      {region.sublabel}
+                    </span>
                   </span>
                   {selected === region.id && (
                     <span className="ml-auto w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
@@ -319,12 +361,20 @@ function VpnSelector({ onNavigate }: { onNavigate: (url: string) => void }) {
                   className="overflow-hidden"
                 >
                   <div className="mt-1 mx-1 p-2.5 rounded-xl text-[10px] leading-relaxed text-muted-foreground border border-border bg-background/80 space-y-1.5">
-                    <p className="font-semibold text-foreground text-[11px]">About Tor</p>
-                    <p>
-                      Tor routes your traffic through volunteer onion relays so the destination site sees a Tor exit IP instead of yours. It is slower and some sites block Tor exits.
+                    <p className="font-semibold text-foreground text-[11px]">
+                      About Tor
                     </p>
                     <p>
-                      By selecting Tor you agree to use it only for lawful browsing on this site, accept reduced speed and reliability, and understand exit nodes can see unencrypted traffic to destinations. You must be signed in. Misuse may result in loss of access.
+                      Tor routes your traffic through volunteer onion relays so
+                      the destination site sees a Tor exit IP instead of yours.
+                      It is slower and some sites block Tor exits.
+                    </p>
+                    <p>
+                      By selecting Tor you agree to use it only for lawful
+                      browsing on this site, accept reduced speed and
+                      reliability, and understand exit nodes can see unencrypted
+                      traffic to destinations. You must be signed in. Misuse may
+                      result in loss of access.
                     </p>
                   </div>
                 </motion.div>
@@ -344,9 +394,13 @@ function getStoredPresets(): Preset[] {
       const parsed = JSON.parse(stored) as Preset[];
       if (!Array.isArray(parsed)) return DEFAULT_PRESETS;
       const ids = new Set(parsed.map((p) => p.id));
-      const missing = DEFAULT_PRESETS.filter((p) => p.builtIn && !ids.has(p.id));
+      const missing = DEFAULT_PRESETS.filter(
+        (p) => p.builtIn && !ids.has(p.id),
+      );
       if (missing.length === 0) return parsed;
-      const moviesIdx = parsed.findIndex((p) => p.id === "movies" || p.url === "petezah://movies");
+      const moviesIdx = parsed.findIndex(
+        (p) => p.id === "movies" || p.url === "petezah://movies",
+      );
       const next = [...parsed];
       if (moviesIdx >= 0) next.splice(moviesIdx + 1, 0, ...missing);
       else next.push(...missing);
@@ -567,7 +621,11 @@ function PresetCard({
     <motion.div
       initial={{ opacity: 0, scale: 0.85 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4, delay: 0.32 + index * 0.04, ease: [0.22, 1, 0.36, 1] }}
+      transition={{
+        duration: 0.4,
+        delay: 0.32 + index * 0.04,
+        ease: [0.22, 1, 0.36, 1],
+      }}
       className="relative group"
     >
       <button
@@ -586,7 +644,11 @@ function PresetCard({
         }}
       >
         {isCustomImage ? (
-          <img src={preset.icon} alt="" className="w-3.5 h-3.5 object-cover rounded-full" />
+          <img
+            src={preset.icon}
+            alt=""
+            className="w-3.5 h-3.5 object-cover rounded-full"
+          />
         ) : IconComp ? (
           <IconComp size={13} />
         ) : (
@@ -610,7 +672,7 @@ function PresetCard({
 function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
   const [presets, setPresets] = useState<Preset[]>(getStoredPresets);
   const [editingPreset, setEditingPreset] = useState<Preset | null | "new">(
-    null
+    null,
   );
 
   const savePresets = useCallback((updated: Preset[]) => {
@@ -667,8 +729,18 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
 
       <div className="relative z-10 flex flex-col items-center gap-5 max-w-2xl w-full px-6 text-center">
         <motion.h1
-          initial={{ opacity: 0, y: 18, letterSpacing: "0.18em", filter: "blur(8px)" }}
-          animate={{ opacity: 1, y: 0, letterSpacing: "-0.03em", filter: "blur(0px)" }}
+          initial={{
+            opacity: 0,
+            y: 18,
+            letterSpacing: "0.18em",
+            filter: "blur(8px)",
+          }}
+          animate={{
+            opacity: 1,
+            y: 0,
+            letterSpacing: "-0.03em",
+            filter: "blur(0px)",
+          }}
           transition={{ duration: 0.85, ease }}
           className="text-[2rem] sm:text-[2.15rem] font-extrabold text-white tracking-tight"
           style={{ textShadow: "0 0 40px hsla(205, 80%, 60%, 0.25)" }}
@@ -700,7 +772,11 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
             title="Add"
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4, delay: 0.32 + presets.length * 0.04, ease }}
+            transition={{
+              duration: 0.4,
+              delay: 0.32 + presets.length * 0.04,
+              ease,
+            }}
             onClick={() => setEditingPreset("new")}
             className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
             style={{
@@ -716,7 +792,11 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.42 + presets.length * 0.03, ease }}
+          transition={{
+            duration: 0.55,
+            delay: 0.42 + presets.length * 0.03,
+            ease,
+          }}
         >
           <VpnSelector onNavigate={onNavigate} />
         </motion.div>
@@ -738,8 +818,8 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
                 ? () => {
                     savePresets(
                       presets.filter(
-                        (x) => x.id !== (editingPreset as Preset).id
-                      )
+                        (x) => x.id !== (editingPreset as Preset).id,
+                      ),
                     );
                     setEditingPreset(null);
                   }
@@ -843,15 +923,17 @@ function ExtensionAwareIframe({
     };
   }, [src, pageUrl, isVisible]);
 
-  return <iframe
-    ref={ref}
-    src={src}
-    className="w-full h-full border-none"
-    title="proxy"
-    referrerPolicy="no-referrer"
-    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals allow-presentation"
-    allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
-  />;
+  return (
+    <iframe
+      ref={ref}
+      src={src}
+      className="w-full h-full border-none"
+      title="proxy"
+      referrerPolicy="no-referrer"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals allow-presentation"
+      allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
+    />
+  );
 }
 
 function TabPane({
@@ -872,16 +954,24 @@ function TabPane({
   const isGames = tab.url === "petezah://games";
   const isAI = tab.url === "petezah://ai";
   const isApps = tab.url === "petezah://apps";
-  const isMusic = tab.url === "petezah://music" || tab.url.startsWith("petezah://music?");
+  const isMusic =
+    tab.url === "petezah://music" || tab.url.startsWith("petezah://music?");
   const isChat = tab.url === "petezah://chat";
   const isMovies = tab.url === "petezah://movies";
-  const isFirefox = tab.url === "petezah://vm" || tab.url === "petezah://firefox";
+  const isFirefox =
+    tab.url === "petezah://vm" || tab.url === "petezah://firefox";
   const isUserProfile = tab.url.startsWith("petezah://user/");
   const isGameViewer = tab.url.startsWith("petezah://gameviewer");
   const displayUrl = isGameViewer ? "petezah://gameviewer" : tab.url;
   const isAppViewer = tab.url.startsWith("petezah://appviewer");
-  const isYoutube = tab.url.startsWith("https://www.youtube.com/") || tab.url.startsWith("https://youtube.com/") || tab.url.startsWith("youtube.com/");
-  const isReddit = tab.url.startsWith("https://www.reddit.com/") || tab.url.startsWith("https://reddit.com/") || tab.url.startsWith("reddit.com/");
+  const isYoutube =
+    tab.url.startsWith("https://www.youtube.com/") ||
+    tab.url.startsWith("https://youtube.com/") ||
+    tab.url.startsWith("youtube.com/");
+  const isReddit =
+    tab.url.startsWith("https://www.reddit.com/") ||
+    tab.url.startsWith("https://reddit.com/") ||
+    tab.url.startsWith("reddit.com/");
 
   if (isGameViewer) {
     const params = new URLSearchParams(tab.url.split("?")[1] || "");
@@ -1023,15 +1113,15 @@ function TabPane({
   }
 
   if (tab.url === "petezah://settings") {
-  return (
-    <div
-      className="absolute inset-0"
-      style={{ display: isVisible ? "block" : "none" }}
-    >
-      <AccountPage onNavigate={onNavigate} />
-    </div>
-  );
-}
+    return (
+      <div
+        className="absolute inset-0"
+        style={{ display: isVisible ? "block" : "none" }}
+      >
+        <AccountPage onNavigate={onNavigate} />
+      </div>
+    );
+  }
 
   if (tab.url === "petezah://account") {
     return (
@@ -1094,19 +1184,37 @@ function TabPane({
   }
 
   if (isYoutube) {
-    const embedUrl = "/static/google-embed.html#" + tab.url.replace(/^https?:\/\/(www\.)?/, "");
+    const embedUrl =
+      "/static/google-embed.html#" +
+      tab.url.replace(/^https?:\/\/(www\.)?/, "");
     return (
-      <div className="absolute inset-0 w-full h-full" style={{ display: isVisible ? "block" : "none" }}>
-        <ExtensionAwareIframe src={embedUrl} pageUrl={tab.url} isVisible={isVisible} />
+      <div
+        className="absolute inset-0 w-full h-full"
+        style={{ display: isVisible ? "block" : "none" }}
+      >
+        <ExtensionAwareIframe
+          src={embedUrl}
+          pageUrl={tab.url}
+          isVisible={isVisible}
+        />
       </div>
     );
   }
 
   if (isReddit) {
-    const embedUrl = "/static/google-embed.html#" + tab.url.replace(/^https?:\/\/(www\.)?/, "");
+    const embedUrl =
+      "/static/google-embed.html#" +
+      tab.url.replace(/^https?:\/\/(www\.)?/, "");
     return (
-      <div className="absolute inset-0 w-full h-full" style={{ display: isVisible ? "block" : "none" }}>
-        <ExtensionAwareIframe src={embedUrl} pageUrl={tab.url} isVisible={isVisible} />
+      <div
+        className="absolute inset-0 w-full h-full"
+        style={{ display: isVisible ? "block" : "none" }}
+      >
+        <ExtensionAwareIframe
+          src={embedUrl}
+          pageUrl={tab.url}
+          isVisible={isVisible}
+        />
       </div>
     );
   }
@@ -1172,7 +1280,11 @@ export default function ContentArea({
 }: ContentAreaProps) {
   if (!activeTab && tabs.length === 0) {
     return (
-      <div ref={contentRef} className="flex-1 flex relative w-full bg-transparent" style={{ overflow: "clip" }}>
+      <div
+        ref={contentRef}
+        className="flex-1 flex relative w-full bg-transparent"
+        style={{ overflow: "clip" }}
+      >
         <EmptyState />
       </div>
     );
@@ -1201,12 +1313,18 @@ export default function ContentArea({
       className="flex-1 flex relative w-full bg-transparent [&:fullscreen]:bg-[hsla(220,35%,5%,1)]"
       style={{ overflow: scale === 1 ? "clip" : "auto" }}
     >
-      <div className="flex flex-1 relative w-full h-full min-h-0" style={zoomStyle}>
+      <div
+        className="flex flex-1 relative w-full h-full min-h-0"
+        style={zoomStyle}
+      >
         <div
           className="flex-1 relative bg-transparent min-w-0"
           onMouseDown={() => onFocusPane?.("main")}
           style={{
-            outline: focusedPane === "main" && splitTab ? "1px solid hsl(210 100% 65% / 0.25)" : undefined,
+            outline:
+              focusedPane === "main" && splitTab
+                ? "1px solid hsl(210 100% 65% / 0.25)"
+                : undefined,
             outlineOffset: -1,
           }}
         >
@@ -1231,7 +1349,10 @@ export default function ContentArea({
               className="flex-1 relative min-w-0"
               onMouseDown={() => onFocusPane?.("split")}
               style={{
-                outline: focusedPane === "split" ? "1px solid hsl(210 100% 65% / 0.25)" : undefined,
+                outline:
+                  focusedPane === "split"
+                    ? "1px solid hsl(210 100% 65% / 0.25)"
+                    : undefined,
                 outlineOffset: -1,
               }}
             >
