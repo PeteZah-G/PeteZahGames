@@ -352,134 +352,6 @@ function savePresetsToStorage(presets: Preset[]) {
   } catch {}
 }
 
-function FluidCanvas({ enabled }: { enabled: boolean }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const mouseRef = useRef({ x: -1000, y: -1000 });
-  const animRef = useRef<number>(0);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const resize = () => {
-      const dpr = window.devicePixelRatio || 1;
-      const parent = canvas.parentElement;
-      const w = parent ? parent.clientWidth : canvas.offsetWidth;
-      const h = parent ? parent.clientHeight : canvas.offsetHeight;
-      canvas.width = Math.floor(w * dpr);
-      canvas.height = Math.floor(h * dpr);
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.scale(dpr, dpr);
-    };
-    resize();
-    window.addEventListener("resize", resize);
-
-    const blobs = Array.from({ length: 6 }, (_, i) => ({
-      x: Math.random() * canvas.offsetWidth,
-      y: Math.random() * canvas.offsetHeight,
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: (Math.random() - 0.5) * 0.3,
-      radius: 140 + Math.random() * 200,
-      hue: 200 + i * 10,
-      saturation: 60 + Math.random() * 25,
-      lightness: 40 + Math.random() * 15,
-      opacity: 0.15 + Math.random() * 0.12,
-    }));
-
-    let time = 0;
-    const animate = () => {
-      time += 0.003;
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-      ctx.clearRect(0, 0, w, h);
-
-      blobs.forEach((b) => {
-        b.x += b.vx + Math.sin(time + b.hue) * 0.15;
-        b.y += b.vy + Math.cos(time * 0.7 + b.hue) * 0.15;
-
-        if (enabled) {
-          const dx = mouseRef.current.x - b.x;
-          const dy = mouseRef.current.y - b.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 300) {
-            b.x += dx * 0.003;
-            b.y += dy * 0.003;
-          }
-        }
-
-        if (b.x < -b.radius) b.x = w + b.radius;
-        if (b.x > w + b.radius) b.x = -b.radius;
-        if (b.y < -b.radius) b.y = h + b.radius;
-        if (b.y > h + b.radius) b.y = -b.radius;
-
-        const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.radius);
-        grad.addColorStop(
-          0,
-          `hsla(${b.hue}, ${b.saturation}%, ${b.lightness}%, ${
-            b.opacity * 2.2
-          })`
-        );
-        grad.addColorStop(
-          0.4,
-          `hsla(${b.hue}, ${b.saturation}%, ${b.lightness}%, ${
-            b.opacity * 1.1
-          })`
-        );
-        grad.addColorStop(
-          1,
-          `hsla(${b.hue}, ${b.saturation}%, ${b.lightness}%, 0)`
-        );
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, w, h);
-      });
-
-      for (let i = 0; i < 3; i++) {
-        const wx = w * (0.2 + i * 0.3) + Math.sin(time * 0.5 + i) * 60;
-        const wy = h * (0.3 + i * 0.2) + Math.cos(time * 0.4 + i * 2) * 40;
-        const wg = ctx.createRadialGradient(wx, wy, 0, wx, wy, 120);
-        wg.addColorStop(0, "hsla(210, 70%, 90%, 0.07)");
-        wg.addColorStop(1, "hsla(210, 60%, 90%, 0)");
-        ctx.fillStyle = wg;
-        ctx.fillRect(0, 0, w, h);
-      }
-
-      animRef.current = requestAnimationFrame(animate);
-    };
-    animate();
-
-    const handleMouse = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    };
-    if (enabled) canvas.addEventListener("mousemove", handleMouse);
-
-    return () => {
-      window.removeEventListener("resize", resize);
-      canvas.removeEventListener("mousemove", handleMouse);
-      cancelAnimationFrame(animRef.current);
-    };
-  }, [enabled]);
-
-  return (
-    <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
-      <canvas
-        ref={canvasRef}
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          pointerEvents: enabled ? "auto" : "none",
-          display: "block",
-        }}
-      />
-    </div>
-  );
-}
-
 function NewTabSearchBar({
   onNavigate,
 }: {
@@ -725,7 +597,6 @@ function PresetCard({
 }
 
 function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
-  const fluidCursor = true;
   const [presets, setPresets] = useState<Preset[]>(getStoredPresets);
   const [editingPreset, setEditingPreset] = useState<Preset | null | "new">(
     null
@@ -739,8 +610,7 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
   const ease = [0.22, 1, 0.36, 1] as const;
 
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden">
-      <FluidCanvas enabled={fluidCursor} />
+    <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden bg-transparent">
       <motion.a
         href="https://discord.gg/cYjHFDguxS"
         target="_blank"
@@ -1224,8 +1094,7 @@ function TabPane({
 
 function EmptyState() {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center relative overflow-hidden">
-      <FluidCanvas enabled={false} />
+    <div className="flex-1 flex flex-col items-center justify-center relative overflow-hidden bg-transparent">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -1273,9 +1142,9 @@ export default function ContentArea({
       : activeTab;
 
   return (
-    <div className="flex-1 flex relative w-full" style={{ overflow: "clip" }}>
+    <div className="flex-1 flex relative w-full bg-transparent" style={{ overflow: "clip" }}>
       <div
-        className="flex-1 relative"
+        className="flex-1 relative bg-transparent"
         onMouseDown={() => onFocusPane?.("main")}
         style={{
           outline: focusedPane === "main" && splitTab ? "1px solid hsl(210 100% 65% / 0.25)" : undefined,

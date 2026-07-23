@@ -741,9 +741,9 @@ export default function MoviesPage({ onNavigate }: { onNavigate?: (url: string) 
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{
-              width: 38, height: 38, borderRadius: 11,
-              background: "linear-gradient(135deg, hsl(213 70% 45% / 0.35), hsl(250 50% 40% / 0.25))",
-              border: `1px solid hsl(213 60% 40% / 0.35)`,
+              width: 38, height: 38, borderRadius: 10,
+              background: S.elevated,
+              border: `1px solid ${S.border}`,
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>
               <Clapperboard size={16} style={{ color: S.accent }} />

@@ -8,22 +8,17 @@
   <style>
     :root {
       --bg0: #020810;
-      --bg1: #06101c;
       --line: hsla(210, 40%, 80%, 0.12);
       --text: #e8f0fa;
       --muted: hsla(210, 20%, 70%, 0.55);
       --accent: #4d8dff;
-      --accent2: #6a5cff;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       min-height: 100%;
       color: var(--text);
       font-family: "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
-      background:
-        radial-gradient(1000px 560px at 50% -8%, #0c2244 0%, transparent 55%),
-        radial-gradient(700px 400px at 85% 90%, hsla(250, 65%, 40%, 0.12), transparent 50%),
-        var(--bg0);
+      background: var(--bg0);
     }
     body {
       min-height: 100vh;
@@ -34,65 +29,44 @@
     }
     .shell {
       width: 100%;
-      max-width: 520px;
-      position: relative;
-    }
-    .glow {
-      position: absolute;
-      inset: -50px;
-      background: radial-gradient(circle at 50% 20%, hsla(213, 90%, 55%, 0.2), transparent 60%);
-      pointer-events: none;
-      filter: blur(10px);
+      max-width: 480px;
     }
     .card {
-      position: relative;
       border: 1px solid var(--line);
-      border-radius: 18px;
-      background: linear-gradient(165deg, hsla(216, 32%, 10%, 0.95), hsla(216, 36%, 7%, 0.98));
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
-      padding: 36px 28px 28px;
+      border-radius: 14px;
+      background: hsla(216, 28%, 9%, 0.96);
+      padding: 32px 26px 26px;
       text-align: center;
-      overflow: hidden;
-    }
-    .card::before {
-      content: "";
-      position: absolute;
-      inset: 0 0 auto 0;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
     }
     .brand {
-      font-size: 1.75rem;
-      font-weight: 800;
+      font-size: 1.5rem;
+      font-weight: 750;
       letter-spacing: -0.03em;
-      margin-bottom: 6px;
-      background: linear-gradient(135deg, #fff 20%, #9ec5ff 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
+      margin-bottom: 8px;
+      color: var(--text);
     }
     .eyebrow {
       font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.14em;
+      font-weight: 650;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 14px;
+      color: var(--muted);
+      margin-bottom: 12px;
     }
     h1 {
-      font-size: 1.35rem;
-      font-weight: 700;
+      font-size: 1.2rem;
+      font-weight: 650;
       margin-bottom: 10px;
       letter-spacing: -0.02em;
     }
     p {
-      font-size: 0.92rem;
+      font-size: 0.9rem;
       line-height: 1.55;
       color: var(--muted);
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }
     .credits {
-      margin-top: 22px;
+      margin-top: 20px;
       padding-top: 16px;
       border-top: 1px solid var(--line);
       font-size: 0.75rem;
@@ -108,24 +82,23 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 12px;
-      border-radius: 999px;
+      padding: 5px 10px;
+      border-radius: 8px;
       border: 1px solid var(--line);
-      background: hsla(213, 70%, 48%, 0.12);
-      color: #9ec5ff;
+      background: hsla(216, 28%, 12%, 0.9);
+      color: var(--muted);
       font-size: 11px;
-      font-weight: 600;
-      margin-bottom: 18px;
+      font-weight: 550;
+      margin-bottom: 16px;
     }
   </style>
 </head>
 <body>
   <div class="shell">
-    <div class="glow" aria-hidden="true"></div>
     <div class="card">
       <div class="eyebrow">PeteZah VMs</div>
       <div class="brand">PeteZah</div>
-      <div class="pill">Firefox · WebAssembly · Live</div>
+      <div class="pill">Firefox · WebAssembly</div>
       <h1>Thanks for using PeteZah’s VMs</h1>
       <p>
         You’re running a real Gecko browser compiled to WebAssembly, right inside PeteZah.
@@ -139,7 +112,6 @@
         <a href="https://github.com/HeyPuter/firefox-wasm" target="_blank" rel="noreferrer">Firefox in WebAssembly</a>
         from
         <a href="https://developer.puter.com/labs/firefox-wasm/" target="_blank" rel="noreferrer">Puter Labs</a>.
-        Built with love for PeteZah.
       </div>
     </div>
   </div>

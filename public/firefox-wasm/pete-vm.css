@@ -124,13 +124,14 @@ button, input { font: inherit; }
 .nav-brand-label:hover { opacity: 0.9; }
 
 .labs-badge {
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: #fff;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: hsla(213, 50%, 45%, 0.2);
+  border: 1px solid hsla(213, 40%, 50%, 0.25);
+  color: #9ec5ff;
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-weight: 650;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
@@ -210,14 +211,11 @@ button, input { font: inherit; }
 
 .splash-title {
   margin: 0;
-  font-size: clamp(1.8rem, 4vw, 2.45rem);
+  font-size: clamp(1.7rem, 4vw, 2.2rem);
   line-height: 1.12;
-  font-weight: 800;
+  font-weight: 750;
   letter-spacing: -0.03em;
-  background: linear-gradient(135deg, #fff 12%, #9ec5ff 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--text);
 }
 
 .project-copy {
@@ -289,23 +287,15 @@ button, input { font: inherit; }
   align-items: center;
   min-height: 110px;
   justify-content: center;
-  padding: 22px 18px 18px;
-  border-radius: 18px;
+  padding: 20px 16px 16px;
+  border-radius: 14px;
   border: 1px solid var(--line);
-  background: linear-gradient(165deg, hsla(216, 32%, 12%, 0.98), hsla(216, 36%, 7%, 0.99));
-  box-shadow: var(--shadow);
+  background: hsla(216, 28%, 9%, 0.92);
   position: relative;
   overflow: visible;
 }
 .launch-panel::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 2px;
-  border-radius: 18px 18px 0 0;
-  background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
-  pointer-events: none;
-  z-index: 1;
+  display: none;
 }
 
 .panel-loading {
@@ -333,7 +323,7 @@ button, input { font: inherit; }
 }
 
 .progress-track {
-  height: 8px;
+  height: 6px;
   overflow: hidden;
   border-radius: 999px;
   background: hsla(216, 20%, 18%, 0.9);
@@ -342,9 +332,8 @@ button, input { font: inherit; }
   width: 0%;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  background: var(--accent);
   transition: width 0.12s ease;
-  box-shadow: 0 0 12px hsla(213, 70%, 55%, 0.45);
 }
 .progress-meta {
   display: flex;
@@ -373,41 +362,32 @@ button, input { font: inherit; }
   justify-content: center;
   gap: 8px;
   width: 100%;
-  border: 1px solid hsla(213, 70%, 70%, 0.35);
-  border-radius: 14px;
+  border: 1px solid hsla(213, 50%, 55%, 0.35);
+  border-radius: 10px;
   color: #fff;
-  font-size: 15px;
-  font-weight: 750;
+  font-size: 14px;
+  font-weight: 600;
   letter-spacing: 0.01em;
   line-height: 1.2;
-  padding: 15px 22px;
+  padding: 13px 20px;
   cursor: pointer;
-  background: linear-gradient(135deg, #3d7fff 0%, #4d8dff 42%, #6a5cff 100%);
-  box-shadow:
-    0 1px 0 hsla(0, 0%, 100%, 0.18) inset,
-    0 12px 28px hsla(213, 70%, 40%, 0.42);
-  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  background: hsl(213, 70%, 48%);
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 .start-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  filter: brightness(1.07);
-  box-shadow:
-    0 1px 0 hsla(0, 0%, 100%, 0.22) inset,
-    0 16px 34px hsla(213, 70%, 42%, 0.5);
+  background: hsl(213, 70%, 52%);
+  border-color: hsla(213, 50%, 60%, 0.5);
 }
 .start-btn:active:not(:disabled) {
-  transform: translateY(0);
-  filter: brightness(0.98);
+  background: hsl(213, 70%, 44%);
 }
 .start-btn:focus-visible {
-  outline: 2px solid hsla(213, 80%, 70%, 0.85);
-  outline-offset: 3px;
+  outline: 2px solid hsla(213, 70%, 58%, 0.55);
+  outline-offset: 2px;
 }
 .start-btn:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
-  box-shadow: none;
-  filter: grayscale(0.15);
 }
 
 .advanced {

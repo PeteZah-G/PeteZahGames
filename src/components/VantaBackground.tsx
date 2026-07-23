@@ -6,10 +6,10 @@ import NET from "vanta/dist/vanta.net.min";
 const DEFAULT_BG = "#020810";
 
 const SPACE_THEME = {
-  highlightColor: 0x1a3a6e,
-  midtoneColor: 0x0a1a38,
-  lowlightColor: 0x040a14,
-  baseColor: 0x01050c,
+  highlightColor: 0x2f5a8a,
+  midtoneColor: 0x14304f,
+  lowlightColor: 0x071022,
+  baseColor: 0x020810,
 };
 
 function parseColor(input?: string | null): number {
@@ -123,7 +123,6 @@ export default function VantaBackground() {
   const netRef = useRef<HTMLDivElement>(null);
   const fogEffect = useRef<any>(null);
   const netEffect = useRef<any>(null);
-  const twinkleRef = useRef<number>(0);
   const [bg, setBg] = useState(readBg);
   const [network, setNetwork] = useState(readNetwork);
 
@@ -145,7 +144,7 @@ export default function VantaBackground() {
     const base = parseColor(bg);
     const theme = {
       baseColor: base || SPACE_THEME.baseColor,
-      lowlightColor: shade(base || SPACE_THEME.lowlightColor, 0.55) || SPACE_THEME.lowlightColor,
+      lowlightColor: shade(SPACE_THEME.lowlightColor, 1) || SPACE_THEME.lowlightColor,
       midtoneColor: SPACE_THEME.midtoneColor,
       highlightColor: SPACE_THEME.highlightColor,
     };
@@ -154,9 +153,9 @@ export default function VantaBackground() {
       if (fogEffect.current) {
         fogEffect.current.setOptions({
           ...theme,
-          blurFactor: 0.76,
-          speed: 1.05,
-          zoom: 0.8,
+          blurFactor: 0.85,
+          speed: 1.35,
+          zoom: 0.92,
         });
       } else {
         fogEffect.current = FOG({
@@ -167,9 +166,9 @@ export default function VantaBackground() {
           gyroControls: false,
           minHeight: 200,
           minWidth: 200,
-          blurFactor: 0.76,
-          speed: 1.05,
-          zoom: 0.8,
+          blurFactor: 0.85,
+          speed: 1.35,
+          zoom: 0.92,
           ...theme,
         });
       }
@@ -198,20 +197,6 @@ export default function VantaBackground() {
       if (document.body) ro.observe(document.body);
     } catch {}
 
-    let phase = 0;
-    const tick = () => {
-      phase += 0.018;
-      try {
-        const pulse = 0.95 + Math.sin(phase) * 0.12;
-        fogEffect.current?.setOptions?.({
-          speed: pulse,
-          highlightColor: shade(SPACE_THEME.highlightColor, 0.92 + Math.sin(phase * 1.4) * 0.12),
-        });
-      } catch {}
-      twinkleRef.current = requestAnimationFrame(tick);
-    };
-    twinkleRef.current = requestAnimationFrame(tick);
-
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
@@ -223,7 +208,6 @@ export default function VantaBackground() {
       try {
         ro?.disconnect();
       } catch {}
-      cancelAnimationFrame(twinkleRef.current);
     };
   }, [bg]);
 
@@ -248,11 +232,11 @@ export default function VantaBackground() {
           minWidth: 200,
           scale: 1,
           scaleMobile: 1,
-          color: 0x6a9fd4,
+          color: 0x3a6a9a,
           backgroundColor: 0x000000,
           points: 6,
           maxDistance: 14,
-          spacing: 24,
+          spacing: 26,
           showDots: false,
         });
       }
@@ -262,7 +246,6 @@ export default function VantaBackground() {
 
   useEffect(() => {
     return () => {
-      cancelAnimationFrame(twinkleRef.current);
       try {
         fogEffect.current?.destroy?.();
         netEffect.current?.destroy?.();
@@ -306,7 +289,7 @@ export default function VantaBackground() {
           aria-hidden
           style={{
             ...fullBleed,
-            opacity: 0.22,
+            opacity: 0.12,
             mixBlendMode: "screen",
           }}
         />

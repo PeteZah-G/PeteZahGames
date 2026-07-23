@@ -392,7 +392,6 @@ export default function MusicPage({
   return (
     <div style={{
       position: "absolute", inset: 0, background: S.bg, display: "flex", flexDirection: "column", overflow: "hidden",
-      backgroundImage: "radial-gradient(ellipse 80% 50% at 20% 0%, hsla(205,90%,50%,0.12), transparent 55%), radial-gradient(ellipse 60% 40% at 90% 100%, hsla(230,70%,40%,0.1), transparent 50%)",
     }}>
       <audio ref={audioRef} preload="metadata" />
 
@@ -403,10 +402,9 @@ export default function MusicPage({
         background: "hsla(220, 35%, 6%, 0.45)",
       }}>
         <div style={{
-          width: 36, height: 36, borderRadius: 11,
-          background: "linear-gradient(135deg, hsla(205, 90%, 55%, 0.4), hsla(250, 50%, 45%, 0.25))",
-          border: `1px solid ${S.borderFocus}`, display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 0 24px hsla(205, 90%, 55%, 0.25)",
+          width: 36, height: 36, borderRadius: 10,
+          background: S.elevated,
+          border: `1px solid ${S.border}`, display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <Music2 size={15} style={{ color: S.accent }} />
         </div>
@@ -658,9 +656,8 @@ export default function MusicPage({
         >
           <div style={{
             height: "100%", width: `${duration ? (progress / duration) * 100 : 0}%`,
-            background: `linear-gradient(90deg, ${S.accent}, hsl(230 80% 70%))`,
+            background: S.accent,
             borderRadius: 99, transition: "width 0.1s linear",
-            boxShadow: "0 0 12px hsla(205, 90%, 60%, 0.45)",
           }} />
         </div>
 
@@ -668,7 +665,7 @@ export default function MusicPage({
           <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
             <div style={{
               width: 46, height: 46, borderRadius: 11, overflow: "hidden", background: S.elevated, flexShrink: 0,
-              border: `1px solid ${S.border}`, boxShadow: current ? "0 0 20px hsla(205, 80%, 50%, 0.2)" : "none",
+              border: `1px solid ${S.border}`,
             }}>
               {current?.artwork ? (
                 <img src={current.artwork} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -695,10 +692,9 @@ export default function MusicPage({
               disabled={!current}
               style={{
                 width: 40, height: 40, borderRadius: "50%", border: "none", cursor: current ? "pointer" : "default",
-                background: `linear-gradient(135deg, ${S.accent}, hsl(230 75% 55%))`,
+                background: S.accent,
                 color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
                 opacity: current ? 1 : 0.4,
-                boxShadow: current ? "0 4px 20px hsla(205, 90%, 50%, 0.4)" : "none",
               }}
             >
               {playing ? <Pause size={15} fill="#fff" /> : <Play size={15} fill="#fff" style={{ marginLeft: 2 }} />}
