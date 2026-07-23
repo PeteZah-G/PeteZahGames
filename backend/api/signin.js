@@ -36,7 +36,6 @@ export async function signinHandler(req, res) {
     }
 
     if (user.banned) return res.status(403).json({ error: 'This account has been banned.' });
-    if (!user.email_verified) return res.status(401).json({ error: 'Please verify your email before logging in.' });
 
     const isOwner = isOwnerEmail(user.email);
     const effectiveAdmin = isOwner ? Math.max(user.is_admin || 0, 3) : (user.is_admin || 0);

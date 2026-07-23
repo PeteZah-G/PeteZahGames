@@ -102,8 +102,8 @@ export async function signupHandler(req, res) {
 
     res.status(201).json({
       message: emailSent
-        ? 'Account created! Check your email to verify before signing in.'
-        : 'Account created, but we could not send the verification email. Use Resend verification from the sign-in screen.',
+        ? 'Account created! You can sign in now. Check your email to verify for Get Links.'
+        : 'Account created! You can sign in now. We could not send a verification email — request one from your Profile later.',
       emailSent,
       needsVerification: true,
     });

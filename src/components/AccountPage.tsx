@@ -429,6 +429,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   const [likedPool, setLikedPool] = useState<FavTrack[]>([]);
   const [profSaving, setProfSaving] = useState(false);
   const [profMsg, setProfMsg]     = useState("");
+  const [verifyMsg, setVerifyMsg] = useState("");
 
   const avatarRef = useRef<HTMLInputElement>(null);
   const bannerRef = useRef<HTMLInputElement>(null);
@@ -811,7 +812,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       });
       const d = await r.json();
       if (!r.ok) setAuthErr(d.error || "Something went wrong");
-      else if (authMode === "signup") { setAuthOk(d.message || "Account created! Check your email to verify."); setAuthMode("signin"); setPassword(""); }
+      else if (authMode === "signup") { setAuthOk(d.message || "Account created! You can sign in now."); setAuthMode("signin"); setPassword(""); }
       else {
         setUser(d.user);
         hydrateProfile(d.user);
@@ -837,26 +838,36 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
     finally { setAuthLoading(false); }
   }
 
-  async function resendVerification() {
-    if (!email.trim()) {
+  async function resendVerification(overrideEmail?: string) {
+    const target = (overrideEmail || email || user?.email || "").trim();
+    if (!target) {
       setAuthErr("Enter your email first.");
+      setVerifyMsg("No email on file.");
       return;
     }
     setResendBusy(true);
     setAuthErr("");
     setAuthOk("");
+    setVerifyMsg("");
     try {
       const r = await fetch("/api/verify-email/resend", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: target }),
       });
       const d = await r.json();
-      if (!r.ok) setAuthErr(d.error || "Could not resend");
-      else setAuthOk(d.message || "Check your inbox.");
+      if (!r.ok) {
+        setAuthErr(d.error || "Could not resend");
+        setVerifyMsg(d.error || "Could not resend");
+      } else {
+        setAuthOk(d.message || "Check your inbox.");
+        setVerifyMsg("Verification email sent — check your inbox.");
+        setTimeout(() => setVerifyMsg(""), 4000);
+      }
     } catch {
       setAuthErr("Network error.");
+      setVerifyMsg("Network error.");
     } finally {
       setResendBusy(false);
     }
@@ -1345,9 +1356,53 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
             {section === "profile" && (
               <div style={{ maxWidth: "520px" }}>
                 <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: "0 0 3px" }}>Profile</h2>
-                <p style={{ fontSize: "11px", color: C.textSub, margin: "0 0 22px" }}>
+                <p style={{ fontSize: "11px", color: C.textSub, margin: "0 0 16px" }}>
                   {user.created_at ? `Member since ${new Date(user.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })}` : "Manage your profile"}
                 </p>
+
+                {(user.email_verified === false || user.email_verified === 0) ? (
+                  <div style={{
+                    display: "flex", flexDirection: "column", gap: 10, padding: "12px 14px", borderRadius: 10, marginBottom: 16,
+                    background: "hsl(32 80% 45% / 0.1)", border: "1px solid hsl(32 80% 45% / 0.28)",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                      <AlertCircle size={13} style={{ color: "hsl(32 90% 62%)", flexShrink: 0, marginTop: 1 }} />
+                      <div>
+                        <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "hsl(32 90% 68%)" }}>Email not verified</p>
+                        <p style={{ margin: "4px 0 0", fontSize: 11, color: C.textSub, lineHeight: 1.45 }}>
+                          Your account works for movies, VM, and everything else. Verify <span style={{ color: C.text }}>{user.email}</span> to unlock Get Links.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => resendVerification(user.email)}
+                      disabled={resendBusy}
+                      style={{
+                        alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6,
+                        padding: "7px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: resendBusy ? "not-allowed" : "pointer",
+                        background: C.accentDim, border: `1px solid ${C.borderFocus}`, color: C.accent,
+                        opacity: resendBusy ? 0.6 : 1,
+                      }}
+                    >
+                      {resendBusy ? <Loader2 size={11} className="animate-spin" /> : <Mail size={11} />}
+                      {resendBusy ? "Sending…" : "Send verification email"}
+                    </button>
+                    {verifyMsg && (
+                      <p style={{ margin: 0, fontSize: 11, color: verifyMsg.includes("sent") || verifyMsg.includes("inbox") ? C.success : C.danger }}>
+                        {verifyMsg}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 7, padding: "8px 12px", borderRadius: 8, marginBottom: 16,
+                    background: "hsl(145 50% 42% / 0.1)", border: "1px solid hsl(145 50% 42% / 0.22)",
+                    color: C.success, fontSize: 11, fontWeight: 600,
+                  }}>
+                    <Check size={11} /> Email verified
+                  </div>
+                )}
 
                 <div style={{
                   position: "relative", height: 90, borderRadius: 12, overflow: "hidden",
@@ -1549,8 +1604,30 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                         background: "hsl(0 60% 50% / 0.08)", border: "1px solid hsl(0 60% 50% / 0.2)",
                         color: "hsl(0 60% 68%)", fontSize: 12, lineHeight: 1.45,
                       }}>
-                        Verify your email to request links. Check your inbox or use Resend on the sign-in screen if needed.
+                        Verify your email to request links. You can still use the rest of the site. Check your inbox, or send a new verification email from Profile.
                       </div>
+                    )}
+
+                    {!linksStatus?.emailVerified && user?.email && (
+                      <button
+                        type="button"
+                        onClick={() => resendVerification(user.email)}
+                        disabled={resendBusy}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 6, marginBottom: 8,
+                          padding: "8px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: resendBusy ? "not-allowed" : "pointer",
+                          background: C.accentDim, border: `1px solid ${C.borderFocus}`, color: C.accent,
+                          opacity: resendBusy ? 0.6 : 1,
+                        }}
+                      >
+                        {resendBusy ? <Loader2 size={12} className="animate-spin" /> : <Mail size={12} />}
+                        Send verification email
+                      </button>
+                    )}
+                    {verifyMsg && section === "get-links" && (
+                      <p style={{ fontSize: 11, margin: "0 0 14px", color: verifyMsg.includes("sent") || verifyMsg.includes("inbox") ? C.success : C.danger }}>
+                        {verifyMsg}
+                      </p>
                     )}
 
                     <Divider />
