@@ -14,7 +14,7 @@
       var k = "chrome-demo-opts";
       var o = JSON.parse(localStorage.getItem(k) || "{}");
       var proto = location.protocol === "https:" ? "wss:" : "ws:";
-      o.wisp = proto + "//" + location.host + "/api/alt-wisp-3/";
+      o.wisp = proto + "//" + location.host + "/api/alt-wisp-1/";
       if (o.gpu === undefined) o.gpu = true;
       if (o.jit === undefined) o.jit = false;
       localStorage.setItem(k, JSON.stringify(o));
@@ -148,7 +148,7 @@
                     <input type="text" id="opt-wisp" spellcheck="false" autocomplete="off" aria-label="Wisp server" />
                   </label>
                   <p class="branding-note">
-                    Virginia Wisp by default (/api/alt-wisp-3/). Fallback: /wisp/
+                    UK Wisp by default (/api/alt-wisp-1/). Fallback: /wisp/
                   </p>
                 </div>
               </details>

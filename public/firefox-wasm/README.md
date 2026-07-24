@@ -15,4 +15,4 @@ Sources:
 - https://developer.puter.com/labs/firefox-wasm/
 - https://github.com/HeyPuter/firefox-wasm
 
-Default network: Virginia Wisp `/api/alt-wisp-3/`.
+Default network: UK Wisp `/api/alt-wisp-1/`.
