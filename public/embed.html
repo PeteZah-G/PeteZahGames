@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PeteZah</title>
+    <link rel="icon" href="/logo.png" />
+    <style>
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        background: #020810;
+        color: #a8b8cc;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+
+      #iframe-container {
+        width: 100%;
+        height: 100%;
+      }
+
+      #iframe-container iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: #fff;
+      }
+
+      #status {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        pointer-events: none;
+        z-index: 2;
+        background: #020810;
+        transition: opacity 0.2s ease;
+      }
+
+      #status.hide {
+        opacity: 0;
+      }
+
+      #status p {
+        margin: 0;
+        font-size: 13px;
+        letter-spacing: 0.02em;
+      }
+    </style>
+    <script src="/m4thx/index.js"></script>
+    <script src="/q9vx/sj.all.js"></script>
+    <script src="/config.js"></script>
+  </head>
+
+  <body>
+    <div id="status"><p>Loading…</p></div>
+    <div id="iframe-container"></div>
+
+    <script>
+      const { ScramjetController } = $scramjetLoadController();
+      const scramjet = new ScramjetController({
+        prefix: '/afsd123k2/',
+        files: {
+          wasm: '/q9vx/sj.wasm.wasm',
+          all: '/q9vx/sj.all.js',
+          sync: '/q9vx/sj.sync.js',
+        },
+      });
+
+      const connection = new BareMux.BareMuxConnection('/m4thx/worker.js');
+
+      const store = {
+        wispurl:
+          _CONFIG?.wispurl ||
+          (location.protocol === 'https:' ? 'wss' : 'ws') +
+            '://' +
+            location.host +
+            '/wisp/',
+        bareurl:
+          _CONFIG?.bareurl ||
+          (location.protocol === 'https:' ? 'https' : 'http') +
+            '://' +
+            location.host +
+            '/api/edge/',
+      };
+
+      let readyPromise = null;
+      let frame = null;
+
+      function setStatus(text) {
+        const el = document.getElementById('status');
+        if (!el) return;
+        if (!text) {
+          el.classList.add('hide');
+          return;
+        }
+        el.classList.remove('hide');
+        el.querySelector('p').textContent = text;
+      }
+
+      function parseHashUrl() {
+        let raw = window.location.hash.slice(1).trim();
+        if (!raw) return '';
+        try {
+          raw = decodeURIComponent(raw);
+        } catch {}
+        if (!/^https?:\/\//i.test(raw)) {
+          raw = 'https://' + raw.replace(/^\/+/, '');
+        }
+        try {
+          const u = new URL(raw);
+          if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+          return u.href;
+        } catch {
+          return '';
+        }
+      }
+
+      async function ensureReady() {
+        if (readyPromise) return readyPromise;
+        readyPromise = (async () => {
+          await scramjet.init();
+          try {
+            await navigator.serviceWorker.register('/1k123.js', {
+              updateViaCache: 'none',
+              scope: '/',
+            });
+            await navigator.serviceWorker.ready;
+          } catch {}
+          await waitForTransport();
+        })();
+        return readyPromise;
+      }
+
+      async function waitForTransport() {
+        let attempts = 0;
+        const maxAttempts = 12;
+        while (attempts < maxAttempts) {
+          try {
+            await connection.setTransport('/e7px/index.mjs', [{ wisp: store.wispurl }]);
+            return;
+          } catch {
+            try {
+              await connection.setTransport('/l9cx/index.mjs', [{ wisp: store.wispurl }]);
+              return;
+            } catch {
+              try {
+                await connection.setTransport('/m4thx/index.mjs', [store.bareurl]);
+                return;
+              } catch {
+                attempts++;
+                if (attempts >= maxAttempts) {
+                  throw new Error('No proxy transport available');
+                }
+                await new Promise((r) => setTimeout(r, 120));
+              }
+            }
+          }
+        }
+      }
+
+      async function loadFromHash() {
+        const url = parseHashUrl();
+        if (!url) {
+          setStatus('Add a URL after # — e.g. /embed.html#https://example.com');
+          return;
+        }
+
+        setStatus('Opening…');
+        try {
+          await ensureReady();
+        } catch (e) {
+          setStatus('Could not start proxy. Refresh and try again.');
+          console.error(e);
+          return;
+        }
+
+        const container = document.getElementById('iframe-container');
+        container.innerHTML = '';
+        frame = scramjet.createFrame();
+        container.appendChild(frame.frame);
+        document.title = url.replace(/^https?:\/\//i, '').split('/')[0] || 'PeteZah';
+        frame.go(url);
+        setTimeout(() => setStatus(''), 400);
+      }
+
+      window.addEventListener('hashchange', () => {
+        loadFromHash();
+      });
+
+      window.addEventListener('load', () => {
+        loadFromHash();
+      });
+    </script>
+  </body>
+</html>
