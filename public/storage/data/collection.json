@@ -133,6 +133,16 @@
       "categories": ["skill"]
     },
     {
+      "label": "Orbiter",
+      "url": "/iframe.html?url=/storage/ag/arsenic/orbiter",
+      "imageUrl": "/storage/images/main3/5b.png",
+      "categories": [
+        "Action",
+        "Skill",
+        "Shooting"
+      ]
+    },
+    {
       "label": "5b",
       "url": "/iframe.html?url=/storage/ag/arsenic/5b",
       "imageUrl": "/storage/images/main3/5b.png",
