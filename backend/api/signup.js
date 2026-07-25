@@ -57,10 +57,19 @@ export async function signupHandler(req, res) {
   const email = normalizeEmail(req.body?.email);
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
   const { school, age, website } = req.body || {};
+  const acceptedLegal = req.body?.acceptedLegal === true
+    || req.body?.acceptedLegal === 'true'
+    || req.body?.acceptedLegal === 1;
 
   const clientIp = getClientIP(req);
   if (clientIp && isIpBanned(clientIp)) {
     return res.status(403).json({ error: 'Access denied.' });
+  }
+
+  if (!acceptedLegal) {
+    return res.status(400).json({
+      error: 'You must agree to the Terms of Service, Privacy Policy, and DMCA Policy to create an account.',
+    });
   }
 
   if (!email || !password) return res.status(400).json({ error: 'Email and password are required.' });

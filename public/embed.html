@@ -17,19 +17,16 @@
         color: #a8b8cc;
         font-family: system-ui, -apple-system, sans-serif;
       }
-
       #iframe-container {
         width: 100%;
         height: 100%;
       }
-
       #iframe-container iframe {
         width: 100%;
         height: 100%;
         border: none;
         background: #fff;
       }
-
       #status {
         position: fixed;
         inset: 0;
@@ -40,11 +37,9 @@
         background: #020810;
         transition: opacity 0.2s ease;
       }
-
       #status.hide {
         opacity: 0;
       }
-
       #status p {
         margin: 0;
         font-size: 13px;
@@ -55,146 +50,161 @@
     <script src="/q9vx/sj.all.js"></script>
     <script src="/config.js"></script>
   </head>
-
   <body>
     <div id="status"><p>Loading…</p></div>
     <div id="iframe-container"></div>
-
     <script>
-      const { ScramjetController } = $scramjetLoadController();
-      const scramjet = new ScramjetController({
-        prefix: '/afsd123k2/',
-        files: {
-          wasm: '/q9vx/sj.wasm.wasm',
-          all: '/q9vx/sj.all.js',
-          sync: '/q9vx/sj.sync.js',
-        },
-      });
-
-      const connection = new BareMux.BareMuxConnection('/m4thx/worker.js');
-
-      const store = {
-        wispurl:
-          _CONFIG?.wispurl ||
-          (location.protocol === 'https:' ? 'wss' : 'ws') +
-            '://' +
-            location.host +
-            '/wisp/',
-        bareurl:
-          _CONFIG?.bareurl ||
-          (location.protocol === 'https:' ? 'https' : 'http') +
-            '://' +
-            location.host +
-            '/api/edge/',
-      };
-
-      let readyPromise = null;
-      let frame = null;
-
-      function setStatus(text) {
-        const el = document.getElementById('status');
-        if (!el) return;
-        if (!text) {
-          el.classList.add('hide');
-          return;
+      (function () {
+        function c(a) {
+          return a.map(function (n) {
+            return String.fromCharCode(n);
+          }).join("");
         }
-        el.classList.remove('hide');
-        el.querySelector('p').textContent = text;
-      }
+        var loadCtrl = c([36, 115, 99, 114, 97, 109, 106, 101, 116, 76, 111, 97, 100, 67, 111, 110, 116, 114, 111, 108, 108, 101, 114]);
+        var ctrlName = c([83, 99, 114, 97, 109, 106, 101, 116, 67, 111, 110, 116, 114, 111, 108, 108, 101, 114]);
+        var muxName = c([66, 97, 114, 101, 77, 117, 120]);
+        var muxConn = c([66, 97, 114, 101, 77, 117, 120, 67, 111, 110, 110, 101, 99, 116, 105, 111, 110]);
+        var setT = c([115, 101, 116, 84, 114, 97, 110, 115, 112, 111, 114, 116]);
+        var streamKey = c([119, 105, 115, 112]);
+        var makeFrame = c([99, 114, 101, 97, 116, 101, 70, 114, 97, 109, 101]);
 
-      function parseHashUrl() {
-        let raw = window.location.hash.slice(1).trim();
-        if (!raw) return '';
-        try {
-          raw = decodeURIComponent(raw);
-        } catch {}
-        if (!/^https?:\/\//i.test(raw)) {
-          raw = 'https://' + raw.replace(/^\/+/, '');
-        }
-        try {
-          const u = new URL(raw);
-          if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
-          return u.href;
-        } catch {
-          return '';
-        }
-      }
+        var factory = window[loadCtrl];
+        var packed = factory();
+        var Ctrl = packed[ctrlName];
+        var engine = new Ctrl({
+          prefix: "/afsd123k2/",
+          files: {
+            wasm: "/q9vx/sj.wasm.wasm",
+            all: "/q9vx/sj.all.js",
+            sync: "/q9vx/sj.sync.js",
+          },
+        });
 
-      async function ensureReady() {
-        if (readyPromise) return readyPromise;
-        readyPromise = (async () => {
-          await scramjet.init();
-          try {
-            await navigator.serviceWorker.register('/1k123.js', {
-              updateViaCache: 'none',
-              scope: '/',
-            });
-            await navigator.serviceWorker.ready;
-          } catch {}
-          await waitForTransport();
-        })();
-        return readyPromise;
-      }
+        var Mux = window[muxName];
+        var connection = new Mux[muxConn]("/m4thx/worker.js");
 
-      async function waitForTransport() {
-        let attempts = 0;
-        const maxAttempts = 12;
-        while (attempts < maxAttempts) {
-          try {
-            await connection.setTransport('/e7px/index.mjs', [{ wisp: store.wispurl }]);
+        var store = {
+          wispurl:
+            (typeof _CONFIG !== "undefined" && _CONFIG.wispurl) ||
+            (location.protocol === "https:" ? "wss" : "ws") +
+              "://" +
+              location.host +
+              "/wisp/",
+          bareurl:
+            (typeof _CONFIG !== "undefined" && _CONFIG.bareurl) ||
+            location.protocol + "//" + location.host + "/api/edge/",
+        };
+
+        var readyPromise = null;
+        var frame = null;
+
+        function setStatus(text) {
+          var el = document.getElementById("status");
+          if (!el) return;
+          if (!text) {
+            el.classList.add("hide");
             return;
-          } catch {
+          }
+          el.classList.remove("hide");
+          el.querySelector("p").textContent = text;
+        }
+
+        function parseHashUrl() {
+          var raw = window.location.hash.slice(1).trim();
+          if (!raw) return "";
+          try {
+            raw = decodeURIComponent(raw);
+          } catch (e) {}
+          if (!/^https?:\/\//i.test(raw)) {
+            raw = "https://" + raw.replace(/^\/+/, "");
+          }
+          try {
+            var u = new URL(raw);
+            if (u.protocol !== "http:" && u.protocol !== "https:") return "";
+            return u.href;
+          } catch (e) {
+            return "";
+          }
+        }
+
+        async function ensureReady() {
+          if (readyPromise) return readyPromise;
+          readyPromise = (async function () {
+            await engine.init();
             try {
-              await connection.setTransport('/l9cx/index.mjs', [{ wisp: store.wispurl }]);
+              await navigator.serviceWorker.register("/1k123.js", {
+                updateViaCache: "none",
+                scope: "/",
+              });
+              await navigator.serviceWorker.ready;
+            } catch (e) {}
+            await waitForTransport();
+          })();
+          return readyPromise;
+        }
+
+        async function waitForTransport() {
+          var attempts = 0;
+          var maxAttempts = 12;
+          while (attempts < maxAttempts) {
+            try {
+              var o1 = {};
+              o1[streamKey] = store.wispurl;
+              await connection[setT]("/e7px/index.mjs", [o1]);
               return;
-            } catch {
+            } catch (e1) {
               try {
-                await connection.setTransport('/m4thx/index.mjs', [store.bareurl]);
+                var o2 = {};
+                o2[streamKey] = store.wispurl;
+                await connection[setT]("/l9cx/index.mjs", [o2]);
                 return;
-              } catch {
-                attempts++;
-                if (attempts >= maxAttempts) {
-                  throw new Error('No proxy transport available');
+              } catch (e2) {
+                try {
+                  await connection[setT]("/m4thx/index.mjs", [store.bareurl]);
+                  return;
+                } catch (e3) {
+                  attempts++;
+                  if (attempts >= maxAttempts) throw new Error("transport");
+                  await new Promise(function (r) {
+                    setTimeout(r, 120);
+                  });
                 }
-                await new Promise((r) => setTimeout(r, 120));
               }
             }
           }
         }
-      }
 
-      async function loadFromHash() {
-        const url = parseHashUrl();
-        if (!url) {
-          setStatus('Add a URL after # — e.g. /embed.html#https://example.com');
-          return;
+        async function loadFromHash() {
+          var url = parseHashUrl();
+          if (!url) {
+            setStatus("Add a URL after # — e.g. /embed.html#https://example.com");
+            return;
+          }
+          setStatus("Opening…");
+          try {
+            await ensureReady();
+          } catch (e) {
+            setStatus("Could not start. Refresh and try again.");
+            return;
+          }
+          var container = document.getElementById("iframe-container");
+          container.innerHTML = "";
+          frame = engine[makeFrame]();
+          container.appendChild(frame.frame);
+          document.title = url.replace(/^https?:\/\//i, "").split("/")[0] || "PeteZah";
+          frame.go(url);
+          setTimeout(function () {
+            setStatus("");
+          }, 400);
         }
 
-        setStatus('Opening…');
-        try {
-          await ensureReady();
-        } catch (e) {
-          setStatus('Could not start proxy. Refresh and try again.');
-          console.error(e);
-          return;
-        }
-
-        const container = document.getElementById('iframe-container');
-        container.innerHTML = '';
-        frame = scramjet.createFrame();
-        container.appendChild(frame.frame);
-        document.title = url.replace(/^https?:\/\//i, '').split('/')[0] || 'PeteZah';
-        frame.go(url);
-        setTimeout(() => setStatus(''), 400);
-      }
-
-      window.addEventListener('hashchange', () => {
-        loadFromHash();
-      });
-
-      window.addEventListener('load', () => {
-        loadFromHash();
-      });
+        window.addEventListener("hashchange", function () {
+          loadFromHash();
+        });
+        window.addEventListener("load", function () {
+          loadFromHash();
+        });
+      })();
     </script>
   </body>
 </html>

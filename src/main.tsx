@@ -1,12 +1,7 @@
-import { StrictMode, useEffect } from "react";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { initBrowser } from "./lib/browserInit";
 import App from "./App";
 import "./index.css";
-
-initBrowser().catch((err) => {
-  console.warn("[browser] Init error:", err.message);
-});
 
 if (/CrOS/.test(navigator.userAgent)) {
   document.documentElement.classList.add('chromeos');

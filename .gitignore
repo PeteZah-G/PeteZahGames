@@ -116,6 +116,7 @@ package-lock.json
 .env.development
 .env.production
 .env.test
+backend/.env.production
 external-apis.js
 public/storage/ag
 public/storage/ag/

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
+import { ensureProxyEngine } from "@/lib/browserInit";
 
 export default function ChatPage({ onNavigate }: { onNavigate: (url: string) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -8,8 +9,11 @@ export default function ChatPage({ onNavigate }: { onNavigate: (url: string) => 
     const container = containerRef.current;
     if (!container) return;
 
+    let cancelled = false;
+    ensureProxyEngine().catch(() => {});
+
     const tryCreate = () => {
-      if (!pxReady()) return false;
+      if (!pxReady() || cancelled) return false;
       try {
         const scFrame = pxCreateFrame();
         if (!scFrame) return false;
@@ -26,7 +30,10 @@ export default function ChatPage({ onNavigate }: { onNavigate: (url: string) => 
       const interval = setInterval(() => {
         if (tryCreate()) clearInterval(interval);
       }, 100);
-      return () => clearInterval(interval);
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
     }
   }, []);
 

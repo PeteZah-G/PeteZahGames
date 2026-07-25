@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { hasValidGate } from '../cap/store.js';
+import { hasValidLegal } from '../legal/cookie.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VERIFY_FILE = path.join(__dirname, '../../public/verify.html');
@@ -12,9 +13,17 @@ const OPEN_EXACT = new Set([
   '/favicon.ico',
   '/robots.txt',
   '/firefox-wasm/thanks.html',
+  '/terms',
+  '/tos',
+  '/terms-of-service',
+  '/terms-of-use',
+  '/privacy',
+  '/privacy-policy',
+  '/dmca',
+  '/copyright',
 ]);
 
-const OPEN_PREFIX = ['/cap/', '/api/verify-email'];
+const OPEN_PREFIX = ['/cap/', '/api/verify-email', '/api/legal'];
 
 function isOpenPath(p) {
   if (OPEN_EXACT.has(p)) return true;
@@ -36,7 +45,7 @@ export function createCapGateMiddleware() {
   return (req, res, next) => {
     const p = req.path || '';
     if (isOpenPath(p)) return next();
-    if (hasValidGate(req)) return next();
+    if (hasValidGate(req) && hasValidLegal(req)) return next();
 
     if (p.startsWith('/api/') || p.startsWith('/!!/') || p.startsWith('/!cover!/')) {
       return res.status(403).json({ error: 'Verification required' });
@@ -63,5 +72,5 @@ export function sendVerifyPage(_req, res) {
 }
 
 export function requireGateUpgrade(req) {
-  return hasValidGate(req);
+  return hasValidGate(req) && hasValidLegal(req);
 }

@@ -1,7 +1,8 @@
 import { useState, useCallback } from "react";
 import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
+import { ensureProxyEngine } from "@/lib/browserInit";
 
-export interface ScramjetFrame {
+export interface ProxyFrame {
   frame: HTMLIFrameElement;
   back?: () => void;
   forward?: () => void;
@@ -11,6 +12,8 @@ export interface ScramjetFrame {
   addEventListener?: (event: string, handler: (e: any) => void) => void;
 }
 
+export type ScramjetFrame = ProxyFrame;
+
 export interface Tab {
   id: string;
   title: string;
@@ -19,7 +22,7 @@ export interface Tab {
   pinned?: boolean;
   spaceId: string;
   icon?: string;
-  frame?: ScramjetFrame;
+  frame?: ProxyFrame;
 }
 
 export interface Space {
@@ -63,9 +66,8 @@ function formatUrl(raw: string): string {
   return `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
 }
 
-function makeScramjetFrame(url: string): ScramjetFrame | undefined {
+function makeProxyFrame(url: string): ProxyFrame | undefined {
   if (!pxReady()) {
-    console.warn("[browser] Proxy engine not ready yet, frame creation skipped");
     return undefined;
   }
   try {
@@ -86,8 +88,7 @@ function makeScramjetFrame(url: string): ScramjetFrame | undefined {
       frame.style.opacity = "1";
     };
     return scFrame;
-  } catch (e) {
-    console.error("Failed to create proxy frame:", e);
+  } catch {
     return undefined;
   }
 }
@@ -96,7 +97,7 @@ function createTab(url: string, spaceId: string): Tab {
   const tabId = String(tabCounter++);
   const isNewTab = !url || url === "petezah://newtab" || url === "about:blank";
   const finalUrl = isNewTab ? "petezah://newtab" : url;
-  const frame = isNewTab ? undefined : makeScramjetFrame(url);
+  const frame = isNewTab ? undefined : makeProxyFrame(url);
   if (frame) {
     frame.addEventListener?.("urlchange", (e: any) => {
       const newUrl = e?.url || e?.detail?.url || "";
@@ -152,9 +153,42 @@ export function useBrowserState() {
     (url?: unknown) => {
       const targetUrl =
         typeof url === "string" && url.trim() ? url : "petezah://newtab";
+      const needsEngine =
+        !!targetUrl &&
+        !targetUrl.startsWith("petezah://") &&
+        targetUrl !== "about:blank";
+      if (needsEngine && !pxReady()) {
+        ensureProxyEngine().catch(() => {});
+      }
       const newTab = createTab(targetUrl, activeSpaceId);
       setTabs((prev) => [...prev, newTab]);
       setActiveTabId(newTab.id);
+      if (needsEngine && !newTab.frame) {
+        const id = newTab.id;
+        const start = Date.now();
+        const iv = setInterval(() => {
+          if (!pxReady()) {
+            if (Date.now() - start > 15000) clearInterval(iv);
+            return;
+          }
+          clearInterval(iv);
+          const frame = makeProxyFrame(targetUrl);
+          if (!frame) return;
+          frame.addEventListener?.("urlchange", (e: any) => {
+            const newUrl = e?.url || e?.detail?.url || "";
+            if (newUrl && newUrl.startsWith("http")) {
+              window.dispatchEvent(
+                new CustomEvent("petezah-url-change", {
+                  detail: { tabId: id, url: newUrl },
+                })
+              );
+            }
+          });
+          setTabs((prev) =>
+            prev.map((t) => (t.id === id && !t.frame ? { ...t, frame } : t))
+          );
+        }, 100);
+      }
       return newTab;
     },
     [activeSpaceId]
@@ -286,7 +320,7 @@ export function useBrowserState() {
             return { ...t, url, title: url.split("/")[2] || url, favicon: getFavicon(url) };
           }
 
-          const frame = makeScramjetFrame(url);
+          const frame = makeProxyFrame(url);
           if (frame) {
             const newTabId = t.id;
             frame.addEventListener?.("urlchange", (e: any) => {
@@ -309,11 +343,17 @@ export function useBrowserState() {
       );
     };
 
-    if (!pxReady()) {
+    if (url.startsWith("petezah://") || url === "about:blank") {
+      doNavigate();
+    } else if (!pxReady()) {
+      ensureProxyEngine().catch(() => {});
+      const start = Date.now();
       const interval = setInterval(() => {
         if (pxReady()) {
           clearInterval(interval);
           doNavigate();
+        } else if (Date.now() - start > 15000) {
+          clearInterval(interval);
         }
       }, 100);
     } else {

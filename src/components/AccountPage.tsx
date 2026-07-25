@@ -412,6 +412,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
 
   const [authMode, setAuthMode]   = useState<"signin" | "signup">("signin");
   const [email, setEmail]         = useState("");
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [password, setPassword]   = useState("");
   const [authErr, setAuthErr]     = useState("");
   const [authOk, setAuthOk]       = useState("");
@@ -804,15 +805,22 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
-    setAuthErr(""); setAuthOk(""); setAuthLoading(true);
+    setAuthErr(""); setAuthOk("");
+    if (authMode === "signup" && !acceptedLegal) {
+      setAuthErr("Agree to the Terms, Privacy Policy, and DMCA Policy to create an account.");
+      return;
+    }
+    setAuthLoading(true);
     try {
+      const payload: Record<string, unknown> = { email, password };
+      if (authMode === "signup") payload.acceptedLegal = true;
       const r = await fetch(`/api/${authMode}`, {
         method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ email, password }), credentials: "include",
+        body: JSON.stringify(payload), credentials: "include",
       });
       const d = await r.json();
       if (!r.ok) setAuthErr(d.error || "Something went wrong");
-      else if (authMode === "signup") { setAuthOk(d.message || "Account created! You can sign in now."); setAuthMode("signin"); setPassword(""); }
+      else if (authMode === "signup") { setAuthOk(d.message || "Account created! You can sign in now."); setAuthMode("signin"); setPassword(""); setAcceptedLegal(false); }
       else {
         setUser(d.user);
         hydrateProfile(d.user);
@@ -1233,11 +1241,31 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
           <form onSubmit={handleAuth} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <Field type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} placeholder="Email address" icon={Mail} />
             <Field type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} placeholder="Password" icon={KeyRound} />
-            <button type="submit" disabled={authLoading} style={{
+            {authMode === "signup" && (
+              <label style={{
+                display: "flex", alignItems: "flex-start", gap: 8, marginTop: 2, cursor: "pointer",
+                fontSize: 11, lineHeight: 1.45, color: C.textSub,
+              }}>
+                <input
+                  type="checkbox"
+                  checked={acceptedLegal}
+                  onChange={(e) => setAcceptedLegal(e.target.checked)}
+                  style={{ marginTop: 2, accentColor: C.accent, flexShrink: 0 }}
+                />
+                <span>
+                  I agree to the{" "}
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: C.accent }} onClick={(e) => e.stopPropagation()}>Terms</a>,{" "}
+                  <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{ color: C.accent }} onClick={(e) => e.stopPropagation()}>Privacy Policy</a>, and{" "}
+                  <a href="/dmca" target="_blank" rel="noopener noreferrer" style={{ color: C.accent }} onClick={(e) => e.stopPropagation()}>DMCA Policy</a>.
+                </span>
+              </label>
+            )}
+            <button type="submit" disabled={authLoading || (authMode === "signup" && !acceptedLegal)} style={{
               marginTop: "4px", width: "100%", padding: "10px", borderRadius: "8px", border: `1px solid ${C.borderFocus}`,
               background: C.accentDim, color: C.text, fontSize: "13px", fontWeight: 600,
               display: "flex", alignItems: "center", justifyContent: "center", gap: "7px",
-              cursor: authLoading ? "not-allowed" : "pointer", opacity: authLoading ? 0.7 : 1, transition: "opacity 0.2s",
+              cursor: authLoading || (authMode === "signup" && !acceptedLegal) ? "not-allowed" : "pointer",
+              opacity: authLoading || (authMode === "signup" && !acceptedLegal) ? 0.7 : 1, transition: "opacity 0.2s",
             }}>
               {authLoading && <Loader2 size={13} className="animate-spin" />}
               {authMode === "signin" ? "Sign In" : "Create Account"}
@@ -1245,7 +1273,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
           </form>
 
           <button
-            onClick={() => { setAuthMode(m => m === "signin" ? "signup" : "signin"); setAuthErr(""); setAuthOk(""); }}
+            onClick={() => { setAuthMode(m => m === "signin" ? "signup" : "signin"); setAuthErr(""); setAuthOk(""); setAcceptedLegal(false); }}
             style={{ width: "100%", marginTop: "14px", background: "none", border: "none", cursor: "pointer",
               fontSize: "11px", color: C.textSub, textAlign: "center", transition: "color 0.15s" }}
             onMouseEnter={e => (e.currentTarget.style.color = C.text)}

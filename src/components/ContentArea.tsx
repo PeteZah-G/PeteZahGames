@@ -833,9 +833,7 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
   );
 }
 
-// Adopts the scramjet iframe into a React container div.
-// The iframe is NEVER recreated — we just toggle display.
-function ScramjetFrame({ tab, isVisible }: { tab: Tab; isVisible: boolean }) {
+function ProxyFrameHost({ tab, isVisible }: { tab: Tab; isVisible: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -1225,7 +1223,7 @@ function TabPane({
       style={{ display: isVisible ? "block" : "none" }}
     >
       {tab.frame ? (
-        <ScramjetFrame tab={tab} isVisible={isVisible} />
+        <ProxyFrameHost tab={tab} isVisible={isVisible} />
       ) : (
         <div className="w-full h-full flex items-center justify-center">
           <p className="text-muted-foreground text-sm">Loading...</p>

@@ -180,12 +180,12 @@
       font-size: 0.9rem;
       line-height: 1.55;
       color: var(--muted);
-      margin-bottom: 26px;
+      margin-bottom: 22px;
     }
     .widget-wrap {
       display: flex;
       justify-content: center;
-      margin-bottom: 18px;
+      margin-bottom: 16px;
       min-height: 58px;
     }
     cap-widget {
@@ -200,10 +200,60 @@
       --cap-font: inherit;
       --cap-widget-width: 260px;
     }
+    .agree {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      text-align: left;
+      padding: 12px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: hsla(216, 30%, 12%, 0.55);
+      margin-bottom: 14px;
+    }
+    .agree input {
+      margin-top: 3px;
+      width: 15px;
+      height: 15px;
+      accent-color: var(--accent);
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .agree label {
+      font-size: 0.78rem;
+      line-height: 1.45;
+      color: hsla(210, 25%, 82%, 0.78);
+      cursor: pointer;
+    }
+    .agree a {
+      color: #9ec4ff;
+      text-decoration: none;
+    }
+    .agree a:hover { text-decoration: underline; }
+    .continue {
+      width: 100%;
+      border: 1px solid hsla(213, 80%, 60%, 0.45);
+      border-radius: 12px;
+      padding: 11px 14px;
+      background: linear-gradient(135deg, hsla(213, 90%, 48%, 0.35), hsla(250, 70%, 48%, 0.28));
+      color: #eaf2ff;
+      font-size: 0.92rem;
+      font-weight: 650;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+    .continue:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+    .continue:not(:disabled):hover {
+      transform: translateY(-1px);
+    }
     .status {
       font-size: 0.78rem;
       color: var(--muted);
       min-height: 1.2em;
+      margin-top: 12px;
     }
     .status.ok { color: #7ddea8; }
     .status.err { color: #f0a0a8; }
@@ -226,7 +276,7 @@
       <img class="logo" src="/logo.png" alt="PeteZah" width="56" height="56" />
       <p class="brand">PeteZah</p>
       <h1>Verify to continue</h1>
-      <p class="sub">A quick check keeps the community safe. This only takes a moment the first time you visit.</p>
+      <p class="sub">A quick check keeps the community safe. Agree to our policies, then verify — it only takes a moment the first time you visit.</p>
       <div class="widget-wrap">
         <cap-widget
           id="cap"
@@ -237,6 +287,16 @@
           data-cap-i18n-error-label="Try again"
         ></cap-widget>
       </div>
+      <div class="agree">
+        <input type="checkbox" id="agree" />
+        <label for="agree">
+          I have read and agree to the
+          <a href="/terms" target="_blank" rel="noopener">Terms of Service</a>,
+          <a href="/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>, and
+          <a href="/dmca" target="_blank" rel="noopener">DMCA Policy</a>.
+        </label>
+      </div>
+      <button type="button" class="continue" id="continue" disabled>Continue</button>
       <p class="status" id="status"></p>
       <div class="bar"></div>
       <p class="foot">Secure access · PeteZah</p>
@@ -246,15 +306,88 @@
   <script type="module">
     const status = document.getElementById("status");
     const el = document.getElementById("cap");
+    const agree = document.getElementById("agree");
+    const btn = document.getElementById("continue");
+    let solved = false;
+    let busy = false;
+    let legalVersion = null;
+
+    function sync() {
+      btn.disabled = busy || !solved || !agree.checked;
+    }
+
+    async function refreshStatus() {
+      try {
+        const r = await fetch("/api/legal/status", { credentials: "include" });
+        const d = await r.json();
+        legalVersion = d.version || null;
+        if (d.gate) solved = true;
+        if (d.gate && d.accepted) {
+          status.textContent = "You're in — redirecting…";
+          status.className = "status ok";
+          location.replace("/");
+          return;
+        }
+        if (d.gate && !d.accepted) {
+          status.textContent = "Verified. Accept the policies to continue.";
+          status.className = "status";
+        }
+        sync();
+      } catch {}
+    }
+
+    async function continueOn() {
+      if (busy || !solved || !agree.checked) return;
+      busy = true;
+      sync();
+      status.textContent = "Saving agreement…";
+      status.className = "status";
+      try {
+        const r = await fetch("/api/legal/accept", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ accepted: true, version: legalVersion }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          status.textContent = d.error || "Could not save agreement. Try again.";
+          status.className = "status err";
+          busy = false;
+          sync();
+          return;
+        }
+        status.textContent = "You're in — redirecting…";
+        status.className = "status ok";
+        setTimeout(() => { location.replace("/"); }, 250);
+      } catch {
+        status.textContent = "Network error. Please try again.";
+        status.className = "status err";
+        busy = false;
+        sync();
+      }
+    }
+
+    agree.addEventListener("change", sync);
+    btn.addEventListener("click", continueOn);
+
     el.addEventListener("solve", () => {
-      status.textContent = "You're in — redirecting…";
+      solved = true;
+      status.textContent = agree.checked
+        ? "Verified. Click Continue."
+        : "Verified. Accept the policies, then Continue.";
       status.className = "status ok";
-      setTimeout(() => { location.replace("/"); }, 350);
+      sync();
     });
     el.addEventListener("error", (e) => {
+      solved = false;
       status.textContent = e.detail?.message || "Verification failed. Please try again.";
       status.className = "status err";
+      sync();
     });
+
+    refreshStatus();
+    sync();
   </script>
 </body>
 </html>

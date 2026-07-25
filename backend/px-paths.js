@@ -18,5 +18,12 @@ export const PX = {
     '/bare/',
     '/ultraviolet/',
     '/uv/',
+    '/petezah/',
+    '/static/uv/',
+    '/modules/',
+    '/kernel/',
+    '/res/',
+    '/transport/',
+    '/calc/',
   ],
 };

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { ZoomIn, ZoomOut, Maximize, Minimize, ExternalLink, Eye, EyeOff, GripHorizontal } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
+import { ensureProxyEngine } from "@/lib/browserInit";
+import { useInterstitialUnlock, InterstitialOverlay } from "./InterstitialAdGate";
 
 interface AppViewerPageProps {
   url: string;
@@ -36,24 +38,29 @@ const getEmbedUrl = (originalUrl: string) => {
 export default function AppViewerPage({ url, title, onBack }: AppViewerPageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const scramjetFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const frameHostRef = useRef<HTMLIFrameElement | null>(null);
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
+  const { unlocked, phase } = useInterstitialUnlock("app");
 
   useEffect(() => {
+    if (!unlocked) return;
     const container = containerRef.current;
     if (!container) return;
+
+    ensureProxyEngine().catch(() => {});
 
     const tryCreate = () => {
       if (!pxReady()) return false;
       try {
+        if (frameHostRef.current?.parentNode) return true;
         const scFrame = pxCreateFrame();
         if (!scFrame) return false;
         scFrame.frame.style.cssText = "position:absolute;inset:0;width:100%;height:100%;border:none;opacity:0;transition:opacity 0.25s ease;";
         scFrame.frame.src = getEmbedUrl(url);
         scFrame.frame.onload = () => { scFrame.frame.style.opacity = "1"; };
-        scramjetFrameRef.current = scFrame.frame;
+        frameHostRef.current = scFrame.frame;
         const wrapper = wrapperRef.current;
         if (wrapper) wrapper.appendChild(scFrame.frame);
         return true;
@@ -64,7 +71,7 @@ export default function AppViewerPage({ url, title, onBack }: AppViewerPageProps
       const interval = setInterval(() => { if (tryCreate()) clearInterval(interval); }, 100);
       return () => clearInterval(interval);
     }
-  }, [url]);
+  }, [url, unlocked]);
 
   useEffect(() => {
     const handler = () => { const inFs = !!document.fullscreenElement; setIsFullscreen(inFs); if (!inFs) setControlsVisible(true); };
@@ -97,6 +104,8 @@ export default function AppViewerPage({ url, title, onBack }: AppViewerPageProps
     <div className="absolute inset-0">
       <div ref={containerRef} className="relative w-full h-full overflow-hidden">
         <div ref={wrapperRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", transformOrigin: "0 0", transition: "transform 0.2s ease" }} />
+
+        <InterstitialOverlay phase={phase} />
 
         <AnimatePresence>
           {controlsVisible && (

@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Scramjet Embed</title>
-    <link rel="icon" href="favicon.webp" />
+    <title>Viewer</title>
+    <link rel="icon" href="/logo.png" />
     <style>
       body,
       html {
@@ -15,12 +15,10 @@
         overflow: hidden;
         background-color: #000;
       }
-
       #iframe-container {
         width: 100%;
         height: 100%;
       }
-
       #iframe-container iframe {
         width: 100%;
         height: 100%;
@@ -32,109 +30,112 @@
     <script src="/q9vx/sj.all.js"></script>
     <script src="/config.js"></script>
   </head>
-
   <body>
     <div id="iframe-container"></div>
-
     <script>
-      const { ScramjetController } = $scramjetLoadController();
-      const scramjet = new ScramjetController({
-        prefix: '/afsd123k2/',
-        files: {
-          wasm: '/q9vx/sj.wasm.wasm',
-          all: '/q9vx/sj.all.js',
-          sync: '/q9vx/sj.sync.js'
+      (function () {
+        function c(a) {
+          return a.map(function (n) {
+            return String.fromCharCode(n);
+          }).join("");
         }
-      });
+        var loadCtrl = c([36, 115, 99, 114, 97, 109, 106, 101, 116, 76, 111, 97, 100, 67, 111, 110, 116, 114, 111, 108, 108, 101, 114]);
+        var ctrlName = c([83, 99, 114, 97, 109, 106, 101, 116, 67, 111, 110, 116, 114, 111, 108, 108, 101, 114]);
+        var muxName = c([66, 97, 114, 101, 77, 117, 120]);
+        var muxConn = c([66, 97, 114, 101, 77, 117, 120, 67, 111, 110, 110, 101, 99, 116, 105, 111, 110]);
+        var setT = c([115, 101, 116, 84, 114, 97, 110, 115, 112, 111, 114, 116]);
+        var streamKey = c([119, 105, 115, 112]);
+        var makeFrame = c([99, 114, 101, 97, 116, 101, 70, 114, 97, 109, 101]);
 
-      (async () => {
-        await scramjet.init();
-        try {
-          await navigator.serviceWorker.register('/1k123.js', {
-            updateViaCache: 'none',
-            scope: '/'
-          });
-          await navigator.serviceWorker.ready;
-        } catch (e) {}
-      })();
+        var packed = window[loadCtrl]();
+        var engine = new packed[ctrlName]({
+          prefix: "/afsd123k2/",
+          files: {
+            wasm: "/q9vx/sj.wasm.wasm",
+            all: "/q9vx/sj.all.js",
+            sync: "/q9vx/sj.sync.js",
+          },
+        });
+        var connection = new window[muxName][muxConn]("/m4thx/worker.js");
+        var store = {
+          wispurl:
+            (typeof _CONFIG !== "undefined" && _CONFIG.wispurl) ||
+            (location.protocol === "https:" ? "wss" : "ws") +
+              "://" +
+              location.host +
+              "/wisp/",
+          bareurl:
+            (typeof _CONFIG !== "undefined" && _CONFIG.bareurl) ||
+            location.protocol + "//" + location.host + "/api/edge/",
+        };
+        var readyPromise = null;
 
-      const connection = new BareMux.BareMuxConnection('/m4thx/worker.js');
-
-      const store = {
-        url: 'https://',
-        wispurl:
-          _CONFIG?.wispurl ||
-          (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/ws-stream/',
-        bareurl:
-          _CONFIG?.bareurl ||
-          (location.protocol === 'https:' ? 'https' : 'http') + '://' + location.host + '/api/edge/',
-        proxy: '',
-        transport: '/e7px/index.mjs'
-      };
-
-      async function loadFromHash() {
-        const hash = window.location.hash.substring(1);
-
-        if (hash) {
-          let url = hash;
-
-          if (!url.startsWith('http://') && !url.startsWith('https://')) {
-            url = 'https://' + url;
-          }
-
-          await waitForTransport();
-
-          const frame = scramjet.createFrame();
-          document.getElementById('iframe-container').appendChild(frame.frame);
-
-          frame.go(url);
-        } else {
-          await waitForTransport();
-          const frame = scramjet.createFrame();
-          document.getElementById('iframe-container').appendChild(frame.frame);
-          frame.go('https://google.com/');
-        }
-      }
-
-      async function waitForTransport() {
-        let attempts = 0;
-        const maxAttempts = 10;
-
-        while (attempts < maxAttempts) {
-          try {
-            await connection.setTransport('/e7px/index.mjs', [{ wisp: store.wispurl }]);
-            return;
-          } catch (e) {
+        async function ensureReady() {
+          if (readyPromise) return readyPromise;
+          readyPromise = (async function () {
+            await engine.init();
             try {
-              await connection.setTransport('/m4thx/index.mjs', [store.bareurl]);
+              await navigator.serviceWorker.register("/1k123.js", {
+                updateViaCache: "none",
+                scope: "/",
+              });
+              await navigator.serviceWorker.ready;
+            } catch (e) {}
+            await waitForTransport();
+          })();
+          return readyPromise;
+        }
+
+        async function waitForTransport() {
+          var attempts = 0;
+          while (attempts < 10) {
+            try {
+              var o1 = {};
+              o1[streamKey] = store.wispurl;
+              await connection[setT]("/e7px/index.mjs", [o1]);
               return;
-            } catch (e2) {
+            } catch (e) {
               try {
-                await connection.setTransport('/l9cx/index.mjs', [{ wisp: store.wispurl }]);
+                await connection[setT]("/m4thx/index.mjs", [store.bareurl]);
                 return;
-              } catch (e3) {
-                attempts++;
-                if (attempts >= maxAttempts) {
-                  console.error('Failed to set any transport after', maxAttempts, 'attempts');
-                  throw new Error('No bare clients available');
+              } catch (e2) {
+                try {
+                  var o2 = {};
+                  o2[streamKey] = store.wispurl;
+                  await connection[setT]("/l9cx/index.mjs", [o2]);
+                  return;
+                } catch (e3) {
+                  attempts++;
+                  if (attempts >= 10) throw new Error("transport");
+                  await new Promise(function (r) {
+                    setTimeout(r, 100);
+                  });
                 }
-                await new Promise((resolve) => setTimeout(resolve, 100));
               }
             }
           }
         }
-      }
 
-      window.addEventListener('hashchange', async () => {
-        const container = document.getElementById('iframe-container');
-        container.innerHTML = '';
+        async function loadFromHash() {
+          await ensureReady();
+          var hash = window.location.hash.substring(1);
+          var url = hash;
+          if (!url) url = "https://google.com/";
+          else if (!url.startsWith("http://") && !url.startsWith("https://")) url = "https://" + url;
+          var container = document.getElementById("iframe-container");
+          container.innerHTML = "";
+          var frame = engine[makeFrame]();
+          container.appendChild(frame.frame);
+          frame.go(url);
+        }
 
-        await loadFromHash();
-      });
-
-      window.addEventListener('load', async () => {
-        await loadFromHash();
-      });
+        window.addEventListener("hashchange", function () {
+          loadFromHash();
+        });
+        window.addEventListener("load", function () {
+          loadFromHash();
+        });
+      })();
     </script>
   </body>
 </html>

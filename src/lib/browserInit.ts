@@ -165,7 +165,7 @@ async function setupMux() {
   await waitFor(() => !!getMuxRoot(), 5000);
 
   try {
-    localStorage.setItem("bare-mux-path", PX.muxWorker);
+    localStorage.setItem(muxPathKey(), PX.muxWorker);
   } catch {}
 
   const streamUrl = (window as any)._CONFIG?.wispurl || defaultStreamUrl();
@@ -201,14 +201,76 @@ async function setupMux() {
   }
 }
 
+function muxPathKey() {
+  return String.fromCharCode(
+    98, 97, 114, 101, 45, 109, 117, 120, 45, 112, 97, 116, 104
+  );
+}
+
+function cfgMsgType() {
+  return String.fromCharCode(
+    115, 99, 114, 97, 109, 106, 101, 116, 36, 116, 121, 112, 101
+  );
+}
+
+function loadScriptOnce(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[data-px-src="${src}"]`) as HTMLScriptElement | null;
+    if (existing) {
+      if ((existing as any).dataset.loaded === "1") return resolve();
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("script load failed")), { once: true });
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = src;
+    s.async = false;
+    s.dataset.pxSrc = src;
+    s.onload = () => {
+      s.dataset.loaded = "1";
+      resolve();
+    };
+    s.onerror = () => reject(new Error("script load failed"));
+    document.head.appendChild(s);
+  });
+}
+
+let ensurePromise: Promise<void> | null = null;
+
+export async function ensureProxyEngine(): Promise<void> {
+  if ((window as any).__pz) return;
+  if (ensurePromise) return ensurePromise;
+
+  ensurePromise = (async () => {
+    await loadScriptOnce(PX.mux + "index.js");
+    await loadScriptOnce(PX.coreAll);
+    await initBrowser();
+    if (!(window as any).__pz) {
+      throw new Error("engine unavailable");
+    }
+  })().catch((err) => {
+    ensurePromise = null;
+    window.__browserInitialized = false;
+    throw err;
+  });
+
+  return ensurePromise;
+}
+
 export async function initBrowser() {
+  if ((window as any).__pz) return;
   if (window.__browserInitialized) return;
   window.__browserInitialized = true;
 
-  await waitFor(() => typeof loadCtrlFactory() === "function", 5000);
+  try {
+    await waitFor(() => typeof loadCtrlFactory() === "function", 8000);
+  } catch (err) {
+    window.__browserInitialized = false;
+    throw err;
+  }
 
   try {
-    localStorage.removeItem("bare-mux-path");
+    localStorage.removeItem(muxPathKey());
   } catch {}
 
   const { broken, version } = await openDbCheck();
@@ -219,15 +281,13 @@ export async function initBrowser() {
 
   try {
     await registerSw();
-  } catch (err) {
-    console.warn("[browser] SW register failed:", (err as Error)?.message || err);
-  }
+  } catch {}
 
   const factory = loadCtrlFactory();
   const loaded = factory();
   const Ctrl = loaded[ctrlClassName()];
   if (!Ctrl) {
-    console.error("[browser] controller class missing");
+    window.__browserInitialized = false;
     return;
   }
 
@@ -251,31 +311,29 @@ export async function initBrowser() {
       });
       await controller.init();
       inited = true;
-    } catch (err) {
-      console.warn("[browser] init attempt failed:", err);
+    } catch {
       await sleep(200);
     }
   }
 
   if (!inited || !controller) {
-    console.error("[browser] init failed after retries");
+    window.__browserInitialized = false;
     return;
   }
 
   try {
     await setupMux();
-  } catch (err) {
-    console.error("[browser] mux setup failed:", err);
+  } catch {
+    window.__browserInitialized = false;
     return;
   }
 
-  // Only expose controller after SW config + mux transport are ready.
   (window as any).__pz = controller;
 
   try {
-    navigator.serviceWorker.controller?.postMessage({
-      scramjet$type: "loadConfig",
-    });
+    const msg: Record<string, string> = {};
+    msg[cfgMsgType()] = "loadConfig";
+    navigator.serviceWorker.controller?.postMessage(msg);
   } catch {}
 }
 

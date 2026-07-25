@@ -75,10 +75,16 @@ import {
   claimLinkHandler,
   getAdminLinkStatsHandler,
 } from './api/get-links.js';
+import {
+  adsGateLimiter,
+  adsGateHandler,
+} from './api/ads.js';
 import { websocketNormalHandler, websocketTorHandler } from './api/websocket-auth.js';
 import capRouter from './routes/cap.js';
 import { createCapGateMiddleware, sendVerifyPage, requireGateUpgrade } from './middleware/cap-gate.js';
 import { cleanupCapStore } from './cap/store.js';
+import { legalAcceptHandler, legalStatusHandler } from './legal/accept.js';
+import { redirectLegal, sendLegalPage } from './legal/pages.js';
 import { existsSync } from 'node:fs';
 
 const { createBareServer } = bareServerPkg;
@@ -144,6 +150,16 @@ app.use(createCapGateMiddleware());
 
 app.get('/verify', sendVerifyPage);
 app.get('/verify.html', sendVerifyPage);
+app.get('/terms', sendLegalPage('terms'));
+app.get('/privacy-policy', sendLegalPage('privacy'));
+app.get('/dmca', sendLegalPage('dmca'));
+app.get('/tos', redirectLegal('/terms'));
+app.get('/terms-of-service', redirectLegal('/terms'));
+app.get('/terms-of-use', redirectLegal('/terms'));
+app.get('/privacy', redirectLegal('/privacy-policy'));
+app.get('/copyright', redirectLegal('/dmca'));
+app.get('/api/legal/status', legalStatusHandler);
+app.post('/api/legal/accept', legalAcceptHandler);
 app.use('/cap', capRouter);
 
 app.get('/api/websocket/normal/', websocketNormalHandler);
@@ -158,6 +174,16 @@ const AUTH_PATHS = new Set([
   '/api/bot-verify',
   '/api/verify-email',
   '/api/verify-email/resend',
+  '/api/legal/accept',
+  '/api/legal/status',
+  '/signin',
+  '/signup',
+  '/bot-challenge',
+  '/bot-verify',
+  '/verify-email',
+  '/verify-email/resend',
+  '/legal/accept',
+  '/legal/status',
 ]);
 app.use('/api/', (req, res, next) => {
   if (req.path === '/websocket/normal' || req.path === '/websocket/normal/' || req.path === '/websocket/tor' || req.path === '/websocket/tor/') {
@@ -253,6 +279,8 @@ app.post('/api/links/2fa/enable', linksTotpLimiter, enableLinksTotpHandler);
 app.post('/api/links/2fa/disable', linksTotpLimiter, disableLinksTotpHandler);
 app.post('/api/links/claim', linksClaimLimiter, claimLinkHandler);
 app.get('/api/admin/link-stats', getAdminLinkStatsHandler);
+
+app.post('/api/ads/gate', adsGateLimiter, adsGateHandler);
 
 app.get('/api/settings', getSettingsHandler);
 app.put('/api/settings', localStorageLimiter, saveSettingsHandler);

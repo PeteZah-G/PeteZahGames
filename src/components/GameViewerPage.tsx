@@ -10,6 +10,7 @@ import {
   GripHorizontal,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useInterstitialUnlock, InterstitialOverlay } from "./InterstitialAdGate";
 
 interface GameViewerPageProps {
   url: string;
@@ -64,6 +65,7 @@ export default function GameViewerPage({
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
+  const { unlocked, phase } = useInterstitialUnlock("game");
 
   useEffect(() => {
     const handler = () => {
@@ -137,7 +139,7 @@ export default function GameViewerPage({
         >
           <iframe
             ref={iframeRef}
-            src={url}
+            src={unlocked ? url : "about:blank"}
             sandbox="allow-scripts allow-pointer-lock allow-forms allow-same-origin allow-downloads"
             style={{
               width: "100%",
@@ -148,6 +150,8 @@ export default function GameViewerPage({
             title={title || "Game"}
           />
         </div>
+
+        <InterstitialOverlay phase={phase} />
 
         <AnimatePresence>
           {controlsVisible && (
