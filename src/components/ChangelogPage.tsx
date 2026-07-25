@@ -177,15 +177,15 @@ export default function ChangelogPage({ onNavigate }: { onNavigate: (url: string
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden" style={{ background: "hsl(220 30% 7%)" }}>
-      <div className="flex items-center gap-3 px-6 py-4 flex-shrink-0" style={{ borderBottom: "1px solid hsl(220 18% 11%)" }}>
+    <div className="h-full flex flex-col overflow-hidden" style={{ background: "transparent" }}>
+      <div className="flex items-center gap-3 px-6 py-4 flex-shrink-0" style={{ borderBottom: "1px solid hsl(216 20% 16% / 0.7)", background: "hsla(216, 30%, 8%, 0.35)", backdropFilter: "blur(10px)" }}>
         <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: "linear-gradient(135deg, hsl(215 85% 50%), hsl(250 75% 55%))" }}>
-          <Megaphone size={14} className="text-white" />
+          style={{ background: "hsl(216 22% 12%)", border: "1px solid hsl(216 20% 16%)" }}>
+          <Megaphone size={14} style={{ color: "hsl(213 70% 58%)" }} />
         </div>
         <div className="flex-1">
-          <h1 className="text-sm font-bold" style={{ color: "hsl(220 15% 92%)" }}>Changelog</h1>
-          <p className="text-[10px]" style={{ color: "hsl(220 15% 36%)" }}>Updates &amp; releases</p>
+          <h1 className="text-sm font-bold" style={{ color: "hsl(0 0% 96%)" }}>Changelog</h1>
+          <p className="text-[10px]" style={{ color: "hsl(216 15% 45%)" }}>Updates &amp; releases</p>
         </div>
         {isAdmin && (
           <button onClick={() => setShowForm(s => !s)}
@@ -226,7 +226,7 @@ export default function ChangelogPage({ onNavigate }: { onNavigate: (url: string
                 <div className="flex items-center gap-2">
                   <button onClick={post} disabled={posting || !newTitle.trim() || !newContent.trim()}
                     className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all"
-                    style={{ background: "linear-gradient(135deg, hsl(215 85% 50%), hsl(250 75% 55%))", color: "#fff", opacity: posting || !newTitle.trim() || !newContent.trim() ? 0.5 : 1 }}>
+                    style={{ background: "hsl(213 55% 32%)", border: "1px solid hsl(213 45% 42%)", color: "#fff", opacity: posting || !newTitle.trim() || !newContent.trim() ? 0.5 : 1 }}>
                     {posting ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
                     Publish
                   </button>
@@ -255,7 +255,7 @@ export default function ChangelogPage({ onNavigate }: { onNavigate: (url: string
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.035 }}
             className="rounded-2xl overflow-hidden"
-            style={{ background: "hsl(220 22% 10%)", border: "1px solid hsl(220 18% 13%)" }}>
+            style={{ background: "hsla(216, 26%, 9%, 0.72)", border: "1px solid hsl(216 20% 16%)", backdropFilter: "blur(8px)" }}>
             <button
               className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
               onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}>

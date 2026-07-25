@@ -161,6 +161,8 @@ app.get('/copyright', redirectLegal('/dmca'));
 app.get('/api/legal/status', legalStatusHandler);
 app.post('/api/legal/accept', legalAcceptHandler);
 app.use('/cap', capRouter);
+app.use('/vendor/three', express.static(path.join(__dirname, '../node_modules/three/build'), { index: false, maxAge: '7d' }));
+app.use('/vendor/vanta', express.static(path.join(__dirname, '../node_modules/vanta/dist'), { index: false, maxAge: '7d' }));
 
 app.get('/api/websocket/normal/', websocketNormalHandler);
 app.get('/api/websocket/normal', websocketNormalHandler);

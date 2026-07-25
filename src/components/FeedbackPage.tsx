@@ -159,15 +159,15 @@ export default function FeedbackPage({ onNavigate }: { onNavigate: (url: string)
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden" style={{ background: "hsl(220 30% 7%)" }}>
-      <div className="flex items-center gap-3 px-6 py-4 flex-shrink-0" style={{ borderBottom: "1px solid hsl(220 18% 11%)" }}>
+    <div className="h-full flex flex-col overflow-hidden" style={{ background: "transparent" }}>
+      <div className="flex items-center gap-3 px-6 py-4 flex-shrink-0" style={{ borderBottom: "1px solid hsl(216 20% 16% / 0.7)", background: "hsla(216, 30%, 8%, 0.35)", backdropFilter: "blur(10px)" }}>
         <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: "linear-gradient(135deg, hsl(215 85% 50%), hsl(250 75% 55%))" }}>
-          <MessageSquare size={14} className="text-white" />
+          style={{ background: "hsl(216 22% 12%)", border: "1px solid hsl(216 20% 16%)" }}>
+          <MessageSquare size={14} style={{ color: "hsl(213 70% 58%)" }} />
         </div>
         <div>
-          <h1 className="text-sm font-bold" style={{ color: "hsl(220 15% 92%)" }}>Feedback</h1>
-          <p className="text-[10px]" style={{ color: "hsl(220 15% 36%)" }}>
+          <h1 className="text-sm font-bold" style={{ color: "hsl(0 0% 96%)" }}>Feedback</h1>
+          <p className="text-[10px]" style={{ color: "hsl(216 15% 45%)" }}>
             All submissions
           </p>
         </div>
@@ -190,7 +190,7 @@ export default function FeedbackPage({ onNavigate }: { onNavigate: (url: string)
               onNavigate("petezah://account");
             }}
               className="px-5 py-2.5 rounded-xl text-sm font-semibold"
-              style={{ background: "linear-gradient(135deg, hsl(215 85% 50%), hsl(250 75% 55%))", color: "#fff" }}>
+              style={{ background: "hsl(213 55% 32%)", border: "1px solid hsl(213 45% 42%)", color: "#fff" }}>
               Sign In
             </button>
           </div>
@@ -198,7 +198,7 @@ export default function FeedbackPage({ onNavigate }: { onNavigate: (url: string)
           <>
             {/* Submit form */}
             <div className="p-4 rounded-2xl space-y-3"
-              style={{ background: "hsl(220 22% 10%)", border: "1px solid hsl(220 18% 13%)" }}>
+              style={{ background: "hsla(216, 26%, 9%, 0.72)", border: "1px solid hsl(216 20% 16%)", backdropFilter: "blur(8px)" }}>
               <p className="text-xs" style={{ color: "hsl(220 15% 40%)" }}>
                 Share a bug report, feature idea, or anything on your mind
               </p>
@@ -217,7 +217,8 @@ export default function FeedbackPage({ onNavigate }: { onNavigate: (url: string)
                 <button onClick={post} disabled={posting || !newFeedback.trim()}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all"
                   style={{
-                    background: "linear-gradient(135deg, hsl(215 85% 50%), hsl(250 75% 55%))",
+                    background: "hsl(213 55% 32%)",
+                    border: "1px solid hsl(213 45% 42%)",
                     color: "#fff",
                     opacity: posting || !newFeedback.trim() ? 0.45 : 1,
                   }}>
@@ -242,7 +243,7 @@ export default function FeedbackPage({ onNavigate }: { onNavigate: (url: string)
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03 }}
                 className="p-4 rounded-2xl"
-                style={{ background: "hsl(220 22% 10%)", border: "1px solid hsl(220 18% 13%)" }}>
+                style={{ background: "hsla(216, 26%, 9%, 0.72)", border: "1px solid hsl(216 20% 16%)", backdropFilter: "blur(8px)" }}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
