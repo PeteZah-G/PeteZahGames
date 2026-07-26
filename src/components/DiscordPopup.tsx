@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, MessageCircle, Youtube } from "lucide-react";
 
 const LAST_KEY = "petezah-discord-popup-last";
-const VISIT_KEY = "petezah-socials-visits";
-const COOLDOWN_MS = 3600000;
+const SEEN_KEY = "petezah-socials-first-seen";
+const COOLDOWN_MS = 30 * 60 * 1000;
 const DISCORD_URL = "https://discord.com/invite/arcgZTV9zX";
 const YOUTUBE_URL = "https://youtube.com/@ngnix062";
 
@@ -12,23 +12,26 @@ export default function DiscordPopup() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    let visits = 0;
+    let firstSeen = false;
     try {
-      visits = Number(localStorage.getItem(VISIT_KEY) || "0") || 0;
+      firstSeen = localStorage.getItem(SEEN_KEY) === "1";
+      if (!firstSeen) {
+        const legacy = Number(localStorage.getItem("petezah-socials-visits") || "0") || 0;
+        if (legacy >= 1) {
+          firstSeen = true;
+          localStorage.setItem(SEEN_KEY, "1");
+        }
+      }
     } catch {
-      visits = 0;
+      firstSeen = false;
     }
 
-    if (visits < 1) {
+    if (!firstSeen) {
       try {
-        localStorage.setItem(VISIT_KEY, "1");
+        localStorage.setItem(SEEN_KEY, "1");
       } catch {}
       return;
     }
-
-    try {
-      localStorage.setItem(VISIT_KEY, String(visits + 1));
-    } catch {}
 
     let last = 0;
     try {
@@ -38,7 +41,12 @@ export default function DiscordPopup() {
     }
     if (Date.now() - last < COOLDOWN_MS) return;
 
-    const timer = window.setTimeout(() => setShow(true), 1800);
+    const timer = window.setTimeout(() => {
+      setShow(true);
+      try {
+        localStorage.setItem(LAST_KEY, String(Date.now()));
+      } catch {}
+    }, 900);
     return () => window.clearTimeout(timer);
   }, []);
 
