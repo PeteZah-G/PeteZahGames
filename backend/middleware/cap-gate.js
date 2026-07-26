@@ -15,6 +15,9 @@ const OPEN_EXACT = new Set([
   '/firefox-wasm/thanks.html',
   '/pz-vanta.js',
   '/vendor/vanta.fog.min.js',
+  '/font-obfuscation.js',
+  '/plusjakartasans-obf-mappings.json',
+  '/plusjakartasans-obf-reverse-mappings.json',
   '/terms',
   '/tos',
   '/terms-of-service',
@@ -25,7 +28,7 @@ const OPEN_EXACT = new Set([
   '/copyright',
 ]);
 
-const OPEN_PREFIX = ['/cap/', '/api/verify-email', '/api/legal', '/vendor/'];
+const OPEN_PREFIX = ['/cap/', '/api/verify-email', '/api/legal', '/vendor/', '/fonts/'];
 
 function isOpenPath(p) {
   if (OPEN_EXACT.has(p)) return true;

@@ -60,6 +60,7 @@ const TabItem = forwardRef<HTMLDivElement, TabItemProps>(
       "petezah://account": "AC",
       "petezah://changelog": "CL",
       "petezah://feedback": "FB",
+      "petezah://ad": "AD",
     };
 
     const isNewTab =
@@ -69,7 +70,9 @@ const TabItem = forwardRef<HTMLDivElement, TabItemProps>(
       tab.url === "https://" ||
       tab.url.startsWith("petezah://");
 
-    const petezahIcon = tab.url ? petezahIcons[tab.url] : undefined;
+    const petezahIcon = tab.url
+      ? petezahIcons[tab.url] || (tab.url.startsWith("petezah://ad") ? "AD" : petezahIcons[tab.url.split("?")[0]])
+      : undefined;
 
     const faviconSrc = tab.favicon || getFaviconUrl(tab.url);
     const showFavicon = !isNewTab && !!faviconSrc;

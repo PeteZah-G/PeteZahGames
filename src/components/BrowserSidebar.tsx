@@ -17,6 +17,7 @@ import {
   Monitor,
 } from "lucide-react";
 import { TabList } from "@/components/TabItem";
+import ObfuscatedText from "@/components/ObfuscatedText";
 import { Tab, Space } from "@/hooks/useBrowserState";
 
 interface SidebarProps {
@@ -103,9 +104,13 @@ export default function Sidebar({
             >
               <img src="/logo.png" alt="Logo" className="w-6 h-6 object-contain opacity-90" />
             </button>
-            <span className="text-sm font-semibold tracking-tight truncate" style={{ color: "hsla(0,0%,100%,0.92)" }}>
+            <ObfuscatedText
+              as="span"
+              className="text-sm font-semibold tracking-tight truncate"
+              style={{ color: "hsla(0,0%,100%,0.92)" }}
+            >
               PeteZah
-            </span>
+            </ObfuscatedText>
           </motion.div>
         )}
         <div className={`flex items-center gap-1 ${collapsed ? "flex-col" : ""}`}>
@@ -213,7 +218,9 @@ export default function Sidebar({
                   <span className="w-8 h-8 rounded-full flex items-center justify-center transition-colors group-hover:bg-white/[0.08]">
                     <Icon size={14} />
                   </span>
-                  <span className="text-[9px] leading-tight" style={{ color: "hsla(0,0%,100%,0.55)" }}>{label}</span>
+                  <ObfuscatedText as="span" className="text-[9px] leading-tight" style={{ color: "hsla(0,0%,100%,0.55)" }}>
+                    {label}
+                  </ObfuscatedText>
                 </button>
               ))}
             </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useBrowserState } from "@/hooks/useBrowserState";
 import { useAuth } from "@/hooks/useAuth";
 import { schedulePushSettings } from "@/lib/settingsSync";
@@ -9,6 +10,13 @@ import StatusBar from "@/components/StatusBar";
 import DiscordPopup from "@/components/DiscordPopup";
 import VantaBackground from "@/components/VantaBackground";
 import GlobalAnnouncement from "@/components/GlobalAnnouncement";
+import {
+  classifyOpenUrl,
+  installParentOpenTrap,
+  toAdTabUrl,
+  unwrapProxyUrl,
+  type OpenTabRequest,
+} from "@/lib/openTabBridge";
 
 function getPresenceClientId() {
   try {
@@ -39,6 +47,8 @@ export default function ArcBrowser() {
     : undefined;
   const [zoomLevel, setZoomLevel] = useState(100);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [openToast, setOpenToast] = useState<string | null>(null);
+  const openToastTimer = useRef<number | null>(null);
 
   const zoomIn = useCallback(() => setZoomLevel((z) => Math.min(z + 10, 200)), []);
   const zoomOut = useCallback(() => setZoomLevel((z) => Math.max(z - 10, 50)), []);
@@ -84,6 +94,49 @@ export default function ArcBrowser() {
     const t = window.setInterval(report, 12000);
     return () => window.clearInterval(t);
   }, [state.tabs]);
+
+  useEffect(() => {
+    installParentOpenTrap();
+
+    const openFromDetail = (detail: OpenTabRequest) => {
+      const raw = detail?.url;
+      if (!raw) return;
+      const url = unwrapProxyUrl(raw);
+      const classified = classifyOpenUrl(url);
+      const kind =
+        detail.mode === "ad" || detail.soft || classified === "ad" ? "ad" : classified;
+      if (kind === "skip") return;
+      if (kind === "ad") {
+        state.addTab(toAdTabUrl(url));
+        if (openToastTimer.current) window.clearTimeout(openToastTimer.current);
+        setOpenToast("Sponsored");
+        openToastTimer.current = window.setTimeout(() => setOpenToast(null), 1400);
+        return;
+      }
+      state.addTab(url);
+    };
+
+    const onCustom = (e: Event) => {
+      openFromDetail((e as CustomEvent).detail as OpenTabRequest);
+    };
+    const onMessage = (e: MessageEvent) => {
+      const d = e.data;
+      if (!d || d.source !== "pz-open-trap" || typeof d.url !== "string") return;
+      openFromDetail({
+        url: d.url,
+        mode: d.mode === "ad" ? "ad" : "proxy",
+        soft: !!d.soft,
+      });
+    };
+
+    window.addEventListener("petezah-open-tab", onCustom);
+    window.addEventListener("message", onMessage);
+    return () => {
+      window.removeEventListener("petezah-open-tab", onCustom);
+      window.removeEventListener("message", onMessage);
+      if (openToastTimer.current) window.clearTimeout(openToastTimer.current);
+    };
+  }, [state.addTab]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -270,6 +323,26 @@ export default function ArcBrowser() {
       </div>
       <DiscordPopup />
       <GlobalAnnouncement />
+      <AnimatePresence>
+        {openToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: 4, filter: "blur(3px)" }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed bottom-8 left-1/2 z-[1000] -translate-x-1/2 px-3.5 py-2 rounded-full text-[11px] font-medium tracking-wide"
+            style={{
+              background: "hsla(216, 28%, 9%, 0.88)",
+              border: "1px solid hsla(210, 40%, 80%, 0.12)",
+              color: "hsla(210, 30%, 88%, 0.82)",
+              boxShadow: "0 8px 28px rgba(0,0,0,0.28)",
+              backdropFilter: "blur(14px)",
+            }}
+          >
+            {openToast}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

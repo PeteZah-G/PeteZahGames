@@ -1,24 +1,52 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, MessageCircle } from "lucide-react";
+import { X, MessageCircle, Youtube } from "lucide-react";
 
-const STORAGE_KEY = "petezah-discord-popup-last";
+const LAST_KEY = "petezah-discord-popup-last";
+const VISIT_KEY = "petezah-socials-visits";
+const COOLDOWN_MS = 3600000;
+const DISCORD_URL = "https://discord.com/invite/arcgZTV9zX";
+const YOUTUBE_URL = "https://youtube.com/@ngnix062";
 
 export default function DiscordPopup() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    const last = localStorage.getItem(STORAGE_KEY);
-    const now = Date.now();
-    if (!last || now - Number(last) > 3600000) {
-      const timer = setTimeout(() => setShow(true), 2500);
-      return () => clearTimeout(timer);
+    let visits = 0;
+    try {
+      visits = Number(localStorage.getItem(VISIT_KEY) || "0") || 0;
+    } catch {
+      visits = 0;
     }
+
+    if (visits < 1) {
+      try {
+        localStorage.setItem(VISIT_KEY, "1");
+      } catch {}
+      return;
+    }
+
+    try {
+      localStorage.setItem(VISIT_KEY, String(visits + 1));
+    } catch {}
+
+    let last = 0;
+    try {
+      last = Number(localStorage.getItem(LAST_KEY) || "0") || 0;
+    } catch {
+      last = 0;
+    }
+    if (Date.now() - last < COOLDOWN_MS) return;
+
+    const timer = window.setTimeout(() => setShow(true), 1800);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const dismiss = () => {
     setShow(false);
-    localStorage.setItem(STORAGE_KEY, String(Date.now()));
+    try {
+      localStorage.setItem(LAST_KEY, String(Date.now()));
+    } catch {}
   };
 
   return (
@@ -32,83 +60,119 @@ export default function DiscordPopup() {
         >
           <div
             className="absolute inset-0"
-            style={{ background: "hsla(220, 40%, 4%, 0.78)", backdropFilter: "blur(8px)" }}
+            style={{ background: "hsla(220, 40%, 4%, 0.72)", backdropFilter: "blur(10px)" }}
             onClick={dismiss}
           />
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: 6 }}
-            transition={{ type: "spring", duration: 0.4, bounce: 0.15 }}
-            className="relative z-10 w-full max-w-xl rounded-2xl flex flex-col overflow-hidden"
-            style={{
-              background: "hsla(220, 35%, 6%, 0.98)",
-              border: "1px solid hsla(210, 40%, 80%, 0.12)",
-              boxShadow: "0 24px 80px hsla(0,0%,0%,0.55)",
-            }}
+            initial={{ opacity: 0, y: 14, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.99 }}
+            transition={{ duration: 0.28, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="relative z-10 w-full max-w-sm flex flex-col items-center text-center"
+            style={{ pointerEvents: "auto" }}
           >
-            <div
-              className="flex items-center justify-between px-5 py-4 flex-shrink-0"
-              style={{ borderBottom: "1px solid hsla(210, 40%, 80%, 0.1)" }}
+            <button
+              type="button"
+              onClick={dismiss}
+              aria-label="Close"
+              className="group absolute -top-2 -right-2 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200"
+              style={{
+                color: "hsla(0,0%,100%,0.4)",
+                background: "hsla(216, 28%, 12%, 0.9)",
+                border: "1px solid hsla(210, 40%, 80%, 0.12)",
+              }}
+              onMouseEnter={(e) => {
+                const el = e.currentTarget;
+                el.style.background = "hsla(0, 72%, 42%, 0.92)";
+                el.style.borderColor = "hsla(0, 72%, 58%, 0.55)";
+                el.style.color = "hsl(0 0% 100%)";
+                el.style.transform = "scale(1.06)";
+              }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget;
+                el.style.background = "hsla(216, 28%, 12%, 0.9)";
+                el.style.borderColor = "hsla(210, 40%, 80%, 0.12)";
+                el.style.color = "hsla(0,0%,100%,0.4)";
+                el.style.transform = "scale(1)";
+              }}
             >
-              <div className="flex items-center gap-2">
-                <MessageCircle size={13} style={{ color: "hsl(235 86% 72%)" }} />
-                <h2 className="text-sm font-semibold" style={{ color: "hsla(0,0%,98%,0.95)" }}>
-                  Join our Discord
-                </h2>
-              </div>
-              <button
-                onClick={dismiss}
-                className="p-1.5 rounded-lg transition-colors"
-                style={{ color: "hsla(0,0%,100%,0.45)" }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "hsla(0,0%,100%,0.06)";
-                  e.currentTarget.style.color = "hsla(0,0%,100%,0.9)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "hsla(0,0%,100%,0.45)";
-                }}
-              >
-                <X size={13} />
-              </button>
+              <X size={14} strokeWidth={2.25} />
+            </button>
+
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
+              style={{
+                background: "hsl(216 30% 10%)",
+                border: "1px solid hsl(213 40% 32%)",
+              }}
+            >
+              <MessageCircle size={22} style={{ color: "hsl(235 86% 78%)" }} />
             </div>
 
-            <div className="px-5 py-6 flex flex-col gap-4">
-              <p className="text-[12px] leading-relaxed font-sans" style={{ color: "hsla(0,0%,100%,0.78)" }}>
-                Connect with the PeteZah community. Get updates, share feedback, report issues, and hang out with other users.
-              </p>
+            <p
+              className="text-[10px] font-bold uppercase tracking-[0.16em] mb-2"
+              style={{ color: "hsl(213 75% 68%)" }}
+            >
+              Community
+            </p>
+            <h2
+              className="text-2xl font-extrabold tracking-tight mb-2"
+              style={{ color: "hsl(0 0% 100%)" }}
+            >
+              Stay connected
+            </h2>
+            <p
+              className="text-sm leading-relaxed mb-6 max-w-[30ch]"
+              style={{ color: "hsl(216 15% 72%)" }}
+            >
+              Join Discord for updates and support. YouTube for videos and channel drops.
+            </p>
 
-              <div className="flex flex-col gap-2">
-                <a
-                  href={"https://discord.com/invite/arcgZTV9zX"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={dismiss}
-                  className="w-full py-2.5 rounded-xl font-medium text-sm text-center transition-colors"
-                  style={{
-                    background: "hsl(235 70% 58%)",
-                    color: "hsla(0,0%,100%,0.98)",
-                  }}
-                >
-                  Open Discord
-                </a>
-                <button
-                  onClick={dismiss}
-                  className="w-full py-2 rounded-xl text-[11px] transition-colors"
-                  style={{ color: "hsla(0,0%,100%,0.5)", background: "transparent", border: "none", cursor: "pointer" }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "hsla(0,0%,100%,0.9)";
-                    e.currentTarget.style.background = "hsla(0,0%,100%,0.05)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "hsla(0,0%,100%,0.5)";
-                    e.currentTarget.style.background = "transparent";
-                  }}
-                >
-                  Maybe later
-                </button>
-              </div>
+            <div className="flex flex-col gap-2.5 w-full max-w-[280px]">
+              <a
+                href={DISCORD_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={dismiss}
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white"
+                style={{
+                  background: "hsl(235 60% 42%)",
+                  border: "1px solid hsl(235 50% 52%)",
+                  textDecoration: "none",
+                }}
+              >
+                <MessageCircle size={15} />
+                Join Discord
+              </a>
+              <a
+                href={YOUTUBE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={dismiss}
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold"
+                style={{
+                  background: "hsl(216 30% 10%)",
+                  border: "1px solid hsl(213 40% 32%)",
+                  color: "hsl(0 0% 96%)",
+                  textDecoration: "none",
+                }}
+              >
+                <Youtube size={15} style={{ color: "hsl(0 72% 58%)" }} />
+                YouTube channel
+              </a>
+              <button
+                type="button"
+                onClick={dismiss}
+                className="mt-1 py-2 text-[11px]"
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "hsl(216 15% 55%)",
+                  cursor: "pointer",
+                }}
+              >
+                Maybe later
+              </button>
             </div>
           </motion.div>
         </motion.div>

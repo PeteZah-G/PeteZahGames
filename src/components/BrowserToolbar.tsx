@@ -28,6 +28,11 @@ import {
   Puzzle,
 } from "lucide-react";
 import { Tab } from "@/hooks/useBrowserState";
+import {
+  displayUrlForBar,
+  loadFontMaps,
+  shouldObfuscateDisplay,
+} from "@/lib/fontObfuscation";
 
 interface ToolbarProps {
   activeTab: Tab | undefined;
@@ -73,6 +78,11 @@ export default function Toolbar({
   const inputRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [mapsReady, setMapsReady] = useState(false);
+
+  useEffect(() => {
+    loadFontMaps().then(() => setMapsReady(true));
+  }, []);
 
   useEffect(() => {
     if (isUrlFocused && inputRef.current) {
@@ -92,11 +102,21 @@ export default function Toolbar({
     return () => document.removeEventListener("mousedown", handler);
   }, [menuOpen]);
 
-  const displayUrl = isUrlFocused
+  const rawDisplay = isUrlFocused
     ? urlInput
     : activeTab?.url?.startsWith("petezah://gameviewer")
     ? "petezah://gameviewer"
+    : activeTab?.url?.startsWith("petezah://ad")
+    ? "petezah://ad"
     : activeTab?.url || "";
+
+  const displayUrl =
+    !isUrlFocused && mapsReady
+      ? displayUrlForBar(rawDisplay, false)
+      : rawDisplay;
+
+  const urlObfuscated =
+    !isUrlFocused && mapsReady && shouldObfuscateDisplay(rawDisplay);
 
   const isNewTab =
     !activeTab?.url ||
@@ -200,6 +220,7 @@ export default function Toolbar({
         <input
           ref={inputRef}
           value={displayUrl}
+          data-no-obfuscate="true"
           onChange={(e) => onUrlChange(e.target.value)}
           onFocus={() => {
             onUrlChange(activeTab?.url || "");
@@ -211,8 +232,16 @@ export default function Toolbar({
             if (e.key === "Escape") onUrlFocus(false);
           }}
           placeholder="Search or enter URL"
-          className="flex-1 bg-transparent text-[12px] outline-none placeholder:text-white/35"
-          style={{ color: "hsla(0,0%,100%,0.9)" }}
+          className="pz-url-input flex-1 bg-transparent text-[12px] outline-none placeholder:text-white/35"
+          style={{
+            color: "hsla(0,0%,100%,0.9)",
+            fontFamily: urlObfuscated
+              ? "plusjakartasans-obf, sans-serif"
+              : "inherit",
+            fontWeight: urlObfuscated ? 600 : undefined,
+            fontSynthesis: urlObfuscated ? "none" : undefined,
+            fontVariantLigatures: urlObfuscated ? "none" : undefined,
+          }}
           spellCheck={false}
         />
 

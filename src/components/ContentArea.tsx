@@ -38,6 +38,9 @@ import MusicPage from "./MusicPage";
 import ChatPage from "./ChatPage";
 import MoviesPage from "./MoviesPage";
 import FirefoxVmPage from "./FirefoxVmPage";
+import AdViewerPage from "./AdViewerPage";
+import ObfuscatedText from "./ObfuscatedText";
+import { installFrameOpenTrap, parseAdTabUrl } from "@/lib/openTabBridge";
 import AppViewerPage from "./AppViewerPage";
 import ChangelogPage from "./ChangelogPage";
 import FeedbackPage from "./FeedbackPage";
@@ -745,7 +748,7 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
           className="text-[2rem] sm:text-[2.15rem] font-extrabold text-white tracking-tight"
           style={{ textShadow: "0 0 40px hsla(205, 80%, 60%, 0.25)" }}
         >
-          PeteZah
+          <ObfuscatedText as="span">PeteZah</ObfuscatedText>
         </motion.h1>
 
         <motion.div
@@ -861,6 +864,7 @@ function ProxyFrameHost({ tab, isVisible }: { tab: Tab; isVisible: boolean }) {
 
     const inject = (url?: string) => {
       runExtensionsOnFrame(iframe, url || tab.url);
+      installFrameOpenTrap(iframe);
     };
 
     inject();
@@ -1084,6 +1088,18 @@ function TabPane({
         style={{ display: isVisible ? "block" : "none" }}
       >
         <FirefoxVmPage onNavigate={onNavigate} />
+      </div>
+    );
+  }
+
+  if (tab.url.startsWith("petezah://ad")) {
+    const adUrl = parseAdTabUrl(tab.url) || "";
+    return (
+      <div
+        className="absolute inset-0"
+        style={{ display: isVisible ? "block" : "none" }}
+      >
+        {adUrl ? <AdViewerPage url={adUrl} /> : null}
       </div>
     );
   }

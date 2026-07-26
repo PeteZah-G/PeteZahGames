@@ -97,7 +97,7 @@ function createTab(url: string, spaceId: string): Tab {
   const tabId = String(tabCounter++);
   const isNewTab = !url || url === "petezah://newtab" || url === "about:blank";
   const finalUrl = isNewTab ? "petezah://newtab" : url;
-  const frame = isNewTab ? undefined : makeProxyFrame(url);
+  const frame = isNewTab || finalUrl.startsWith("petezah://") ? undefined : makeProxyFrame(url);
   if (frame) {
     frame.addEventListener?.("urlchange", (e: any) => {
       const newUrl = e?.url || e?.detail?.url || "";
@@ -108,9 +108,14 @@ function createTab(url: string, spaceId: string): Tab {
       }
     });
   }
+  const title = isNewTab
+    ? "New Tab"
+    : finalUrl.startsWith("petezah://ad")
+    ? "Sponsored"
+    : url.split("/")[2] || url;
   return {
     id: tabId,
-    title: isNewTab ? "New Tab" : url.split("/")[2] || url,
+    title,
     url: finalUrl,
     favicon: getFavicon(finalUrl),
     spaceId,
@@ -302,7 +307,12 @@ export function useBrowserState() {
               t.frame?.frame?.parentNode?.removeChild(t.frame.frame);
               t.frame?.destroy?.();
             } catch {}
-            const title = url === "petezah://newtab" ? "New Tab" : url.replace("petezah://", "").replace(/^\w/, (c) => c.toUpperCase());
+            const title =
+              url === "petezah://newtab"
+                ? "New Tab"
+                : url.startsWith("petezah://ad")
+                ? "Sponsored"
+                : url.replace("petezah://", "").replace(/^\w/, (c) => c.toUpperCase());
             return { ...t, url, title, favicon: "", frame: undefined };
           }
 

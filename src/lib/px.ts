@@ -44,6 +44,18 @@ export function pxEncode(url: string): string {
   }
 }
 
+const DECODE = fromCodes([100, 101, 99, 111, 100, 101, 85, 114, 108]);
+
+export function pxDecode(url: string): string {
+  const c = getPx();
+  if (!c || typeof c[DECODE] !== "function") return url;
+  try {
+    return c[DECODE](url);
+  } catch {
+    return url;
+  }
+}
+
 export function pxCreateFrame(): any {
   const c = getPx();
   if (!c) return null;

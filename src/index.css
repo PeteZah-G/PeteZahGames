@@ -357,3 +357,22 @@ html, body, #root {
 .education-is-key {
   display: none;
 }
+@font-face {
+  font-family: plusjakartasans-obf;
+  src:
+    url('/fonts/plusjakartasans-obf.woff2') format('woff2'),
+    url('/fonts/plusjakartasans-obf.woff') format('woff');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: block;
+}
+
+.ob-p,
+.obfuscated {
+  font-family: plusjakartasans-obf, sans-serif !important;
+  font-weight: 600 !important;
+  font-synthesis: none !important;
+  font-variant-ligatures: none !important;
+  letter-spacing: inherit !important;
+  word-spacing: inherit !important;
+}

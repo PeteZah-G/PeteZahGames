@@ -2,6 +2,16 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import { loadFontMaps } from "./lib/fontObfuscation";
+
+const fontObf = document.createElement("script");
+fontObf.src = "/font-obfuscation.js";
+fontObf.async = true;
+document.head.appendChild(fontObf);
+loadFontMaps();
+if (document.fonts?.load) {
+  document.fonts.load("600 16px plusjakartasans-obf").catch(() => {});
+}
 
 if (/CrOS/.test(navigator.userAgent)) {
   document.documentElement.classList.add('chromeos');
