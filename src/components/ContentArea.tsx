@@ -1296,7 +1296,7 @@ export default function ContentArea({
     return (
       <div
         ref={contentRef}
-        className="flex-1 flex relative w-full bg-transparent"
+        className="flex-1 flex relative w-full min-h-0 bg-transparent"
         style={{ overflow: "clip" }}
       >
         <EmptyState />
@@ -1324,7 +1324,7 @@ export default function ContentArea({
   return (
     <div
       ref={contentRef}
-      className="flex-1 flex relative w-full bg-transparent [&:fullscreen]:bg-[hsla(220,35%,5%,1)]"
+      className="flex-1 flex relative w-full min-h-0 bg-transparent [&:fullscreen]:bg-[hsla(220,35%,5%,1)]"
       style={{ overflow: scale === 1 ? "clip" : "auto" }}
     >
       <div

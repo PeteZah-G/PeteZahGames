@@ -288,7 +288,7 @@ export default function ArcBrowser() {
           onNavigate={state.navigateToUrl}
           user={user}
         />
-        <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-transparent">
+        <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative bg-transparent">
           <Toolbar
             activeTab={state.focusedTab}
             urlInput={state.urlInput}

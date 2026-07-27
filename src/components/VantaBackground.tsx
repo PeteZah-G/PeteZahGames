@@ -64,15 +64,16 @@ function readNetwork() {
 }
 
 function viewportSize() {
+  const vv = window.visualViewport;
   const w = Math.max(
     window.innerWidth || 0,
-    document.documentElement?.clientWidth || 0,
-    document.body?.clientWidth || 0
+    vv?.width || 0,
+    document.documentElement?.clientWidth || 0
   );
   const h = Math.max(
     window.innerHeight || 0,
-    document.documentElement?.clientHeight || 0,
-    document.body?.clientHeight || 0
+    vv?.height || 0,
+    document.documentElement?.clientHeight || 0
   );
   return { w: Math.ceil(w + 2), h: Math.ceil(h + 2) };
 }

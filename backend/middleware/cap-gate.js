@@ -56,13 +56,13 @@ export function createCapGateMiddleware() {
       return res.status(403).json({ error: 'Verification required' });
     }
 
+    if (p.startsWith('/assets/') || p.endsWith('.js') || p.endsWith('.css') || p.endsWith('.map') || p.endsWith('.woff2') || p.endsWith('.woff') || p.endsWith('.ttf')) {
+      return next();
+    }
+
     if (wantsHtml(req)) {
       res.setHeader('Cache-Control', 'no-store');
       return res.redirect(302, '/verify');
-    }
-
-    if (p.startsWith('/assets/') || p.endsWith('.js') || p.endsWith('.css') || p.endsWith('.map')) {
-      return res.status(403).end();
     }
 
     res.setHeader('Cache-Control', 'no-store');
