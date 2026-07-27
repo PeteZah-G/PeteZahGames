@@ -170,6 +170,7 @@ export default function GameViewerPage({
                 zIndex: 50,
                 pointerEvents: "none",
               }}
+              className="game-viewer-controls"
             >
               <motion.div
                 drag

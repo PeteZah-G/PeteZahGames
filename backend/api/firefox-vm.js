@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import db from '../db.js';
 import { isOwnerEmail } from '../utils/auth-roles.js';
 import { toIPv4 } from '../middleware/security.js';
+import { recordVmSession } from './achievements.js';
 
 const STALE_MS = 45000;
 const MAX_ACTIVE = 400;
@@ -150,6 +151,10 @@ export function firefoxVmHeartbeatHandler(req, res) {
     lastSeen: now,
     lastDbWrite: now,
   });
+
+  try {
+    recordVmSession(user.id);
+  } catch {}
 
   if (Math.random() < 0.02) pruneHistory();
 

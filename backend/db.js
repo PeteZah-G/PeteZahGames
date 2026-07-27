@@ -96,6 +96,9 @@ try {
   if (!columnNames.includes('totp_pending_secret')) {
     db.exec('ALTER TABLE users ADD COLUMN totp_pending_secret TEXT');
   }
+  if (!columnNames.includes('showcase_badges')) {
+    db.exec("ALTER TABLE users ADD COLUMN showcase_badges TEXT DEFAULT NULL");
+  }
 } catch (error) {
   console.error('Migration error:', error);
 }
@@ -208,6 +211,48 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_link_claims_claimed ON link_claims(claimed_at);
   CREATE INDEX IF NOT EXISTS idx_link_claims_blocker ON link_claims(blocker, claimed_at);
 
+  CREATE TABLE IF NOT EXISTS game_plays (
+    game_id TEXT PRIMARY KEY,
+    label TEXT,
+    image_url TEXT,
+    plays INTEGER NOT NULL DEFAULT 0,
+    last_played_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_game_plays_plays ON game_plays(plays DESC);
+
+  CREATE TABLE IF NOT EXISTS user_game_plays (
+    user_id TEXT NOT NULL,
+    game_id TEXT NOT NULL,
+    plays INTEGER NOT NULL DEFAULT 0,
+    last_played_at INTEGER,
+    PRIMARY KEY (user_id, game_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS user_stats (
+    user_id TEXT PRIMARY KEY,
+    time_ms INTEGER NOT NULL DEFAULT 0,
+    games_played INTEGER NOT NULL DEFAULT 0,
+    unique_games INTEGER NOT NULL DEFAULT 0,
+    vm_sessions INTEGER NOT NULL DEFAULT 0,
+    last_heartbeat INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS user_achievements (
+    user_id TEXT NOT NULL,
+    achievement_id TEXT NOT NULL,
+    unlocked_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, achievement_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS user_proxy_hosts (
+    user_id TEXT NOT NULL,
+    host TEXT NOT NULL,
+    PRIMARY KEY (user_id, host)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   CREATE INDEX IF NOT EXISTS idx_users_ip ON users(ip);
   CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
@@ -216,5 +261,31 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_cap_nonces_exp ON cap_nonces(expires_at);
   CREATE INDEX IF NOT EXISTS idx_cap_tokens_exp ON cap_tokens(expires_at);
 `);
+
+try {
+  const statsCols = db.prepare('PRAGMA table_info(user_stats)').all().map((c) => c.name);
+  const addStatCol = (name, ddl) => {
+    if (!statsCols.includes(name)) db.exec(`ALTER TABLE user_stats ADD COLUMN ${ddl}`);
+  };
+  addStatCol('ai_messages', 'ai_messages INTEGER NOT NULL DEFAULT 0');
+  addStatCol('chat_messages', 'chat_messages INTEGER NOT NULL DEFAULT 0');
+  addStatCol('proxy_hosts', 'proxy_hosts INTEGER NOT NULL DEFAULT 0');
+  addStatCol('bookmarks', 'bookmarks INTEGER NOT NULL DEFAULT 0');
+  addStatCol('playlists', 'playlists INTEGER NOT NULL DEFAULT 0');
+  addStatCol('profile_views', 'profile_views INTEGER NOT NULL DEFAULT 0');
+  addStatCol('streak_days', 'streak_days INTEGER NOT NULL DEFAULT 0');
+  addStatCol('last_active_day', 'last_active_day TEXT');
+} catch (e) {
+  console.error('user_stats migration error:', e);
+}
+
+try {
+  const annCols = db.prepare('PRAGMA table_info(announcements)').all().map((c) => c.name);
+  if (!annCols.includes('target_user_id')) {
+    db.exec('ALTER TABLE announcements ADD COLUMN target_user_id TEXT');
+  }
+} catch (e) {
+  console.error('announcements migration error:', e);
+}
 
 export default db;

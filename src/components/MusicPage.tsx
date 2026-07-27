@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { requestSyncSoon } from "@/lib/settingsSync";
 import { pxEncode } from "@/lib/px";
+import { trackAchievementEvent } from "@/lib/achievementEvents";
 
 interface Track {
   id: string;
@@ -323,6 +324,7 @@ export default function MusicPage({
     setNewPlaylistName("");
     setShowNewPlaylist(false);
     setActivePlaylistId(pl.id);
+    trackAchievementEvent("playlist");
   };
 
   const addToPlaylist = (playlistId: string, track: Track) => {

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bookmark, Plus, Trash2, X, Edit2, FolderOpen, Folder, Link, Image, ChevronDown, ChevronRight, Globe, Check } from "lucide-react";
 import { requestSyncSoon } from "@/lib/settingsSync";
+import { trackAchievementEvent } from "@/lib/achievementEvents";
 
 export interface BookmarkItem {
   id: string;
@@ -206,6 +207,7 @@ export default function BookmarksPage({ onNavigate }: { onNavigate: (url: string
   function saveItem(item: BookmarkItem) {
     const exists = items.some(i => i.id === item.id);
     persistData({ ...data, items: exists ? items.map(i => i.id === item.id ? item : i) : [...items, item] });
+    if (!exists) trackAchievementEvent("bookmark");
     setEditingItem(null);
   }
 

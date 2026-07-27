@@ -1,6 +1,7 @@
 import db from '../db.js';
 import { sanitizeUsername } from '../utils/sanitize.js';
 import { isOwnerEmail } from '../utils/auth-roles.js';
+import { getUserAchievementsPublic, evaluateAchievements, trackProfileView } from './achievements.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -9,7 +10,7 @@ import { randomUUID } from 'crypto';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PROFILE_COLS =
-  'id, email, username, display_name, bio, avatar_url, status, location, website, profile_color, banner_url, favorite_music, profile_public, show_activity, is_admin, email_verified, totp_enabled, school, age, created_at';
+  'id, email, username, display_name, bio, avatar_url, status, location, website, profile_color, banner_url, favorite_music, showcase_badges, profile_public, show_activity, is_admin, email_verified, totp_enabled, school, age, created_at';
 
 function parseFavoriteMusic(raw) {
   try {
@@ -31,6 +32,19 @@ function parseFavoriteMusic(raw) {
   }
 }
 
+function parseShowcaseBadges(raw) {
+  try {
+    if (raw == null || raw === '') return null;
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!Array.isArray(parsed)) return null;
+    return parsed
+      .filter((id) => typeof id === 'string' && /^[a-z0-9_]{1,40}$/i.test(id))
+      .slice(0, 12);
+  } catch {
+    return null;
+  }
+}
+
 function publicUser(row) {
   if (!row) return null;
   return {
@@ -45,6 +59,7 @@ function publicUser(row) {
     profile_color: row.profile_color || '#4d8dff',
     banner_url: row.banner_url || null,
     favorite_music: parseFavoriteMusic(row.favorite_music),
+    showcase_badges: parseShowcaseBadges(row.showcase_badges),
     profile_public: row.profile_public !== 0,
     show_activity: row.show_activity !== 0,
     is_admin: row.is_admin || 0,
@@ -73,6 +88,7 @@ export async function getMeHandler(req, res) {
     user: {
       ...user,
       favorite_music: parseFavoriteMusic(user.favorite_music),
+      showcase_badges: parseShowcaseBadges(user.showcase_badges),
       profile_public: user.profile_public !== 0,
       show_activity: user.show_activity !== 0,
       email_verified: !!user.email_verified,
@@ -94,6 +110,7 @@ export async function updateProfileHandler(req, res) {
     website,
     profile_color,
     favorite_music,
+    showcase_badges,
     profile_public,
     show_activity,
   } = req.body;
@@ -165,6 +182,16 @@ export async function updateProfileHandler(req, res) {
     nextFavorites = JSON.stringify(parseFavoriteMusic(JSON.stringify(favorite_music)));
   }
 
+  let nextShowcase = current.showcase_badges ?? null;
+  if (showcase_badges !== undefined) {
+    if (showcase_badges === null) {
+      nextShowcase = null;
+    } else {
+      const cleaned = parseShowcaseBadges(JSON.stringify(showcase_badges));
+      nextShowcase = cleaned == null ? '[]' : JSON.stringify(cleaned);
+    }
+  }
+
   const nextPublic =
     profile_public !== undefined ? (profile_public ? 1 : 0) : current.profile_public ?? 1;
   const nextActivity =
@@ -173,7 +200,7 @@ export async function updateProfileHandler(req, res) {
   const now = Date.now();
   db.prepare(
     `UPDATE users SET username = ?, bio = ?, display_name = ?, status = ?, location = ?, website = ?,
-     profile_color = ?, favorite_music = ?, profile_public = ?, show_activity = ?, updated_at = ? WHERE id = ?`
+     profile_color = ?, favorite_music = ?, showcase_badges = ?, profile_public = ?, show_activity = ?, updated_at = ? WHERE id = ?`
   ).run(
     nextUsername ?? null,
     nextBio ?? null,
@@ -183,6 +210,7 @@ export async function updateProfileHandler(req, res) {
     nextWebsite ?? null,
     nextColor,
     nextFavorites,
+    nextShowcase,
     nextPublic,
     nextActivity,
     now,
@@ -196,6 +224,9 @@ export async function updateProfileHandler(req, res) {
   await new Promise((resolve, reject) => req.session.save((err) => (err ? reject(err) : resolve())));
 
   const updated = db.prepare(`SELECT ${PROFILE_COLS} FROM users WHERE id = ?`).get(req.session.user.id);
+  try {
+    evaluateAchievements(req.session.user.id);
+  } catch {}
   res.json({ message: 'Profile updated', user: { ...publicUser(updated), email: updated.email } });
 }
 
@@ -285,7 +316,7 @@ export async function getPublicProfileHandler(req, res) {
   const row = db
     .prepare(
       `SELECT id, username, display_name, bio, avatar_url, status, location, website, profile_color, banner_url,
-       favorite_music, profile_public, show_activity, is_admin, created_at
+       favorite_music, showcase_badges, profile_public, show_activity, is_admin, created_at
        FROM users WHERE lower(username) = lower(?)`
     )
     .get(handle);
@@ -296,5 +327,14 @@ export async function getPublicProfileHandler(req, res) {
     if (!isSelf) return res.status(403).json({ error: 'Profile is private' });
   }
 
-  res.json({ user: publicUser(row) });
+  let badges = [];
+  try {
+    badges = getUserAchievementsPublic(row.id, parseShowcaseBadges(row.showcase_badges));
+  } catch {}
+
+  try {
+    trackProfileView(row.id, req.session?.user?.id || null);
+  } catch {}
+
+  res.json({ user: { ...publicUser(row), badges } });
 }

@@ -4,9 +4,30 @@ import { Search, Dices, Plus, Star, MoreVertical, X, Trash2, Share2, Copy, Check
 import { requestSyncSoon } from "@/lib/settingsSync";
 
 const CATEGORIES = ["All", "Action", "Racing", "Strategy", "Sports", "Skill", "Shooting", "2 Player", "Io"];
+const PINNED_LABELS = ["Request Games", "Minecraft", "Roblox"];
 
 function generateGameId(game: { label: string; url: string }) {
   return `${game.label}-${game.url}`.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
+}
+
+function pinnedRank(label: string) {
+  const i = PINNED_LABELS.findIndex((p) => p.toLowerCase() === String(label || "").toLowerCase());
+  return i === -1 ? 999 : i;
+}
+
+function recordPlay(game: Game) {
+  try {
+    fetch("/api/games/play", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        gameId: game.id,
+        label: game.label,
+        imageUrl: game.imageUrl || "",
+      }),
+    }).catch(() => {});
+  } catch {}
 }
 
 interface Game {
@@ -251,28 +272,33 @@ function ShareModal({ url, onClose }: { url: string; onClose: () => void }) {
   );
 }
 
-function GameCard({ game, isFav, onPlay, onOptions }: {
-  game: Game; isFav: boolean; onPlay: () => void; onOptions: () => void;
+function GameCard({ game, isFav, onPlay, onOptions, priority = false }: {
+  game: Game; isFav: boolean; onPlay: () => void; onOptions: () => void; priority?: boolean;
 }) {
   return (
     <motion.div
-      layout
+      layout={false}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      whileHover={{ scale: 1.28,zIndex: 10 }}
+      whileHover={{ scale: 1.12, zIndex: 10 }}
       whileTap={{ scale: 0.97 }}
       transition={{ type: "spring", stiffness: 380, damping: 20 }}
-      className="relative cursor-pointer group rounded-xl overflow-hidden border-2 border-white/5 hover:border-white/40 transition-colors duration-150"
-      style={{ aspectRatio: "4/3", background: "var(--accent)" }}
+      className="relative cursor-pointer group rounded-xl overflow-hidden border-2 border-white/5 hover:border-white/40 transition-colors duration-150 game-card"
+      style={{ aspectRatio: "4/3", background: "var(--accent)", contentVisibility: "auto", containIntrinsicSize: "160px 120px" }}
       onClick={onPlay}
     >
       <img
         src={game.imageUrl}
         alt={game.label}
         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-        loading="lazy"
+        loading={priority ? "eager" : "lazy"}
         decoding="async"
+        fetchPriority={priority ? "high" : "low"}
+        sizes="(max-width: 640px) 46vw, (max-width: 1024px) 22vw, 160px"
+        width={160}
+        height={120}
+        style={{ background: "hsla(210, 30%, 12%, 0.6)" }}
       />
 
       <div
@@ -307,6 +333,7 @@ function GameCard({ game, isFav, onPlay, onOptions }: {
 
 export default function GamesPage({ onNavigate }: GamesPageProps) {
   const [allGames, setAllGames] = useState<Game[]>([]);
+  const [playCounts, setPlayCounts] = useState<Record<string, number>>({});
   const [favorites, setFavorites] = useState<string[]>(getFavorites);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
@@ -320,12 +347,21 @@ export default function GamesPage({ onNavigate }: GamesPageProps) {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/storage/data/collection.json");
+        const [res, playsRes] = await Promise.all([
+          fetch("/storage/data/collection.json"),
+          fetch("/api/games/plays").catch(() => null),
+        ]);
         const data = await res.json();
         const remote: Game[] = data.games.map((g: Game) => ({ ...g, id: generateGameId(g), isCustom: false }));
         const custom = getCustomGames();
         const hidden = getHiddenGames();
         setAllGames([...custom, ...remote].filter(g => !hidden.includes(g.id)));
+        if (playsRes && playsRes.ok) {
+          const playsData = await playsRes.json();
+          if (playsData?.counts && typeof playsData.counts === "object") {
+            setPlayCounts(playsData.counts);
+          }
+        }
       } catch {
         const custom = getCustomGames();
         const hidden = getHiddenGames();
@@ -340,6 +376,12 @@ export default function GamesPage({ onNavigate }: GamesPageProps) {
     if (search.trim()) g = g.filter(x => x.label.toLowerCase().includes(search.toLowerCase()));
     if (activeCategory !== "All") g = g.filter(x => x.categories.some(c => c.toLowerCase() === activeCategory.toLowerCase()));
     return [...g].sort((a, b) => {
+      const ap = pinnedRank(a.label);
+      const bp = pinnedRank(b.label);
+      if (ap !== bp) return ap - bp;
+      const ac = playCounts[a.id] || 0;
+      const bc = playCounts[b.id] || 0;
+      if (ac !== bc) return bc - ac;
       const af = favorites.includes(a.id), bf = favorites.includes(b.id);
       return af === bf ? 0 : af ? -1 : 1;
     });
@@ -352,16 +394,18 @@ export default function GamesPage({ onNavigate }: GamesPageProps) {
     if (!hasMore || !loadMoreRef.current) return;
     const observer = new IntersectionObserver(
       (entries) => { if (entries[0].isIntersecting) setPage(p => p + 1); },
-      { threshold: 0.1 }
+      { threshold: 0.1, rootMargin: "600px 0px" }
     );
     observer.observe(loadMoreRef.current);
     return () => observer.disconnect();
   }, [hasMore, visible.length]);
 
   const handlePlay = useCallback((game: Game) => {
+    recordPlay(game);
+    setPlayCounts((prev) => ({ ...prev, [game.id]: (prev[game.id] || 0) + 1 }));
     if (onNavigate) {
       const resolved = resolveGameUrl(game.url);
-      onNavigate(`petezah://gameviewer?url=${encodeURIComponent(resolved)}&title=${encodeURIComponent(game.label)}`);
+      onNavigate(`petezah://gameviewer?url=${encodeURIComponent(resolved)}&title=${encodeURIComponent(game.label)}&gid=${encodeURIComponent(game.id)}`);
     }
   }, [onNavigate]);
 
@@ -397,7 +441,7 @@ export default function GamesPage({ onNavigate }: GamesPageProps) {
     <div className="absolute inset-0 flex flex-col overflow-hidden">
 
       <div
-        className="flex-shrink-0 relative z-10 px-6 pt-5 pb-3"
+        className="flex-shrink-0 relative z-10 px-6 pt-5 pb-3 games-toolbar"
         style={{
           backdropFilter: "blur(24px)",
           WebkitBackdropFilter: "blur(24px)",
@@ -459,20 +503,21 @@ export default function GamesPage({ onNavigate }: GamesPageProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto relative z-0" style={{ scrollbarWidth: "none" }}>
-        <div className="px-6 py-4">
+        <div className="px-6 py-4 games-scroll">
           {visible.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
               <p className="text-sm">No games found</p>
             </div>
           ) : (
             <>
-              <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
+              <div className="grid gap-3 games-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
                 <AnimatePresence mode="popLayout">
-                  {visible.map(game => (
+                  {visible.map((game, i) => (
                     <GameCard
                       key={game.id}
                       game={game}
                       isFav={favorites.includes(game.id)}
+                      priority={i < 12}
                       onPlay={() => handlePlay(game)}
                       onOptions={() => setOptionsGame(game)}
                     />

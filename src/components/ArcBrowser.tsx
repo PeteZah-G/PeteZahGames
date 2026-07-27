@@ -81,19 +81,40 @@ export default function ArcBrowser() {
     const report = () => {
       const urls = state.tabs
         .map((t) => t.url)
-        .filter((u) => typeof u === "string" && /^https?:\/\//i.test(u))
+        .filter((u) => typeof u === "string" && (/^https?:\/\//i.test(u) || /^petezah:\/\//i.test(u)))
         .slice(0, 4);
+      const active = state.focusedTab || state.activeTab;
+      let game: any = null;
+      if (active?.url?.startsWith("petezah://games")) {
+        game = { surface: "list", label: "Games", gameId: null };
+      } else if (active?.url?.startsWith("petezah://gameviewer")) {
+        try {
+          const q = active.url.includes("?") ? active.url.slice(active.url.indexOf("?") + 1) : "";
+          const params = new URLSearchParams(q);
+          game = {
+            surface: "viewer",
+            label: params.get("title") || active.title || "Game",
+            gameId: params.get("gid") || null,
+          };
+        } catch {
+          game = { surface: "viewer", label: active.title || "Game", gameId: null };
+        }
+      }
       fetch("/api/presence", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: getPresenceClientId(), urls }),
+        body: JSON.stringify({ clientId: getPresenceClientId(), urls, game }),
+      }).catch(() => {});
+      fetch("/api/achievements/heartbeat", {
+        method: "POST",
+        credentials: "include",
       }).catch(() => {});
     };
     report();
     const t = window.setInterval(report, 12000);
     return () => window.clearInterval(t);
-  }, [state.tabs]);
+  }, [state.tabs, state.focusedTab, state.activeTab]);
 
   useEffect(() => {
     installParentOpenTrap();

@@ -639,7 +639,7 @@ function PresetCard({
           e.preventDefault();
           onEdit();
         }}
-        className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
+        className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 newtab-preset-btn"
         style={{
           background: "hsla(220, 35%, 5%, 0.92)",
           border: "1px solid hsla(210, 40%, 80%, 0.12)",
@@ -760,7 +760,7 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
           <NewTabSearchBar onNavigate={onNavigate} />
         </motion.div>
 
-        <div className="flex items-center justify-center gap-2.5 py-1">
+        <div className="flex items-center justify-center gap-2.5 py-1 flex-wrap px-3 newtab-presets">
           {presets.map((preset, i) => (
             <PresetCard
               key={preset.id}
@@ -781,7 +781,7 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
               ease,
             }}
             onClick={() => setEditingPreset("new")}
-            className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 newtab-preset-btn"
             style={{
               background: "hsla(220, 35%, 5%, 0.72)",
               border: "1px dashed hsla(210, 40%, 80%, 0.22)",

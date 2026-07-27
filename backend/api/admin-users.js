@@ -1,5 +1,6 @@
 import db from '../db.js';
 import { isOwnerEmail } from '../utils/auth-roles.js';
+import { getAdminUserAchievements } from './achievements.js';
 
 const PAGE_SIZE = 25;
 const SEARCH_LIMIT = 100;
@@ -92,10 +93,15 @@ export function getAdminUserHandler(req, res) {
   `).get(req.params.id);
 
   if (!user) return res.status(404).json({ error: 'Not found' });
+  let achievements = [];
+  try {
+    achievements = getAdminUserAchievements(user.id)?.achievements?.filter((a) => a.unlocked) || [];
+  } catch {}
   res.json({
     user: {
       ...user,
       is_owner: isOwnerEmail(user.email),
+      achievements,
     },
   });
 }

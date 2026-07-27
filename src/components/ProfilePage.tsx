@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { MapPin, Link2, Music2, Play, Calendar, Shield, Lock } from "lucide-react";
+import { BadgeRow, type BadgeInfo } from "./BadgeChip";
 
 interface FavTrack {
   id: string;
@@ -26,6 +27,7 @@ interface PublicUser {
   profile_public?: boolean;
   is_admin?: number;
   created_at?: number;
+  badges?: BadgeInfo[];
 }
 
 const S = {
@@ -166,7 +168,12 @@ export default function ProfilePage({
                 </span>
               )}
             </div>
-            <p style={{ fontSize: 13, color: S.textSub, margin: "2px 0 0" }}>@{user.username || handle}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+              <p style={{ fontSize: 13, color: S.textSub, margin: 0 }}>@{user.username || handle}</p>
+              {!!user.badges?.length && (
+                <BadgeRow badges={user.badges} max={8} size={12} subtle />
+              )}
+            </div>
           </div>
         </div>
 

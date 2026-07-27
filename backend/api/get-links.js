@@ -449,6 +449,10 @@ export async function claimLinkHandler(req, res) {
     }
 
     const remaining = Math.max(0, WEEKLY_LIMIT - (claimedCount + 1));
+    try {
+      const { evaluateAchievements } = await import('./achievements.js');
+      evaluateAchievements(user.id);
+    } catch {}
     return res.json({
       claim: { id, blocker, link: chosen, claimedAt: now },
       remaining,

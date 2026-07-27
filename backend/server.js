@@ -79,6 +79,23 @@ import {
   adsGateLimiter,
   adsGateHandler,
 } from './api/ads.js';
+import {
+  getMyAchievementsHandler,
+  achievementHeartbeatHandler,
+  achievementEventHandler,
+  achievementEventLimiter,
+  getBadgeCatalogHandler,
+  adminSetUserBadgeHandler,
+  adminBadgeLimiter,
+} from './api/achievements.js';
+import {
+  recordGamePlayHandler,
+  getGamePlaysMapHandler,
+  getAdminGameStatsHandler,
+  getAdminGameLiveHandler,
+  gamePlayLimiter,
+  achievementHeartbeatLimiter,
+} from './api/game-stats.js';
 import { websocketNormalHandler, websocketTorHandler } from './api/websocket-auth.js';
 import capRouter from './routes/cap.js';
 import { createCapGateMiddleware, sendVerifyPage, requireGateUpgrade } from './middleware/cap-gate.js';
@@ -315,6 +332,17 @@ app.post('/api/admin/announcements/:id/active', setAnnouncementActiveHandler);
 app.post('/api/presence', reportPresenceHandler);
 app.get('/api/announcements/active', getActiveAnnouncementHandler);
 
+app.post('/api/games/play', gamePlayLimiter, recordGamePlayHandler);
+app.get('/api/games/plays', getGamePlaysMapHandler);
+app.get('/api/admin/game-stats', getAdminGameStatsHandler);
+app.get('/api/admin/game-live', getAdminGameLiveHandler);
+
+app.get('/api/achievements', getMyAchievementsHandler);
+app.post('/api/achievements/heartbeat', achievementHeartbeatLimiter, achievementHeartbeatHandler);
+app.post('/api/achievements/event', achievementEventLimiter, achievementEventHandler);
+app.get('/api/admin/badges', getBadgeCatalogHandler);
+app.post('/api/admin/users/:id/badges', adminBadgeLimiter, adminSetUserBadgeHandler);
+
 app.post('/api/firefox-vm/heartbeat', firefoxVmLimiter, firefoxVmHeartbeatHandler);
 app.post('/api/firefox-vm/end', firefoxVmLimiter, firefoxVmEndHandler);
 app.get('/api/admin/firefox-vm/live', getFirefoxVmLiveHandler);
@@ -347,6 +375,9 @@ if (IS_DEV) {
         res.setHeader('Expires', '0');
       } else if (filePath.includes(`${path.sep}assets${path.sep}`)) {
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      } else if (filePath.includes(`${path.sep}storage${path.sep}images${path.sep}`)) {
+        res.setHeader('Cache-Control', 'public, max-age=2592000, stale-while-revalidate=604800');
+        res.setHeader('Accept-Ranges', 'bytes');
       }
     },
   }));

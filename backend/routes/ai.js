@@ -77,6 +77,13 @@ router.post('/', async (req, res) => {
   try {
     const result = await enqueue(callGroq);
     if (cacheKey) setCache(cacheKey, result);
+    try {
+      const uid = req.session?.user?.id;
+      if (uid) {
+        const { bumpStat } = await import('../api/achievements.js');
+        bumpStat(uid, 'ai_messages', 1);
+      }
+    } catch {}
     return res.json({ response: result });
   } catch (err) {
     if (err.code === 'QUEUE_FULL') return res.status(503).json({ error: 'Server busy' });

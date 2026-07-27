@@ -5,8 +5,9 @@ import {
   Zap, ChevronRight, Lock, Mail, KeyRound, Download, Upload, Trash2,
   Megaphone, MessageSquare, Palette, Shield, Sliders, Camera,
   UserCog, Users, Ban, UserMinus, ShieldCheck, ShieldOff, Plus, ExternalLink, Image, Pipette,
-  Music2, MapPin, Link2, Heart, Globe2, Radio, Monitor, BarChart3, Copy,
+  Music2, MapPin, Link2, Heart, Globe2, Radio, Monitor, BarChart3, Copy, Trophy, Gamepad2,
 } from "lucide-react";
+import { BadgeChip, BadgeRow, type BadgeInfo } from "./BadgeChip";
 import {
   reconcileSettings,
   pushSettings,
@@ -38,6 +39,7 @@ interface StaffMember extends AdminUser {
 }
 interface AdminUserDetail extends AdminUser {
   email: string; avatar_url?: string; bio?: string; ip?: string; school?: string; age?: number;
+  achievements?: BadgeInfo[];
 }
 
 const THEMES = [
@@ -58,7 +60,7 @@ const SITE_PRESETS = [
   { id: "petezah",   label: "PeteZah",           favicon: "/logo.png" },
 ];
 
-type Section = "profile" | "get-links" | "appearance" | "cloaking" | "behavior" | "data" | "admin" | "live" | "firefox-vm" | "link-stats" | "updates";
+type Section = "profile" | "get-links" | "achievements" | "appearance" | "cloaking" | "behavior" | "data" | "admin" | "live" | "firefox-vm" | "game-stats" | "link-stats" | "updates";
 
 const THEME_COLORS: Record<string, { bgColor: string; textColor: string }> = {
   "default":         { bgColor: "#020810", textColor: "#e8f0fa" },
@@ -394,6 +396,7 @@ function ApplyBtn({ saved, onClick }: { saved: boolean; onClick: () => void }) {
 const NAV: { id: Section; label: string; icon: any; adminOnly?: boolean }[] = [
   { id: "profile",    label: "Profile",     icon: User },
   { id: "get-links",  label: "Get Links",   icon: Link2 },
+  { id: "achievements", label: "Achievements", icon: Trophy },
   { id: "appearance", label: "Appearance",  icon: Palette },
   { id: "cloaking",   label: "Cloaking",    icon: Shield },
   { id: "behavior",   label: "Behavior",    icon: Sliders },
@@ -401,8 +404,9 @@ const NAV: { id: Section; label: string; icon: any; adminOnly?: boolean }[] = [
   { id: "admin",      label: "Admin",       icon: UserCog, adminOnly: true },
   { id: "live",       label: "Live Sites",  icon: Radio, adminOnly: true },
   { id: "firefox-vm", label: "Firefox VM",  icon: Monitor, adminOnly: true },
+  { id: "game-stats", label: "Game Stats",  icon: Gamepad2, adminOnly: true },
   { id: "link-stats", label: "Link Stats",  icon: BarChart3, adminOnly: true },
-  { id: "updates",    label: "Global Update", icon: Megaphone, adminOnly: true },
+  { id: "updates",    label: "Updates", icon: Megaphone, adminOnly: true },
 ];
 
 export default function AccountPage({ onNavigate }: { onNavigate: (url: string) => void }) {
@@ -427,6 +431,8 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   const [profileColor, setProfileColor] = useState("#4d8dff");
   const [profilePublic, setProfilePublic] = useState(true);
   const [favoriteMusic, setFavoriteMusic] = useState<FavTrack[]>([]);
+  const [showcaseBadges, setShowcaseBadges] = useState<string[] | null>(null);
+  const [unlockedForShowcase, setUnlockedForShowcase] = useState<BadgeInfo[]>([]);
   const [likedPool, setLikedPool] = useState<FavTrack[]>([]);
   const [profSaving, setProfSaving] = useState(false);
   const [profMsg, setProfMsg]     = useState("");
@@ -485,11 +491,15 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   const [ffHistory, setFfHistory] = useState<{ sessionId: string; userId: string; username?: string | null; startedAt: number; lastSeen: number; endedAt?: number | null; active?: boolean }[]>([]);
   const [ffHistoryTotal, setFfHistoryTotal] = useState(0);
   const [ffHistoryLoading, setFfHistoryLoading] = useState(false);
-  const [announcements, setAnnouncements] = useState<{ id: string; title: string; content: string; active: number; created_at: number }[]>([]);
+  const [announcements, setAnnouncements] = useState<{ id: string; title: string; content: string; active: number; created_at: number; target_user_id?: string | null; target_username?: string | null }[]>([]);
   const [annTitle, setAnnTitle] = useState("");
   const [annContent, setAnnContent] = useState("");
+  const [annTarget, setAnnTarget] = useState("");
   const [annBusy, setAnnBusy] = useState(false);
   const [annMsg, setAnnMsg] = useState("");
+  const [badgeCatalog, setBadgeCatalog] = useState<BadgeInfo[]>([]);
+  const [badgeManageOpen, setBadgeManageOpen] = useState(false);
+  const [badgeBusy, setBadgeBusy] = useState(false);
 
   const [linksStatus, setLinksStatus] = useState<{
     emailVerified: boolean;
@@ -514,6 +524,18 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   const [disableCode, setDisableCode] = useState("");
   const [linkStats, setLinkStats] = useState<any>(null);
   const [linkStatsLoading, setLinkStatsLoading] = useState(false);
+  const [achievementsData, setAchievementsData] = useState<{
+    achievements: BadgeInfo[];
+    unlockedCount: number;
+    total: number;
+    stats?: { timeMs: number; gamesPlayed: number; uniqueGames: number; vmSessions: number };
+  } | null>(null);
+  const [achievementsLoading, setAchievementsLoading] = useState(false);
+  const [gameStats, setGameStats] = useState<any>(null);
+  const [gameStatsLoading, setGameStatsLoading] = useState(false);
+  const [gameSearch, setGameSearch] = useState("");
+  const [gameSearchDebounced, setGameSearchDebounced] = useState("");
+  const [gameLive, setGameLive] = useState<any>(null);
   const [resendBusy, setResendBusy] = useState(false);
 
   function hydrateProfile(u: AuthUser) {
@@ -526,6 +548,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
     setProfileColor(u.profile_color || "#4d8dff");
     setProfilePublic(u.profile_public !== false);
     setFavoriteMusic(u.favorite_music || []);
+    setShowcaseBadges(Array.isArray((u as any).showcase_badges) ? (u as any).showcase_badges : null);
     setIsOwner(!!u.is_owner);
     try {
       const liked = JSON.parse(localStorage.getItem("petezah-music-liked") || "[]");
@@ -735,6 +758,88 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   }, [section, user]);
 
   useEffect(() => {
+    if (section !== "achievements" || !user) return;
+    let cancelled = false;
+    setAchievementsLoading(true);
+    fetch("/api/achievements", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled) {
+          setAchievementsData(d);
+          const unlocked = (d.achievements || []).filter((a: BadgeInfo) => a.unlocked);
+          setUnlockedForShowcase(unlocked);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setAchievementsData(null);
+      })
+      .finally(() => {
+        if (!cancelled) setAchievementsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [section, user]);
+
+  useEffect(() => {
+    if (section !== "profile" || !user) return;
+    if (unlockedForShowcase.length) return;
+    let cancelled = false;
+    fetch("/api/achievements", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled) return;
+        const unlocked = (d.achievements || []).filter((a: BadgeInfo) => a.unlocked);
+        setUnlockedForShowcase(unlocked);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [section, user, unlockedForShowcase.length]);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setGameSearchDebounced(gameSearch), 250);
+    return () => window.clearTimeout(t);
+  }, [gameSearch]);
+
+  useEffect(() => {
+    if (section !== "game-stats" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
+    let cancelled = false;
+    const load = () => {
+      setGameStatsLoading(true);
+      const q = gameSearchDebounced.trim();
+      const url = q
+        ? `/api/admin/game-stats?q=${encodeURIComponent(q)}`
+        : "/api/admin/game-stats";
+      Promise.all([
+        fetch(url, { credentials: "include" }).then((r) => r.json()),
+        fetch("/api/admin/game-live", { credentials: "include" }).then((r) => r.json()),
+      ])
+        .then(([stats, live]) => {
+          if (cancelled) return;
+          setGameStats(stats);
+          setGameLive(live);
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setGameStats(null);
+            setGameLive(null);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setGameStatsLoading(false);
+        });
+    };
+    load();
+    const t = window.setInterval(load, 12000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
+  }, [section, user, gameSearchDebounced]);
+
+  useEffect(() => {
     if (section !== "updates" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
     fetch("/api/admin/announcements", { credentials: "include" })
       .then((r) => r.json())
@@ -751,7 +856,11 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: annTitle.trim(), content: annContent.trim() }),
+        body: JSON.stringify({
+          title: annTitle.trim(),
+          content: annContent.trim(),
+          targetUsername: annTarget.trim() || undefined,
+        }),
       });
       const d = await r.json();
       if (!r.ok) {
@@ -761,11 +870,44 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       setAnnouncements((prev) => [d.announcement, ...prev]);
       setAnnTitle("");
       setAnnContent("");
-      setAnnMsg("Posted — users will see it once");
+      setAnnTarget("");
+      setAnnMsg(d.announcement?.target_user_id ? "Sent to user" : "Posted globally");
     } finally {
       setAnnBusy(false);
       setTimeout(() => setAnnMsg(""), 2500);
     }
+  }
+
+  async function openBadgeManager() {
+    if (!selectedUser) return;
+    setBadgeManageOpen(true);
+    if (!badgeCatalog.length) {
+      try {
+        const r = await fetch("/api/admin/badges", { credentials: "include" });
+        const d = await r.json();
+        if (r.ok) setBadgeCatalog(d.badges || []);
+      } catch {}
+    }
+  }
+
+  async function toggleUserBadge(badgeId: string, grant: boolean) {
+    if (!selectedUser) return;
+    setBadgeBusy(true);
+    try {
+      const r = await fetch(`/api/admin/users/${selectedUser.id}/badges`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ badgeId, grant }),
+      });
+      const d = await r.json();
+      if (r.ok && d.achievements) {
+        setSelectedUser((prev) =>
+          prev ? { ...prev, achievements: d.achievements.filter((a: BadgeInfo) => a.unlocked) } : prev
+        );
+      }
+    } catch {}
+    setBadgeBusy(false);
   }
 
   async function toggleAnnouncement(id: string, active: boolean) {
@@ -1008,6 +1150,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
           profile_color: profileColor,
           profile_public: profilePublic,
           favorite_music: favoriteMusic,
+          showcase_badges: showcaseBadges,
         }),
       });
       const d = await r.json();
@@ -1022,6 +1165,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
           profile_color: profileColor,
           profile_public: profilePublic,
           favorite_music: favoriteMusic,
+          showcase_badges: showcaseBadges,
         };
         setUser(u => u ? { ...u, ...saved } : u);
         hydrateProfile({ ...(user as AuthUser), ...saved });
@@ -1309,7 +1453,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       <div style={{
         width: "190px", flexShrink: 0, display: "flex", flexDirection: "column",
         borderRight: `1px solid ${C.border}`, padding: "18px 10px",
-        background: C.surface,
+        background: C.surface, minHeight: 0, overflow: "hidden",
       }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", marginBottom: "20px", paddingBottom: "16px", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ position: "relative" }}>
@@ -1346,7 +1490,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
           </div>
         </div>
 
-        <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1px" }}>
+        <nav style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: "1px", scrollbarWidth: "thin" }}>
           {visibleSections.map(({ id, label, icon: Icon }) => {
             const active = section === id;
             return (
@@ -1497,6 +1641,52 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                   <Divider />
                   <div>
                     <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 6 }}>
+                      <Trophy size={11} /> Showcase badges on profile
+                    </p>
+                    <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 10px" }}>
+                      Choose which unlocked badges appear next to your @username. Leave all on to show everything.
+                    </p>
+                    {unlockedForShowcase.length === 0 ? (
+                      <p style={{ fontSize: 12, color: C.textMuted, margin: 0 }}>Unlock badges to showcase them</p>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 220, overflowY: "auto" }}>
+                        {unlockedForShowcase.map((b) => {
+                          const shown = showcaseBadges === null || showcaseBadges.includes(b.id);
+                          return (
+                            <button
+                              key={b.id}
+                              type="button"
+                              onClick={() => {
+                                setShowcaseBadges((prev) => {
+                                  const allIds = unlockedForShowcase.map((x) => x.id);
+                                  if (prev === null) {
+                                    return shown ? allIds.filter((id) => id !== b.id) : allIds;
+                                  }
+                                  if (shown) return prev.filter((id) => id !== b.id);
+                                  if (prev.length >= 12) return prev;
+                                  return [...prev, b.id];
+                                });
+                              }}
+                              style={{
+                                display: "flex", alignItems: "center", gap: 8, padding: "7px 8px", borderRadius: 8,
+                                background: shown ? C.accentDim : C.elevated,
+                                border: `1px solid ${shown ? C.borderFocus : C.border}`,
+                                cursor: "pointer", textAlign: "left", color: C.text,
+                              }}
+                            >
+                              <BadgeChip badge={b} size={22} subtle />
+                              <span style={{ flex: 1, fontSize: 11, fontWeight: 600 }}>{b.name}</span>
+                              <span style={{ fontSize: 10, color: shown ? C.accent : C.textMuted }}>{shown ? "Shown" : "Hidden"}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <Divider />
+                  <div>
+                    <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 6 }}>
                       <Music2 size={11} /> Favorite music on profile ({favoriteMusic.length}/12)
                     </p>
                     <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 10px" }}>
@@ -1587,6 +1777,103 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {section === "achievements" && (
+              <div style={{ maxWidth: "620px" }}>
+                <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: "0 0 3px", display: "flex", alignItems: "center", gap: 8 }}>
+                  <Trophy size={14} style={{ color: C.accent }} />
+                  Achievements
+                </h2>
+                <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 14px" }}>
+                  Badges unlock as you use PeteZah · {achievementsData?.unlockedCount ?? 0}/{achievementsData?.total ?? 0} unlocked
+                </p>
+                {achievementsLoading && !achievementsData ? (
+                  <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
+                    <Loader2 size={18} className="animate-spin" style={{ color: C.accent }} />
+                  </div>
+                ) : !achievementsData ? (
+                  <p style={{ fontSize: 12, color: C.textMuted }}>Sign in to track achievements</p>
+                ) : (
+                  <>
+                    {achievementsData.stats && (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 8, marginBottom: 16 }}>
+                        {[
+                          ["Time", `${Math.floor((achievementsData.stats.timeMs || 0) / 3600000)}h`],
+                          ["Launches", achievementsData.stats.gamesPlayed],
+                          ["Unique", achievementsData.stats.uniqueGames],
+                          ["VM", achievementsData.stats.vmSessions],
+                        ].map(([label, val]) => (
+                          <div key={String(label)} style={{
+                            padding: "10px 12px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}`,
+                          }}>
+                            <p style={{ margin: 0, fontSize: 9, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</p>
+                            <p style={{ margin: "3px 0 0", fontSize: 15, fontWeight: 700, color: C.text }}>{val}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {(achievementsData.achievements || []).map((a) => {
+                        const locked = a.unlocked === false;
+                        const progress = a.progress;
+                        const pct = progress && progress.target > 0
+                          ? Math.min(100, Math.round((progress.current / progress.target) * 100))
+                          : locked ? 0 : 100;
+                        return (
+                          <div key={a.id} style={{
+                            display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 12px", borderRadius: 10,
+                            background: C.surface, border: `1px solid ${C.border}`, opacity: locked ? 0.78 : 1,
+                          }}>
+                            <BadgeChip badge={a} size={36} locked={locked} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                <span style={{ fontSize: 13, fontWeight: 650, color: C.text }}>{a.name}</span>
+                                <span style={{
+                                  fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
+                                  padding: "2px 6px", borderRadius: 5,
+                                  background: locked ? C.elevated : `${a.color}22`,
+                                  color: locked ? C.textMuted : a.color,
+                                  border: `1px solid ${locked ? C.border : `${a.color}44`}`,
+                                }}>
+                                  {a.rarity}
+                                </span>
+                              </div>
+                              {progress ? (
+                                <div style={{ marginTop: 6 }}>
+                                  <p style={{ margin: 0, fontSize: 11, color: C.textSub }}>
+                                    {progress.current}/{progress.target} {progress.unit}
+                                  </p>
+                                  <div style={{
+                                    marginTop: 5, height: 6, borderRadius: 99, overflow: "hidden",
+                                    background: "hsla(210, 30%, 16%, 0.9)", border: `1px solid ${C.border}`,
+                                  }}>
+                                    <div style={{
+                                      width: `${pct}%`, height: "100%", borderRadius: 99,
+                                      background: locked
+                                        ? `linear-gradient(90deg, ${a.color}66, ${a.color}99)`
+                                        : `linear-gradient(90deg, ${a.color}88, ${a.color})`,
+                                      transition: "width 0.25s ease",
+                                    }} />
+                                  </div>
+                                  <p style={{ margin: "3px 0 0", fontSize: 9, color: C.textMuted }}>{pct}%</p>
+                                </div>
+                              ) : (
+                                <p style={{ margin: "3px 0 0", fontSize: 11, color: C.textSub }}>{a.desc}</p>
+                              )}
+                              {a.unlockedAt ? (
+                                <p style={{ margin: "4px 0 0", fontSize: 9, color: C.textMuted }}>
+                                  Unlocked {new Date(a.unlockedAt).toLocaleDateString()}
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -2365,11 +2652,11 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                 <AnimatePresence>
                   {(selectedUser || detailLoading) && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      onClick={() => !detailLoading && setSelectedUser(null)}
+                      onClick={() => { if (!detailLoading) { setSelectedUser(null); setBadgeManageOpen(false); } }}
                       style={{ position: "fixed", inset: 0, background: "hsla(216, 50%, 4%, 0.7)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
                       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
                         onClick={e => e.stopPropagation()}
-                        style={{ width: "100%", maxWidth: "380px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" }}>
+                        style={{ width: "100%", maxWidth: badgeManageOpen ? "440px" : "380px", maxHeight: "90vh", overflowY: "auto", background: C.surface, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" }}>
                         {detailLoading ? (
                           <div style={{ display: "flex", justifyContent: "center", padding: "24px" }}>
                             <Loader2 size={20} className="animate-spin" style={{ color: C.accent }} />
@@ -2397,10 +2684,64 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                                 </div>
                               ))}
                             </div>
-                            <button onClick={() => setSelectedUser(null)}
-                              style={{ marginTop: "16px", width: "100%", padding: "8px", borderRadius: "8px", border: `1px solid ${C.border}`, background: C.elevated, color: C.text, fontSize: "12px", cursor: "pointer" }}>
-                              Close
-                            </button>
+                            {!!selectedUser.achievements?.length && (
+                              <div style={{ marginTop: 14 }}>
+                                <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted }}>
+                                  Badges
+                                </p>
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, maxHeight: 140, overflowY: "auto" }}>
+                                  {selectedUser.achievements.map((b) => (
+                                    <BadgeChip key={b.id} badge={b} size={26} showName />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                              <button onClick={openBadgeManager}
+                                style={{ flex: 1, padding: "8px", borderRadius: "8px", border: `1px solid ${C.borderFocus}`, background: C.accentDim, color: C.accent, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                                Manage badges
+                              </button>
+                              <button onClick={() => { setSelectedUser(null); setBadgeManageOpen(false); }}
+                                style={{ flex: 1, padding: "8px", borderRadius: "8px", border: `1px solid ${C.border}`, background: C.elevated, color: C.text, fontSize: "12px", cursor: "pointer" }}>
+                                Close
+                              </button>
+                            </div>
+                            {badgeManageOpen && (
+                              <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+                                <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted }}>
+                                  Grant / revoke
+                                </p>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 220, overflowY: "auto" }}>
+                                  {(badgeCatalog.length ? badgeCatalog : selectedUser.achievements || []).map((b) => {
+                                    const owned = !!selectedUser.achievements?.some((x) => x.id === b.id);
+                                    return (
+                                      <div key={b.id} style={{
+                                        display: "flex", alignItems: "center", gap: 8, padding: "7px 8px", borderRadius: 8,
+                                        background: C.elevated, border: `1px solid ${C.border}`,
+                                      }}>
+                                        <BadgeChip badge={{ ...b, unlocked: owned }} size={22} locked={!owned} />
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                          <p style={{ margin: 0, fontSize: 11, fontWeight: 650, color: C.text }}>{b.name}</p>
+                                          <p style={{ margin: 0, fontSize: 9, color: C.textMuted, textTransform: "capitalize" }}>{b.rarity}{b.manual ? " · manual" : ""}</p>
+                                        </div>
+                                        <button
+                                          disabled={badgeBusy}
+                                          onClick={() => toggleUserBadge(b.id, !owned)}
+                                          style={{
+                                            padding: "4px 8px", borderRadius: 6, fontSize: 10, fontWeight: 650, cursor: "pointer",
+                                            border: `1px solid ${owned ? "hsl(0 60% 50% / 0.35)" : C.borderFocus}`,
+                                            background: owned ? "hsl(0 60% 50% / 0.12)" : C.accentDim,
+                                            color: owned ? C.danger : C.accent,
+                                          }}
+                                        >
+                                          {owned ? "Revoke" : "Grant"}
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </>
                         )}
                       </motion.div>
@@ -2549,6 +2890,127 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
               </div>
             )}
 
+            {section === "game-stats" && isAdmin && (
+              <div style={{ maxWidth: "680px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, gap: 10, flexWrap: "wrap" }}>
+                  <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                    <Gamepad2 size={14} style={{ color: C.accent }} />
+                    Game Stats
+                  </h2>
+                  <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: `${C.accentDim}40`, border: `1px solid ${C.borderFocus}`, color: C.accent }}>
+                    {(gameLive?.clients ?? 0)} live · {(gameStats?.totals?.totalPlays ?? 0)} plays
+                  </span>
+                </div>
+                <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 14px" }}>
+                  Top 50 most played · search any game · live list/viewer presence
+                </p>
+
+                <div style={{
+                  display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 8, marginBottom: 14,
+                }}>
+                  {[
+                    ["On games list", gameLive?.onList ?? 0],
+                    ["In game viewer", gameLive?.onViewer ?? 0],
+                    ["Tracked games", gameStats?.totals?.trackedGames ?? 0],
+                  ].map(([label, val]) => (
+                    <div key={String(label)} style={{
+                      padding: "10px 12px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}`,
+                    }}>
+                      <p style={{ margin: 0, fontSize: 9, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</p>
+                      <p style={{ margin: "3px 0 0", fontSize: 16, fontWeight: 700, color: C.text }}>{val}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px" }}>
+                  Live on games
+                </p>
+                {!gameLive?.active?.length ? (
+                  <p style={{ fontSize: 12, color: C.textMuted, margin: "0 0 14px" }}>Nobody on games right now</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: "22vh", overflowY: "auto", marginBottom: 14 }}>
+                    {gameLive.active.map((row: any) => (
+                      <div key={`${row.gameId || row.label}-${row.surface}`} style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+                        padding: "8px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.border}`,
+                      }}>
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: 12, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {row.label || row.gameId || "Unknown"}
+                          </p>
+                          <p style={{ margin: "2px 0 0", fontSize: 10, color: C.textMuted }}>
+                            {row.surface === "list" ? "Games list" : "Game page"}
+                            {row.username ? ` · @${row.username}` : ""}
+                          </p>
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: C.accent, flexShrink: 0 }}>{row.viewers}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px" }}>
+                  Top 50
+                </p>
+                {gameStatsLoading && !gameStats ? (
+                  <div style={{ display: "flex", justifyContent: "center", padding: 28 }}>
+                    <Loader2 size={18} className="animate-spin" style={{ color: C.accent }} />
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: "36vh", overflowY: "auto", marginBottom: 16 }}>
+                    {(gameStats?.top || []).map((g: any, i: number) => (
+                      <div key={g.gameId} style={{
+                        display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8,
+                        background: C.surface, border: `1px solid ${C.border}`,
+                      }}>
+                        <span style={{ width: 18, fontSize: 10, color: C.textMuted, flexShrink: 0 }}>{i + 1}</span>
+                        {g.imageUrl ? (
+                          <img src={g.imageUrl} alt="" loading="lazy" decoding="async" style={{ width: 28, height: 22, borderRadius: 5, objectFit: "cover", flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: 28, height: 22, borderRadius: 5, background: C.elevated, flexShrink: 0 }} />
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: 12, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.label || g.gameId}</p>
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: C.accent }}>{g.plays}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px" }}>
+                  Search a game
+                </p>
+                <input
+                  value={gameSearch}
+                  onChange={(e) => setGameSearch(e.target.value)}
+                  placeholder="Game name…"
+                  style={{
+                    width: "100%", boxSizing: "border-box", marginBottom: 10,
+                    background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
+                    color: C.text, fontSize: 12, padding: "8px 10px", outline: "none",
+                  }}
+                />
+                {gameSearch.trim() && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: "28vh", overflowY: "auto" }}>
+                    {(gameStats?.search || []).length === 0 ? (
+                      <p style={{ fontSize: 12, color: C.textMuted }}>No matches</p>
+                    ) : (
+                      (gameStats.search || []).map((g: any) => (
+                        <div key={g.gameId} style={{
+                          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+                          padding: "8px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.border}`,
+                        }}>
+                          <span style={{ fontSize: 12, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.label || g.gameId}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: C.accent, flexShrink: 0 }}>{g.plays} plays</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {section === "link-stats" && isAdmin && (
               <div style={{ maxWidth: "680px" }}>
                 <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: "0 0 3px", display: "flex", alignItems: "center", gap: 8 }}>
@@ -2657,19 +3119,20 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
 
             {section === "updates" && isAdmin && (
               <div style={{ maxWidth: "520px" }}>
-                <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: "0 0 3px" }}>Global Update</h2>
+                <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: "0 0 3px" }}>Updates</h2>
                 <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 16px" }}>
-                  Post a one-time popup announcement. Suspend anytime to hide it for new visitors.
+                  Post a global popup, or send one straight to a specific user. Suspend anytime.
                 </p>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
                   <Field label="Title" value={annTitle} onChange={(e: any) => setAnnTitle(e.target.value)} placeholder="What's new" maxLength={120} icon={Megaphone} />
+                  <Field label="Target user (optional)" value={annTarget} onChange={(e: any) => setAnnTarget(e.target.value)} placeholder="Leave blank for everyone · @username or email" maxLength={64} icon={User} />
                   <div>
                     <label style={{ display: "block", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, color: C.textMuted }}>Message</label>
                     <textarea
                       value={annContent}
                       onChange={(e) => setAnnContent(e.target.value)}
-                      placeholder="Announcement content…"
+                      placeholder="Update content…"
                       maxLength={4000}
                       rows={4}
                       style={{
@@ -2686,7 +3149,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                       fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: annBusy ? 0.6 : 1,
                     }}>
                       {annBusy ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
-                      Publish
+                      {annTarget.trim() ? "Send to user" : "Publish globally"}
                     </button>
                     {annMsg && <span style={{ fontSize: 11, color: C.success }}>{annMsg}</span>}
                   </div>
@@ -2697,15 +3160,22 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                   Posts
                 </p>
                 {announcements.length === 0 ? (
-                  <p style={{ fontSize: 12, color: C.textMuted }}>No announcements yet</p>
+                  <p style={{ fontSize: 12, color: C.textMuted }}>No updates yet</p>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {announcements.map((a) => (
                       <div key={a.id} style={{
                         padding: "12px 14px", borderRadius: 9, background: C.surface, border: `1px solid ${C.border}`,
                       }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
                           <span style={{ flex: 1, fontSize: 12, fontWeight: 650, color: C.text }}>{a.title}</span>
+                          <span style={{
+                            fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 5,
+                            background: a.target_user_id ? "hsl(280 50% 45% / 0.18)" : "hsl(210 50% 45% / 0.18)",
+                            color: a.target_user_id ? "hsl(280 70% 75%)" : C.accent,
+                          }}>
+                            {a.target_user_id ? `@${a.target_username || "user"}` : "Global"}
+                          </span>
                           <span style={{
                             fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 5,
                             background: a.active ? "hsl(145 50% 40% / 0.15)" : "hsl(0 0% 40% / 0.15)",

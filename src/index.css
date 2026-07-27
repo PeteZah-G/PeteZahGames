@@ -374,3 +374,72 @@ html, body, #root {
   letter-spacing: inherit !important;
   word-spacing: inherit !important;
 }
+
+@keyframes pz-badge-pulse {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.03); filter: brightness(1.06); }
+}
+.pz-badge-pulse {
+  animation: pz-badge-pulse 2.8s ease-in-out infinite;
+}
+
+@media (max-width: 640px) {
+  .browser-sidebar .sidebar-feature-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2px 0;
+  }
+  .browser-sidebar .sidebar-feature-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+  .browser-sidebar .sidebar-feature-label {
+    font-size: 8px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .newtab-presets {
+    gap: 0.75rem !important;
+    row-gap: 0.85rem !important;
+    max-width: 100%;
+  }
+  .newtab-preset-btn {
+    width: 2.75rem !important;
+    height: 2.75rem !important;
+  }
+  .newtab-preset-btn img,
+  .newtab-preset-btn svg {
+    width: 1rem !important;
+    height: 1rem !important;
+  }
+
+  .games-toolbar {
+    padding-left: 0.85rem !important;
+    padding-right: 0.85rem !important;
+    padding-top: 0.85rem !important;
+  }
+  .games-grid {
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)) !important;
+    gap: 0.55rem !important;
+  }
+  .games-scroll {
+    padding-left: 0.85rem !important;
+    padding-right: 0.85rem !important;
+  }
+  .game-card {
+    border-radius: 0.7rem !important;
+  }
+  .game-card:hover {
+    transform: none !important;
+  }
+
+  .game-viewer-controls > div {
+    max-width: calc(100vw - 1.25rem);
+    padding: 6px 8px !important;
+    gap: 2px !important;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}

@@ -73,6 +73,11 @@ export async function verifyEmailHandler(req, res) {
       `UPDATE users SET email_verified = 1, verification_token = NULL, verification_expires = NULL, updated_at = ? WHERE id = ?`
     ).run(Date.now(), user.id);
 
+    try {
+      const { evaluateAchievements } = await import('./achievements.js');
+      evaluateAchievements(user.id);
+    } catch {}
+
     return res.redirect(302, '/?verified=1');
   } catch (err) {
     console.error('verify-email error:', err);

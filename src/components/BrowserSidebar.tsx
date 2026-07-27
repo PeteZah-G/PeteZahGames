@@ -19,6 +19,7 @@ import {
 import { TabList } from "@/components/TabItem";
 import ObfuscatedText from "@/components/ObfuscatedText";
 import { Tab, Space } from "@/hooks/useBrowserState";
+import { useEffect, useState } from "react";
 
 interface SidebarProps {
   spaces: Space[];
@@ -77,12 +78,24 @@ export default function Sidebar({
   const allTabs = [...pinnedTabs, ...unpinnedTabs];
   const displayName = user?.username || user?.email?.split("@")[0] || "Guest";
   const isLoggedIn = !!user;
+  const [isPhone, setIsPhone] = useState(false);
+
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 640px)");
+    const apply = () => setIsPhone(mql.matches);
+    apply();
+    mql.addEventListener("change", apply);
+    return () => mql.removeEventListener("change", apply);
+  }, []);
+
+  const expandedWidth = isPhone ? 200 : 260;
+  const collapsedWidth = isPhone ? 48 : 56;
 
   return (
     <motion.aside
-      animate={{ width: collapsed ? 56 : 260 }}
+      animate={{ width: collapsed ? collapsedWidth : expandedWidth }}
       transition={{ type: "spring", duration: 0.4, bounce: 0.1 }}
-      className="h-full flex flex-col overflow-hidden flex-shrink-0 chrome-bar"
+      className="h-full flex flex-col overflow-hidden flex-shrink-0 chrome-bar browser-sidebar min-h-0"
       style={{
         borderRight: "1px solid hsla(210, 40%, 80%, 0.08)",
       }}
@@ -133,8 +146,8 @@ export default function Sidebar({
       </div>
 
       {collapsed ? (
-        <div className="flex-1 flex flex-col items-center overflow-hidden">
-          <div className="flex-1 overflow-y-auto scrollbar-none py-1 space-y-1">
+        <div className="flex-1 flex flex-col items-center overflow-hidden min-h-0">
+          <div className="flex-1 overflow-y-auto scrollbar-none py-1 space-y-1 min-h-0 w-full">
             <TabList
               label="Tabs"
               tabs={allTabs}
@@ -189,9 +202,9 @@ export default function Sidebar({
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex-1 flex flex-col overflow-hidden"
+          className="flex-1 flex flex-col overflow-hidden min-h-0"
         >
-          <div className="flex-1 overflow-y-auto scrollbar-none space-y-0.5 pb-2">
+          <div className="flex-1 overflow-y-auto scrollbar-none space-y-0.5 pb-2 min-h-0">
             <TabList
               label="Tabs"
               tabs={allTabs}
@@ -207,18 +220,18 @@ export default function Sidebar({
             className="px-2 py-1 flex-shrink-0"
             style={{ borderTop: "1px solid hsla(210, 40%, 80%, 0.08)" }}
           >
-            <div className="grid grid-cols-4 gap-x-0 gap-y-0 mb-1.5">
+            <div className="grid grid-cols-4 gap-x-0 gap-y-0 mb-1.5 sidebar-feature-grid">
               {SIDEBAR_FEATURES.map(({ icon: Icon, label, url }) => (
                 <button
                   key={label}
                   onClick={() => onNavigate(url)}
-                  className="group flex flex-col items-center gap-0.5 py-0 bg-transparent border-none cursor-pointer"
+                  className="group flex flex-col items-center gap-0.5 py-0 bg-transparent border-none cursor-pointer sidebar-feature-btn"
                   style={{ color: "hsla(0,0%,100%,0.78)" }}
                 >
-                  <span className="w-8 h-8 rounded-full flex items-center justify-center transition-colors group-hover:bg-white/[0.08]">
+                  <span className="w-8 h-8 rounded-full flex items-center justify-center transition-colors group-hover:bg-white/[0.08] sidebar-feature-icon">
                     <Icon size={14} />
                   </span>
-                  <ObfuscatedText as="span" className="text-[9px] leading-tight" style={{ color: "hsla(0,0%,100%,0.55)" }}>
+                  <ObfuscatedText as="span" className="text-[9px] leading-tight sidebar-feature-label" style={{ color: "hsla(0,0%,100%,0.55)" }}>
                     {label}
                   </ObfuscatedText>
                 </button>
