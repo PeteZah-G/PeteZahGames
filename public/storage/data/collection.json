@@ -92,6 +92,12 @@
       "categories": ["skill", "strategy"]
     },
     {
+      "label": "Buckshot Roulette",
+      "url": "/iframe.html?url=/storage/ag/gn/701.html",
+      "imageUrl": "/storage/ag/gn/covers/701.png",
+      "categories": ["skill", "strategy"]
+    },
+    {
       "label": "Slope",
       "url": "/iframe.html?url=/!!/https://slnt.calculra.store/resources/semag/slope/",
       "imageUrl": "/storage/ag/echo/slope/slope4.jpeg",
@@ -4733,12 +4739,6 @@
       ]
     },
     {
-      "label": "Undertale Yellow",
-      "imageUrl": "/!!/https://slnt.calculra.store/resources/semag/undertale-yellow/favicon.png",
-      "url": "/iframe.html?url=/!!/https://slnt.calculra.store/resources/semag/undertale-yellow",
-      "categories": []
-    },
-    {
       "label": "Ultrakill",
       "imageUrl": "/!!/https://slnt.calculra.store/resources/semag/ultrakill/logo.png",
       "url": "/iframe.html?url=/!!/https://slnt.calculra.store/resources/semag/ultrakill",
@@ -4747,15 +4747,6 @@
         "top",
         "13+",
         "gore"
-      ]
-    },
-    {
-      "label": "Undertale",
-      "imageUrl": "/!!/https://slnt.calculra.store/resources/semag/undertale/logo.png",
-      "url": "/iframe.html?url=/!!/https://slnt.calculra.store/resources/semag/undertale",
-      "categories": [
-        "steam",
-        "top"
       ]
     },
     {
