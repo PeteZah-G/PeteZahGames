@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useInterstitialUnlock, InterstitialOverlay } from "./InterstitialAdGate";
+import { openNativeWindow } from "@/lib/openTabBridge";
 
 interface GameViewerPageProps {
   url: string;
@@ -79,10 +80,7 @@ export default function GameViewerPage({
 
   useEffect(() => {
     if (url.includes("/storage/ag/originals/precision/index.html")) {
-      window.open(
-        "/storage/ag/originals/Resent-Client-main/index.html",
-        "_blank",
-      );
+      openNativeWindow("/storage/ag/originals/Resent-Client-main/index.html");
     }
   }, [url]);
 
@@ -110,12 +108,9 @@ export default function GameViewerPage({
 
   const openExternal = () => {
     if (url.includes("/storage/ag/originals/precision/index.html")) {
-      window.open(
-        "/storage/ag/originals/Resent-Client-main/index.html",
-        "_blank",
-      );
+      openNativeWindow("/storage/ag/originals/Resent-Client-main/index.html");
     } else {
-      window.open(url, "_blank");
+      openNativeWindow(url);
     }
   };
 

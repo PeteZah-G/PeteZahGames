@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
 import { ensureProxyEngine } from "@/lib/browserInit";
 import { useInterstitialUnlock, InterstitialOverlay } from "./InterstitialAdGate";
+import { openNativeWindow } from "@/lib/openTabBridge";
 
 interface AppViewerPageProps {
   url: string;
@@ -98,7 +99,9 @@ export default function AppViewerPage({ url, title, onBack }: AppViewerPageProps
     else { container.requestFullscreen().catch(() => {}); }
   };
 
-  const openExternal = () => window.open(url, "_blank");
+  const openExternal = () => {
+    openNativeWindow(url);
+  };
 
   return (
     <div className="absolute inset-0">

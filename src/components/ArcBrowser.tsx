@@ -339,7 +339,7 @@ export default function ArcBrowser() {
             zoomLevel={zoomLevel}
             contentRef={contentRef}
           />
-          <StatusBar tabCount={state.tabs.length} spaceCount={state.spaces.length} />
+          <StatusBar tabCount={state.tabs.length} />
         </main>
       </div>
       <DiscordPopup />

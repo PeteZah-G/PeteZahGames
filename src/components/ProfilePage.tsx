@@ -108,7 +108,7 @@ export default function ProfilePage({
 
   if (loading) {
     return (
-      <div style={{ ...shell(embedded), display: "flex", alignItems: "center", justifyContent: "center", color: S.textMuted, fontSize: 13 }}>
+      <div className="profile-page" style={{ ...shell(embedded), display: "flex", alignItems: "center", justifyContent: "center", color: S.textMuted, fontSize: 13 }}>
         Loading profile…
       </div>
     );
@@ -116,7 +116,7 @@ export default function ProfilePage({
 
   if (error || !user) {
     return (
-      <div style={{ ...shell(embedded), display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+      <div className="profile-page" style={{ ...shell(embedded), display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
         <Lock size={28} style={{ color: S.textMuted }} />
         <p style={{ color: S.text, fontSize: 15, fontWeight: 650, margin: 0 }}>{error || "User not found"}</p>
         <p style={{ color: S.textMuted, fontSize: 12, margin: 0 }}>@{handle}</p>
@@ -125,8 +125,8 @@ export default function ProfilePage({
   }
 
   return (
-    <div style={shell(embedded)}>
-      <div style={{ position: "relative", height: embedded ? 160 : 220, background: S.elevated, overflow: "hidden" }}>
+    <div className="profile-page" style={shell(embedded)}>
+      <div className="profile-banner" style={{ position: "relative", height: embedded ? 160 : 220, background: S.elevated, overflow: "hidden" }}>
         {user.banner_url ? (
           <img src={user.banner_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
@@ -138,13 +138,16 @@ export default function ProfilePage({
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, hsl(216 32% 6%) 0%, transparent 55%)" }} />
       </div>
 
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 24px 48px", position: "relative" }}>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 18, marginTop: -48 }}>
-          <div style={{
-            width: 96, height: 96, borderRadius: 24, overflow: "hidden",
-            border: `3px solid ${S.bg}`, background: S.surface, flexShrink: 0,
-            boxShadow: `0 0 0 2px ${accent}66`,
-          }}>
+      <div className="profile-body" style={{ maxWidth: 720, margin: "0 auto", padding: "0 24px 48px", position: "relative" }}>
+        <div className="profile-identity" style={{ display: "flex", alignItems: "flex-end", gap: 18, marginTop: -48 }}>
+          <div
+            className="profile-avatar"
+            style={{
+              width: 96, height: 96, borderRadius: 24, overflow: "hidden",
+              border: `3px solid ${S.bg}`, background: S.surface, flexShrink: 0,
+              boxShadow: `0 0 0 2px ${accent}66`,
+            }}
+          >
             {user.avatar_url ? (
               <img src={user.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             ) : (
@@ -158,7 +161,7 @@ export default function ProfilePage({
           </div>
           <div style={{ flex: 1, minWidth: 0, paddingBottom: 6 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <h1 style={{ fontSize: 24, fontWeight: 750, color: S.text, margin: 0 }}>{display}</h1>
+              <h1 className="profile-name" style={{ fontSize: 24, fontWeight: 750, color: S.text, margin: 0 }}>{display}</h1>
               {(user.is_admin || 0) > 0 && (
                 <span style={{
                   fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6,
@@ -227,7 +230,7 @@ export default function ProfilePage({
             <p style={{ color: S.textMuted, fontSize: 12 }}>No favorite tracks yet.</p>
           )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
+          <div className="profile-music-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
             {(user.favorite_music || []).map((track) => (
               <button
                 key={track.id}

@@ -259,10 +259,10 @@ export default function ExtensionsPage({ onNavigate }: { onNavigate: (url: strin
   }
 
   return (
-    <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "transparent" }}>
+    <div className="extensions-page" style={{ position: "absolute", inset: 0, overflow: "hidden", background: "transparent" }}>
       <div style={{ position: "relative", zIndex: 10, height: "100%", display: "flex", flexDirection: "column" }}>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "28px 32px 16px", flexShrink: 0 }}>
+        <div className="page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "28px 32px 16px", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: "hsl(213 50% 40% / 0.25)", border: `1px solid hsl(213 60% 40% / 0.35)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Puzzle size={16} style={{ color: S.accent }} />
@@ -273,6 +273,7 @@ export default function ExtensionsPage({ onNavigate }: { onNavigate: (url: strin
             </div>
           </div>
           <button
+            className="page-header-actions"
             onClick={() => setEditing("new")}
             style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 14px", background: S.accentDim, border: `1px solid ${S.borderFocus}`, borderRadius: 8, color: S.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
             onMouseEnter={e => (e.currentTarget.style.background = "hsl(213 50% 40% / 0.45)")}
@@ -282,7 +283,7 @@ export default function ExtensionsPage({ onNavigate }: { onNavigate: (url: strin
           </button>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "0 32px 32px", scrollbarWidth: "thin", scrollbarColor: `${S.border} transparent` }}>
+        <div className="page-scroll" style={{ flex: 1, overflowY: "auto", padding: "0 32px 32px", scrollbarWidth: "thin", scrollbarColor: `${S.border} transparent` }}>
           {extensions.length === 0 ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60%", gap: 16 }}>
               <div style={{ width: 56, height: 56, borderRadius: 16, background: S.surface, border: `1px solid ${S.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>

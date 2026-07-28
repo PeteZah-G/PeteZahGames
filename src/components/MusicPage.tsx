@@ -392,32 +392,44 @@ export default function MusicPage({
         : "Trending";
 
   return (
-    <div style={{
-      position: "absolute", inset: 0, background: S.bg, display: "flex", flexDirection: "column", overflow: "hidden",
-    }}>
+    <div
+      className="music-page"
+      style={{
+        position: "absolute", inset: 0, background: S.bg, display: "flex", flexDirection: "column", overflow: "hidden",
+      }}
+    >
       <audio ref={audioRef} preload="metadata" />
 
-      <div style={{
-        display: "flex", alignItems: "center", gap: 14, padding: "16px 20px 12px",
-        borderBottom: `1px solid ${S.border}`, flexShrink: 0,
-        backdropFilter: "blur(12px)",
-        background: "hsla(220, 35%, 6%, 0.45)",
-      }}>
-        <div style={{
-          width: 36, height: 36, borderRadius: 10,
-          background: S.elevated,
-          border: `1px solid ${S.border}`, display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
+      <div
+        className="music-header"
+        style={{
+          display: "flex", alignItems: "center", gap: 14, padding: "16px 20px 12px",
+          borderBottom: `1px solid ${S.border}`, flexShrink: 0,
+          backdropFilter: "blur(12px)",
+          background: "hsla(220, 35%, 6%, 0.45)",
+        }}
+      >
+        <div
+          className="music-brand"
+          style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: S.elevated,
+            border: `1px solid ${S.border}`, display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
           <Music2 size={15} style={{ color: S.accent }} />
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="music-title" style={{ flex: 1, minWidth: 0 }}>
           <h1 style={{ fontSize: 15, fontWeight: 700, color: S.text, margin: 0, letterSpacing: "-0.02em" }}>Music</h1>
           <p style={{ fontSize: 10, color: S.textMuted, margin: 0 }}>Search · play · share</p>
         </div>
-        <div style={{
-          flex: 1.4, maxWidth: 420, display: "flex", alignItems: "center", gap: 8,
-          background: S.elevated, border: `1px solid ${S.border}`, borderRadius: 12, padding: "9px 12px",
-        }}>
+        <div
+          className="music-search"
+          style={{
+            flex: 1.4, maxWidth: 420, display: "flex", alignItems: "center", gap: 8,
+            background: S.elevated, border: `1px solid ${S.border}`, borderRadius: 12, padding: "9px 12px",
+          }}
+        >
           <Search size={13} style={{ color: S.textMuted }} />
           <input
             value={query}
@@ -436,12 +448,15 @@ export default function MusicPage({
         </div>
       </div>
 
-      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
-        <div style={{
-          width: 200, borderRight: `1px solid ${S.border}`, padding: "14px 12px",
-          display: "flex", flexDirection: "column", gap: 4, overflowY: "auto", flexShrink: 0,
-        }}>
-          <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: S.textMuted, margin: "0 0 8px 6px" }}>
+      <div className="music-body" style={{ flex: 1, display: "flex", minHeight: 0 }}>
+        <div
+          className="music-sidebar"
+          style={{
+            width: 200, borderRight: `1px solid ${S.border}`, padding: "14px 12px",
+            display: "flex", flexDirection: "column", gap: 4, overflowY: "auto", flexShrink: 0,
+          }}
+        >
+          <p className="music-side-label" style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: S.textMuted, margin: "0 0 8px 6px" }}>
             Library
           </p>
           <SideBtn
@@ -457,7 +472,7 @@ export default function MusicPage({
             label={`Liked (${liked.length})`}
           />
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "14px 6px 8px" }}>
+          <div className="music-side-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "14px 6px 8px" }}>
             <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: S.textMuted, margin: 0 }}>
               Playlists
             </p>
@@ -519,8 +534,8 @@ export default function MusicPage({
           ))}
         </div>
 
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-          <div style={{ padding: "14px 20px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="music-main" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+          <div className="music-list-header" style={{ padding: "14px 20px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <h2 style={{ fontSize: 13, fontWeight: 650, color: S.text, margin: 0 }}>{listLabel}</h2>
             {activePlaylist && activePlaylist.tracks.length > 0 && (
               <button
@@ -544,7 +559,7 @@ export default function MusicPage({
             </div>
           )}
 
-          <div style={{ flex: 1, overflowY: "auto", padding: "4px 12px 20px" }}>
+          <div className="music-track-list" style={{ flex: 1, overflowY: "auto", padding: "4px 12px 20px" }}>
             {loading && <p style={{ textAlign: "center", color: S.textMuted, fontSize: 12, padding: 40 }}>Searching…</p>}
             {!loading && displayList.length === 0 && (
               <p style={{ textAlign: "center", color: S.textMuted, fontSize: 12, padding: 40 }}>
@@ -638,12 +653,15 @@ export default function MusicPage({
         </div>
       </div>
 
-      <div style={{
-        borderTop: `1px solid ${S.border}`,
-        background: "hsla(220, 35%, 6%, 0.82)",
-        backdropFilter: "blur(16px)",
-        padding: "12px 18px 14px", flexShrink: 0,
-      }}>
+      <div
+        className="music-player"
+        style={{
+          borderTop: `1px solid ${S.border}`,
+          background: "hsla(220, 35%, 6%, 0.82)",
+          backdropFilter: "blur(16px)",
+          padding: "12px 18px 14px", flexShrink: 0,
+        }}
+      >
         <div
           style={{
             height: 4, borderRadius: 99, background: S.elevated, marginBottom: 12, cursor: current ? "pointer" : "default",
@@ -663,8 +681,8 @@ export default function MusicPage({
           }} />
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+        <div className="music-player-row" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div className="music-now" style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
             <div style={{
               width: 46, height: 46, borderRadius: 11, overflow: "hidden", background: S.elevated, flexShrink: 0,
               border: `1px solid ${S.border}`,
@@ -687,7 +705,7 @@ export default function MusicPage({
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div className="music-controls" style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <button onClick={prev} style={ctrlBtn}><SkipBack size={15} /></button>
             <button
               onClick={togglePlay}
@@ -704,8 +722,8 @@ export default function MusicPage({
             <button onClick={next} style={ctrlBtn}><SkipForward size={15} /></button>
           </div>
 
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
-            <span style={{ fontSize: 10, color: S.textMuted, fontVariantNumeric: "tabular-nums" }}>
+          <div className="music-extra" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
+            <span className="music-time" style={{ fontSize: 10, color: S.textMuted, fontVariantNumeric: "tabular-nums" }}>
               {formatSec(progress)} / {formatSec(duration)}
             </span>
             <button
@@ -828,6 +846,7 @@ function SideBtn({
   return (
     <button
       onClick={onClick}
+      className="music-side-btn"
       style={{
         width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px",
         borderRadius: 8, border: `1px solid ${active ? S.borderFocus : "transparent"}`,

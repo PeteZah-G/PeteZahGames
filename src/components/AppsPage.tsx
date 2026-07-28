@@ -243,18 +243,27 @@ function ShareModal({ url, onClose }: { url: string; onClose: () => void }) {
   );
 }
 
-function AppCard({ app, isFav, onOpen, onOptions }: {
-  app: App; isFav: boolean; onOpen: () => void; onOptions: () => void;
+function AppCard({ app, isFav, onOpen, onOptions, index = 0 }: {
+  app: App; isFav: boolean; onOpen: () => void; onOptions: () => void; index?: number;
 }) {
+  const ease = [0.22, 1, 0.36, 1] as const;
   return (
-    <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
-      whileHover={{ scale: 1.28, zIndex: 10 }} whileTap={{ scale: 0.97 }}
-      transition={{ type: "spring", stiffness: 380, damping: 20 }}
-      className="relative cursor-pointer group rounded-xl overflow-hidden border-2 border-white/5 hover:border-white/40 transition-colors duration-150"
+    <motion.div
+      initial={{ opacity: 0, y: 18, scale: 0.94, filter: "blur(8px)" }}
+      animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+      transition={{
+        duration: 0.55,
+        delay: Math.min(index, 20) * 0.038,
+        ease,
+      }}
+      whileHover={{ scale: 1.06, zIndex: 10 }}
+      whileTap={{ scale: 0.97 }}
+      className="relative cursor-pointer group rounded-xl overflow-hidden border-2 border-white/5 hover:border-white/40 transition-colors duration-150 app-card"
       style={{ aspectRatio: "4/3", background: "var(--accent)" }}
       onClick={onOpen}>
       <img src={app.imageUrl} alt={app.label}
-        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" decoding="async" />
+        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" decoding="async"
+        width={160} height={120} style={{ background: "hsla(210, 30%, 12%, 0.6)" }} />
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
         style={{ background: "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)" }} />
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"
@@ -325,7 +334,7 @@ export default function AppsPage({ onNavigate }: AppsPageProps) {
 
   return (
     <div className="absolute inset-0 flex flex-col overflow-hidden">
-      <div className="flex-shrink-0 relative z-10 px-6 pt-5 pb-3"
+      <div className="flex-shrink-0 relative z-10 px-6 pt-5 pb-3 apps-toolbar"
         style={{ backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", background: "rgba(5, 10, 20, 0.35)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-2">
@@ -349,19 +358,17 @@ export default function AppsPage({ onNavigate }: AppsPageProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto relative z-0" style={{ scrollbarWidth: "none" }}>
-        <div className="px-6 py-4">
+        <div className="px-6 py-4 apps-scroll">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
               <p className="text-sm">No apps found</p>
             </div>
           ) : (
-            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
-              <AnimatePresence mode="popLayout">
-                {filtered.map(app => (
-                  <AppCard key={app.id} app={app} isFav={favorites.includes(app.id)}
-                    onOpen={() => handleOpen(app)} onOptions={() => setOptionsApp(app)} />
-                ))}
-              </AnimatePresence>
+            <div className="grid gap-3 apps-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
+              {filtered.map((app, i) => (
+                <AppCard key={app.id} app={app} isFav={favorites.includes(app.id)} index={i}
+                  onOpen={() => handleOpen(app)} onOptions={() => setOptionsApp(app)} />
+              ))}
             </div>
           )}
         </div>

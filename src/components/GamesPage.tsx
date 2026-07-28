@@ -272,20 +272,23 @@ function ShareModal({ url, onClose }: { url: string; onClose: () => void }) {
   );
 }
 
-function GameCard({ game, isFav, onPlay, onOptions, priority = false }: {
-  game: Game; isFav: boolean; onPlay: () => void; onOptions: () => void; priority?: boolean;
+function GameCard({ game, isFav, onPlay, onOptions, priority = false, index = 0 }: {
+  game: Game; isFav: boolean; onPlay: () => void; onOptions: () => void; priority?: boolean; index?: number;
 }) {
+  const ease = [0.22, 1, 0.36, 1] as const;
   return (
     <motion.div
-      layout={false}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      whileHover={{ scale: 1.12, zIndex: 10 }}
+      initial={{ opacity: 0, y: 18, scale: 0.94, filter: "blur(8px)" }}
+      animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+      transition={{
+        duration: 0.55,
+        delay: Math.min(index, 20) * 0.038,
+        ease,
+      }}
+      whileHover={{ scale: 1.06, zIndex: 10 }}
       whileTap={{ scale: 0.97 }}
-      transition={{ type: "spring", stiffness: 380, damping: 20 }}
       className="relative cursor-pointer group rounded-xl overflow-hidden border-2 border-white/5 hover:border-white/40 transition-colors duration-150 game-card"
-      style={{ aspectRatio: "4/3", background: "var(--accent)", contentVisibility: "auto", containIntrinsicSize: "160px 120px" }}
+      style={{ aspectRatio: "4/3", background: "var(--accent)" }}
       onClick={onPlay}
     >
       <img
@@ -334,6 +337,7 @@ function GameCard({ game, isFav, onPlay, onOptions, priority = false }: {
 export default function GamesPage({ onNavigate }: GamesPageProps) {
   const [allGames, setAllGames] = useState<Game[]>([]);
   const [playCounts, setPlayCounts] = useState<Record<string, number>>({});
+  const [listReady, setListReady] = useState(false);
   const [favorites, setFavorites] = useState<string[]>(getFavorites);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
@@ -355,17 +359,21 @@ export default function GamesPage({ onNavigate }: GamesPageProps) {
         const remote: Game[] = data.games.map((g: Game) => ({ ...g, id: generateGameId(g), isCustom: false }));
         const custom = getCustomGames();
         const hidden = getHiddenGames();
-        setAllGames([...custom, ...remote].filter(g => !hidden.includes(g.id)));
+        let counts: Record<string, number> = {};
         if (playsRes && playsRes.ok) {
           const playsData = await playsRes.json();
           if (playsData?.counts && typeof playsData.counts === "object") {
-            setPlayCounts(playsData.counts);
+            counts = playsData.counts;
           }
         }
+        setPlayCounts(counts);
+        setAllGames([...custom, ...remote].filter(g => !hidden.includes(g.id)));
+        setListReady(true);
       } catch {
         const custom = getCustomGames();
         const hidden = getHiddenGames();
         setAllGames(custom.filter(g => !hidden.includes(g.id)));
+        setListReady(true);
       }
     }
     load();
@@ -504,25 +512,29 @@ export default function GamesPage({ onNavigate }: GamesPageProps) {
 
       <div className="flex-1 overflow-y-auto relative z-0" style={{ scrollbarWidth: "none" }}>
         <div className="px-6 py-4 games-scroll">
-          {visible.length === 0 ? (
+          {!listReady ? (
+            <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
+              <div className="w-4 h-4 rounded-full border border-white/10 border-t-white/40 animate-spin mb-3" />
+              <p className="text-sm">Loading games…</p>
+            </div>
+          ) : visible.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
               <p className="text-sm">No games found</p>
             </div>
           ) : (
             <>
               <div className="grid gap-3 games-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
-                <AnimatePresence mode="popLayout">
-                  {visible.map((game, i) => (
-                    <GameCard
-                      key={game.id}
-                      game={game}
-                      isFav={favorites.includes(game.id)}
-                      priority={i < 12}
-                      onPlay={() => handlePlay(game)}
-                      onOptions={() => setOptionsGame(game)}
-                    />
-                  ))}
-                </AnimatePresence>
+                {visible.map((game, i) => (
+                  <GameCard
+                    key={game.id}
+                    game={game}
+                    isFav={favorites.includes(game.id)}
+                    priority={i < 12}
+                    index={i}
+                    onPlay={() => handlePlay(game)}
+                    onOptions={() => setOptionsGame(game)}
+                  />
+                ))}
               </div>
               <HypeAd />
               {hasMore && (

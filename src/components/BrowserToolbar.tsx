@@ -252,23 +252,23 @@ export default function Toolbar({
         )}
       </div>
 
-      <div className="flex items-center gap-0.5" style={{ color: "hsla(0,0%,100%,0.78)" }}>
+      <div className="flex items-center gap-0.5 flex-shrink-0" style={{ color: "hsla(0,0%,100%,0.78)" }}>
         <button
-          className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+          className="p-1.5 rounded-lg hover:bg-white/5 transition-colors toolbar-hide-sm"
           title="Games"
           onClick={() => onNavigate("petezah://games")}
         >
           <Gamepad2 size={13} />
         </button>
         <button
-          className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+          className="p-1.5 rounded-lg hover:bg-white/5 transition-colors toolbar-hide-sm"
           title="AI"
           onClick={() => onNavigate("petezah://ai")}
         >
           <Bot size={13} />
         </button>
 
-        <div className="w-px h-3.5 mx-0.5" style={{ background: "hsla(210, 40%, 80%, 0.12)" }} />
+        <div className="w-px h-3.5 mx-0.5 toolbar-hide-sm" style={{ background: "hsla(210, 40%, 80%, 0.12)" }} />
 
         <button
           onClick={onNotificationClick}
@@ -279,20 +279,20 @@ export default function Toolbar({
         </button>
         <button
           onClick={() => onNavigate("petezah://changelog")}
-          className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+          className="p-1.5 rounded-lg hover:bg-white/5 transition-colors toolbar-hide-sm"
           title="Changelog"
         >
           <FileText size={13} />
         </button>
         <button
           onClick={() => onNavigate("petezah://feedback")}
-          className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+          className="p-1.5 rounded-lg hover:bg-white/5 transition-colors toolbar-hide-sm"
           title="Feedback"
         >
           <MessageSquare size={13} />
         </button>
 
-        <div className="relative" ref={menuRef}>
+        <div className="relative flex-shrink-0" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((prev) => !prev)}
             className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"

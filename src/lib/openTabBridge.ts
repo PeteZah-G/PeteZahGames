@@ -200,6 +200,21 @@ export function installParentOpenTrap() {
   } as typeof window.open;
 }
 
+export function openNativeWindow(url: string, target = "_blank") {
+  const href = String(url || "").trim();
+  if (!href) return null;
+  const w = window as any;
+  const native =
+    typeof w.__pzNativeOpen === "function"
+      ? (w.__pzNativeOpen as typeof window.open)
+      : window.open.bind(window);
+  try {
+    return native(href, target, "noopener,noreferrer");
+  } catch {
+    return null;
+  }
+}
+
 function postOpen(resolved: string, mode: "ad" | "proxy") {
   window.postMessage(
     {

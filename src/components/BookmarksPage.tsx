@@ -291,10 +291,10 @@ export default function BookmarksPage({ onNavigate }: { onNavigate: (url: string
   }
 
   return (
-    <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "transparent" }}>
+    <div className="bookmarks-page" style={{ position: "absolute", inset: 0, overflow: "hidden", background: "transparent" }}>
       <div style={{ position: "relative", zIndex: 10, height: "100%", display: "flex", flexDirection: "column" }}>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "28px 32px 16px", flexShrink: 0 }}>
+        <div className="page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "28px 32px 16px", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: "hsl(213 50% 40% / 0.25)", border: `1px solid hsl(213 60% 40% / 0.35)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Bookmark size={16} style={{ color: S.accent }} />
@@ -304,7 +304,7 @@ export default function BookmarksPage({ onNavigate }: { onNavigate: (url: string
               <p style={{ fontSize: 11, color: S.textSub, margin: 0 }}>{total} saved · {groups.length} groups</p>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="page-header-actions" style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => setEditingGroup("new")}
               style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 13px", background: S.surface, border: `1px solid ${S.border}`, borderRadius: 8, color: S.textSub, fontSize: 12, fontWeight: 500, cursor: "pointer", transition: "all 0.15s" }}
@@ -324,7 +324,7 @@ export default function BookmarksPage({ onNavigate }: { onNavigate: (url: string
           </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "0 32px 32px", scrollbarWidth: "thin", scrollbarColor: `${S.border} transparent` }}>
+        <div className="page-scroll" style={{ flex: 1, overflowY: "auto", padding: "0 32px 32px", scrollbarWidth: "thin", scrollbarColor: `${S.border} transparent` }}>
           {total === 0 && groups.length === 0 ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60%", gap: 16 }}>
               <div style={{ width: 56, height: 56, borderRadius: 16, background: S.surface, border: `1px solid ${S.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
