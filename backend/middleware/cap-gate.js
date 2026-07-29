@@ -12,6 +12,7 @@ const OPEN_EXACT = new Set([
   '/logo.png',
   '/favicon.ico',
   '/robots.txt',
+  '/ads.txt',
   '/firefox-wasm/thanks.html',
   '/pz-vanta.js',
   '/vendor/vanta.fog.min.js',
