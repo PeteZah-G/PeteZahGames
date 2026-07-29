@@ -34,6 +34,19 @@ const MODELS = [
   { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B" },
 ];
 
+const ALLOWED_MODELS = new Set([
+  ...MODELS.map((m) => m.value),
+  "meta-llama/llama-4-scout-17b-16e-instruct",
+]);
+
+function resolveStoredModel() {
+  try {
+    const raw = localStorage.getItem("selectedModel") || "";
+    if (ALLOWED_MODELS.has(raw)) return raw;
+  } catch {}
+  return "llama-3.1-8b-instant";
+}
+
 const SUGGESTIONS = [
   "How do I learn to code efficiently?",
   "Tell me a funny joke!",
@@ -660,9 +673,7 @@ export default function AIPage({
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [model, setModel] = useState(
-    () => localStorage.getItem("selectedModel") || "llama-3.1-8b-instant",
-  );
+  const [model, setModel] = useState(resolveStoredModel);
   const [modelOpen, setModelOpen] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [pendingImage, setPendingImage] = useState<{
@@ -691,6 +702,21 @@ export default function AIPage({
     const welcome = "Hey! I'm PeteAI. What can I help you with?";
     setMessages([{ id: "welcome", role: "ai", content: welcome }]);
     setHistory([{ role: "assistant", content: welcome }]);
+  }, []);
+
+  useEffect(() => {
+    const syncModel = () => {
+      const next = resolveStoredModel();
+      setModel((prev) => (prev === next ? prev : next));
+      try {
+        if (localStorage.getItem("selectedModel") !== next) {
+          localStorage.setItem("selectedModel", next);
+        }
+      } catch {}
+    };
+    syncModel();
+    window.addEventListener("petezah-settings-updated", syncModel);
+    return () => window.removeEventListener("petezah-settings-updated", syncModel);
   }, []);
 
   useEffect(() => {
@@ -797,11 +823,14 @@ export default function AIPage({
         const useVision = !!img;
         const selectedModel = useVision
           ? "meta-llama/llama-4-scout-17b-16e-instruct"
-          : model;
+          : ALLOWED_MODELS.has(model)
+            ? model
+            : "llama-3.1-8b-instant";
 
         const res = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
           body: JSON.stringify({
             prompt: text || "What's in this image?",
             model: selectedModel,
@@ -810,7 +839,14 @@ export default function AIPage({
           }),
           signal: abortRef.current.signal,
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const errMsg =
+            typeof data?.error === "string"
+              ? data.error
+              : `Couldn't reach PeteAI (${res.status})`;
+          throw Object.assign(new Error(errMsg), { name: "ApiError" });
+        }
         let aiResponse = data?.response || "Sorry, I couldn't get a response.";
 
         if (text.toLowerCase().includes("source code"))
@@ -841,7 +877,10 @@ export default function AIPage({
             {
               id: Date.now().toString(),
               role: "ai",
-              content: "Couldn't reach PeteAI. Try again.",
+              content:
+                err?.name === "ApiError" && err?.message
+                  ? err.message
+                  : "Couldn't reach PeteAI. Try again.",
             },
           ]);
         }

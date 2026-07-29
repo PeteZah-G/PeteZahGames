@@ -142,8 +142,8 @@ app.use(createSecurityHeaders());
 app.use(cookieParser());
 app.use(compression({ level: 6, threshold: 1024 }));
 app.use(cors(createCorsConfig()));
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ extended: true, limit: '5mb', parameterLimit: 100 }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb', parameterLimit: 100 }));
 
 app.use(session({
   store: new SqliteStore({ client: db }),

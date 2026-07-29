@@ -7,7 +7,7 @@ const TOKEN_VALIDITY = 3600000;
 const BASE_POW_DIFFICULTY = 16;
 const MAX_POW_DIFFICULTY = 22;
 const MAX_REQUEST_SIZE = 10 * 1024 * 1024;
-const MAX_HEADER_SIZE = 16384;
+const MAX_HEADER_SIZE = 65536;
 const CPU_THRESHOLD = 75;
 
 export const systemState = {
@@ -280,7 +280,10 @@ export function createMemoryProtection(shield) {
       shield.incrementBlocked(toIPv4(null, req), 'payload_oversized');
       return res.status(413).json({ error: 'Request too large' });
     }
-    const totalHeaderSize = Object.entries(req.headers).reduce((sum, [k, v]) => sum + k.length + (Array.isArray(v) ? v.join('').length : String(v).length), 0);
+    const totalHeaderSize = Object.entries(req.headers).reduce((sum, [k, v]) => {
+      if (k.toLowerCase() === 'cookie') return sum;
+      return sum + k.length + (Array.isArray(v) ? v.join('').length : String(v).length);
+    }, 0);
     if (totalHeaderSize > MAX_HEADER_SIZE) {
       updateIPReputation(toIPv4(null, req), -15);
       shield.incrementBlocked(toIPv4(null, req), 'header_oversized');

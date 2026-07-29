@@ -687,7 +687,7 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
 
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden bg-transparent">
-      <div className="absolute top-3 right-3 z-9 flex flex-col items-end gap-1.5">
+      <div className="absolute top-3 right-3 z-[20] flex flex-col items-end gap-1.5 newtab-side-actions">
         <motion.a
           href="https://discord.gg/cYjHFDguxS"
           target="_blank"
@@ -730,7 +730,7 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
         </motion.button>
       </div>
 
-      <div className="relative z-10 flex flex-col items-center gap-5 max-w-2xl w-full px-6 text-center">
+      <div className="relative z-10 flex flex-col items-center gap-5 max-w-2xl w-full px-6 text-center newtab-hero">
         <motion.h1
           initial={{
             opacity: 0,
