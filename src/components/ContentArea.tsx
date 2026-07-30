@@ -979,7 +979,12 @@ function TabPane({
   if (isGameViewer) {
     const params = new URLSearchParams(tab.url.split("?")[1] || "");
     const gameUrl = params.get("url") || "";
-    const gameTitle = params.get("title") || "";
+    const gameTitle =
+      params.get("title") ||
+      (tab.title && tab.title !== "New Tab" && tab.title !== "Gameviewer"
+        ? tab.title
+        : "") ||
+      "";
     return (
       <div
         className="absolute inset-0"
@@ -1185,7 +1190,12 @@ function TabPane({
   if (isAppViewer) {
     const params = new URLSearchParams(tab.url.split("?")[1] || "");
     const appUrl = params.get("url") || "";
-    const appTitle = params.get("title") || "";
+    const appTitle =
+      params.get("title") ||
+      (tab.title && tab.title !== "New Tab" && tab.title !== "Appviewer"
+        ? tab.title
+        : "") ||
+      "";
     return (
       <div
         className="absolute inset-0"

@@ -34,9 +34,11 @@ const MODELS = [
   { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B" },
 ];
 
+const VISION_MODEL = "qwen/qwen3.6-27b";
+
 const ALLOWED_MODELS = new Set([
   ...MODELS.map((m) => m.value),
-  "meta-llama/llama-4-scout-17b-16e-instruct",
+  VISION_MODEL,
 ]);
 
 function resolveStoredModel() {
@@ -427,7 +429,7 @@ function ScreenWidget({ onClose }: { onClose: () => void }) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               prompt: q,
-              model: "meta-llama/llama-4-scout-17b-16e-instruct",
+              model: VISION_MODEL,
               groqMessages: [
                 {
                   role: "system",
@@ -750,6 +752,7 @@ export default function AIPage({
     async (
       overrideText?: string,
       overrideImage?: { base64: string; mime: string } | null,
+      historyBase?: HistoryEntry[],
     ) => {
       const text = (overrideText ?? input).trim();
       const img = overrideImage !== undefined ? overrideImage : pendingImage;
@@ -772,8 +775,9 @@ export default function AIPage({
       setMessages((prev) => [...prev, userMsg]);
       setInput("");
 
+      const base = historyBase ?? history;
       const newHistory: HistoryEntry[] = [
-        ...history,
+        ...base,
         {
           role: "user",
           content: text,
@@ -782,9 +786,7 @@ export default function AIPage({
       ];
       setHistory(newHistory);
 
-      const groqMessages: { role: string; content: any }[] = [
-        { role: "system", content: SYSTEM_PROMPT },
-      ];
+      const groqMessages: { role: string; content: any }[] = [];
 
       for (const entry of newHistory) {
         if (entry.role === "user") {
@@ -806,12 +808,27 @@ export default function AIPage({
                 },
               ],
             });
-          } else {
+          } else if (entry.content?.trim()) {
             groqMessages.push({ role: "user", content: entry.content });
           }
-        } else {
+        } else if (entry.role === "assistant" && entry.content?.trim()) {
+          if (entry.content === "Hey! I'm PeteAI. What can I help you with?") continue;
           groqMessages.push({ role: "assistant", content: entry.content });
         }
+      }
+
+      if (groqMessages[0]?.role !== "user" && img) {
+        groqMessages.length = 0;
+        groqMessages.push({
+          role: "user",
+          content: [
+            { type: "text", text: text || "What's in this image?" },
+            {
+              type: "image_url",
+              image_url: { url: `data:${img.mime};base64,${img.base64}` },
+            },
+          ],
+        });
       }
 
       setMessages((prev) => [
@@ -824,7 +841,7 @@ export default function AIPage({
       try {
         const useVision = !!img;
         const selectedModel = useVision
-          ? "meta-llama/llama-4-scout-17b-16e-instruct"
+          ? VISION_MODEL
           : ALLOWED_MODELS.has(model)
             ? model
             : "llama-3.1-8b-instant";
@@ -844,9 +861,11 @@ export default function AIPage({
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           const errMsg =
-            typeof data?.error === "string"
-              ? data.error
-              : `Couldn't reach PeteAI (${res.status})`;
+            typeof data?.detail === "string"
+              ? data.detail
+              : typeof data?.error === "string"
+                ? data.error
+                : `Couldn't reach PeteAI (${res.status})`;
           throw Object.assign(new Error(errMsg), { name: "ApiError" });
         }
         let aiResponse = data?.response || "Sorry, I couldn't get a response.";
@@ -898,9 +917,27 @@ export default function AIPage({
   const handleRegen = useCallback(() => {
     const lastUser = [...history].reverse().find((m) => m.role === "user");
     if (!lastUser) return;
-    setHistory((prev) => prev.slice(0, -1));
-    setMessages((prev) => prev.slice(0, -1));
-    sendMessage(lastUser.content);
+    const img = lastUser.image
+      ? { base64: lastUser.image.base64, mime: lastUser.image.mime }
+      : null;
+
+    let trimmed = history;
+    if (trimmed.length && trimmed[trimmed.length - 1]?.role === "assistant") {
+      trimmed = trimmed.slice(0, -1);
+    }
+    if (trimmed.length && trimmed[trimmed.length - 1]?.role === "user") {
+      trimmed = trimmed.slice(0, -1);
+    }
+
+    setMessages((prev) => {
+      const withoutThinking = prev.filter((m) => m.id !== "thinking");
+      let next = withoutThinking;
+      if (next.length && next[next.length - 1]?.role === "ai") next = next.slice(0, -1);
+      if (next.length && next[next.length - 1]?.role === "user") next = next.slice(0, -1);
+      return next;
+    });
+
+    sendMessage(lastUser.content || "What's in this image?", img, trimmed);
   }, [history, sendMessage]);
 
   const handleFile = (file: File) => {

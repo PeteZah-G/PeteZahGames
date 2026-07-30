@@ -284,7 +284,7 @@ app.get('/1k123.js', (_req, res) => {
 });
 
 app.use('/api', challengeRouter);
-app.use('/api/generate', aiLimiter, express.json({ limit: '10mb' }), aiRouter);
+app.use('/api/generate', aiLimiter, express.json({ limit: '20mb' }), aiRouter);
 app.use('/api/tmdb', moviesRouter);
 app.use('/api/video', videoRouter);
 app.use('/api/music', musicRouter);

@@ -9,13 +9,15 @@ const CACHE_TTL = 60 * 60 * 1000;
 const CACHE_MAX_SIZE = 500;
 const CACHE_MAX_PROMPT_LEN = 120;
 
+const VISION_MODEL = 'qwen/qwen3.6-27b';
+const DEFAULT_MODEL = 'llama-3.1-8b-instant';
+
 const ALLOWED_MODELS = new Set([
   'llama-3.1-8b-instant',
   'llama-3.3-70b-versatile',
+  VISION_MODEL,
   'meta-llama/llama-4-scout-17b-16e-instruct',
 ]);
-
-const DEFAULT_MODEL = 'llama-3.1-8b-instant';
 
 function normalizeCacheKey(prompt) {
   return prompt.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
@@ -33,59 +35,98 @@ function setCache(key, response) {
   promptCache.set(key, { response, expires: Date.now() + CACHE_TTL });
 }
 
-function resolveModel(raw) {
+function resolveModel(raw, wantsVision) {
+  if (wantsVision) return VISION_MODEL;
   const model = typeof raw === 'string' ? raw.trim() : '';
-  if (ALLOWED_MODELS.has(model)) return model;
+  if (ALLOWED_MODELS.has(model) && model !== 'meta-llama/llama-4-scout-17b-16e-instruct') {
+    return model;
+  }
+  if (model === 'meta-llama/llama-4-scout-17b-16e-instruct') return VISION_MODEL;
   return DEFAULT_MODEL;
 }
 
-function sanitizeMessages(messages, { keepImages = true } = {}) {
+function extractImagePart(content) {
+  if (!Array.isArray(content)) return null;
+  for (const part of content) {
+    if (part?.type === 'image_url' && typeof part?.image_url?.url === 'string') {
+      const url = part.image_url.url;
+      if (url.startsWith('data:image/') && url.length <= 8_000_000) return part;
+    }
+  }
+  return null;
+}
+
+function sanitizeMessages(messages) {
   if (!Array.isArray(messages)) return null;
   const out = [];
   let keptImage = false;
-  const sliced = messages.slice(-48);
+  const sliced = messages.slice(-40);
+
   for (let i = sliced.length - 1; i >= 0; i--) {
     const msg = sliced[i];
     if (!msg || typeof msg !== 'object') continue;
     const role = msg.role === 'assistant' || msg.role === 'system' || msg.role === 'user' ? msg.role : null;
     if (!role) continue;
+
     if (typeof msg.content === 'string') {
-      out.unshift({ role, content: msg.content.slice(0, 12000) });
+      const text = msg.content.slice(0, 12000);
+      if (!text && role !== 'assistant') continue;
+      out.unshift({ role, content: text || ' ' });
       continue;
     }
+
     if (Array.isArray(msg.content)) {
       const parts = [];
       for (const part of msg.content.slice(0, 4)) {
         if (!part || typeof part !== 'object') continue;
         if (part.type === 'text' && typeof part.text === 'string') {
           parts.push({ type: 'text', text: part.text.slice(0, 8000) });
-        } else if (
-          keepImages &&
-          !keptImage &&
-          part.type === 'image_url' &&
-          part.image_url?.url &&
-          typeof part.image_url.url === 'string'
-        ) {
-          const url = part.image_url.url;
-          if (url.startsWith('data:image/') && url.length <= 7_500_000) {
-            parts.push({ type: 'image_url', image_url: { url } });
+        } else if (!keptImage && part.type === 'image_url') {
+          const img = extractImagePart([part]);
+          if (img) {
+            parts.push(img);
             keptImage = true;
           }
         }
       }
-      if (parts.length) out.unshift({ role, content: parts.length === 1 && parts[0].type === 'text' ? parts[0].text : parts });
+      if (!parts.length) continue;
+      out.unshift({ role, content: parts });
     }
   }
+
+  while (out.length && out[0].role === 'assistant') out.shift();
   return out.length ? out : null;
 }
 
 function messagesHaveImage(messages) {
   if (!Array.isArray(messages)) return false;
-  return messages.some(
-    (m) =>
-      Array.isArray(m?.content) &&
-      m.content.some((p) => p?.type === 'image_url' && typeof p?.image_url?.url === 'string')
-  );
+  return messages.some((m) => !!extractImagePart(m?.content));
+}
+
+function buildVisionMessages(safeMessages, prompt, system) {
+  const imageMsg = [...(safeMessages || [])].reverse().find((m) => extractImagePart(m.content));
+  const imagePart = imageMsg ? extractImagePart(imageMsg.content) : null;
+  if (!imagePart) return null;
+
+  const text =
+    (Array.isArray(imageMsg.content)
+      ? imageMsg.content.find((p) => p?.type === 'text')?.text
+      : '') ||
+    prompt ||
+    "What's in this image?";
+
+  const messages = [];
+  if (system && typeof system === 'string') {
+    messages.push({ role: 'system', content: system.slice(0, 4000) });
+  }
+  messages.push({
+    role: 'user',
+    content: [
+      { type: 'text', text: String(text).slice(0, 8000) },
+      imagePart,
+    ],
+  });
+  return messages;
 }
 
 const MAX_CONCURRENT = 5;
@@ -117,18 +158,32 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Invalid prompt' });
   }
 
-  const resolvedModel = resolveModel(model);
+  const incomingHasImage = messagesHaveImage(groqMessages);
   const wantsVision =
-    resolvedModel.includes('scout') ||
-    resolvedModel.includes('vision') ||
-    messagesHaveImage(groqMessages);
-  const safeMessages = sanitizeMessages(groqMessages, { keepImages: true });
+    incomingHasImage ||
+    model === VISION_MODEL ||
+    model === 'meta-llama/llama-4-scout-17b-16e-instruct' ||
+    (typeof model === 'string' && model.includes('vision'));
 
-  if (wantsVision && !messagesHaveImage(safeMessages)) {
-    return res.status(400).json({ error: 'Image too large or missing. Try a smaller image.' });
+  const safeMessages = sanitizeMessages(groqMessages);
+  const resolvedModel = resolveModel(model, wantsVision);
+
+  let messages;
+  if (wantsVision) {
+    messages = buildVisionMessages(safeMessages, prompt, system);
+    if (!messages) {
+      return res.status(400).json({ error: 'Image missing or too large. Try a smaller JPEG/PNG.' });
+    }
+  } else {
+    messages =
+      safeMessages ||
+      [
+        ...(system && typeof system === 'string' ? [{ role: 'system', content: system.slice(0, 4000) }] : []),
+        { role: 'user', content: prompt },
+      ];
   }
 
-  const isSimple = prompt.length <= CACHE_MAX_PROMPT_LEN && !safeMessages;
+  const isSimple = !wantsVision && prompt.length <= CACHE_MAX_PROMPT_LEN && !safeMessages;
   const cacheKey = isSimple ? normalizeCacheKey(prompt) : null;
   if (cacheKey) {
     const cached = getCached(cacheKey);
@@ -139,23 +194,22 @@ router.post('/', async (req, res) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 120000);
     try {
-      const messages =
-        safeMessages ||
-        [
-          ...(system && typeof system === 'string' ? [{ role: 'system', content: system.slice(0, 4000) }] : []),
-          { role: 'user', content: prompt },
-        ];
+      const payload = {
+        model: resolvedModel,
+        messages,
+        temperature: wantsVision ? 1 : 0.7,
+        max_completion_tokens: wantsVision ? 2048 : 1024,
+        // Qwen3 thinking can burn the whole token budget and return empty content.
+        ...(resolvedModel.startsWith('qwen/') ? { reasoning_effort: 'none' } : {}),
+      };
+
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
         },
-        body: JSON.stringify({
-          model: resolvedModel,
-          messages,
-          max_tokens: 1024,
-        }),
+        body: JSON.stringify(payload),
         signal: controller.signal,
       });
       clearTimeout(timeout);
@@ -167,7 +221,18 @@ router.post('/', async (req, res) => {
             : `Groq ${response.status}`;
         throw Object.assign(new Error(detail), { code: 'GROQ_ERROR', detail });
       }
-      return data.choices?.[0]?.message?.content ?? 'No response.';
+      const msg = data.choices?.[0]?.message || {};
+      let content =
+        (typeof msg.content === 'string' && msg.content.trim()) ||
+        (typeof msg.reasoning === 'string' && msg.reasoning.trim()) ||
+        '';
+      if (!content && Array.isArray(msg.content)) {
+        content = msg.content
+          .map((p) => (typeof p?.text === 'string' ? p.text : ''))
+          .join('')
+          .trim();
+      }
+      return content || 'No response.';
     } catch (err) {
       clearTimeout(timeout);
       throw err;
@@ -192,7 +257,10 @@ router.post('/', async (req, res) => {
     if (err.code === 'QUEUE_FULL') return res.status(503).json({ error: 'Server busy, try again in a moment' });
     if (err.name === 'AbortError') return res.status(504).json({ error: 'Request timeout' });
     if (err.code === 'GROQ_ERROR') {
-      return res.status(502).json({ error: 'AI service error', detail: err.detail || err.message });
+      return res.status(502).json({
+        error: err.detail || 'AI service error',
+        detail: err.detail || err.message,
+      });
     }
     return res.status(500).json({ error: 'AI service unavailable' });
   }

@@ -307,12 +307,21 @@ export function useBrowserState() {
               t.frame?.frame?.parentNode?.removeChild(t.frame.frame);
               t.frame?.destroy?.();
             } catch {}
-            const title =
-              url === "petezah://newtab"
-                ? "New Tab"
-                : url.startsWith("petezah://ad")
-                ? "Sponsored"
-                : url.replace("petezah://", "").replace(/^\w/, (c) => c.toUpperCase());
+            let title = "New Tab";
+            if (url === "petezah://newtab") {
+              title = "New Tab";
+            } else if (url.startsWith("petezah://ad")) {
+              title = "Sponsored";
+            } else if (url.startsWith("petezah://gameviewer") || url.startsWith("petezah://appviewer")) {
+              try {
+                const params = new URLSearchParams(url.split("?")[1] || "");
+                title = params.get("title") || (url.startsWith("petezah://gameviewer") ? "Game" : "App");
+              } catch {
+                title = url.startsWith("petezah://gameviewer") ? "Game" : "App";
+              }
+            } else {
+              title = url.replace("petezah://", "").split("?")[0].replace(/^\w/, (c) => c.toUpperCase());
+            }
             return { ...t, url, title, favicon: "", frame: undefined };
           }
 
