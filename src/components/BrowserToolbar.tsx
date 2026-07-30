@@ -106,6 +106,8 @@ export default function Toolbar({
     ? urlInput
     : activeTab?.url?.startsWith("petezah://gameviewer")
     ? "petezah://gameviewer"
+    : activeTab?.url?.startsWith("petezah://appviewer")
+    ? "petezah://appviewer"
     : activeTab?.url?.startsWith("petezah://ad")
     ? "petezah://ad"
     : activeTab?.url || "";
@@ -123,6 +125,30 @@ export default function Toolbar({
     activeTab.url === "petezah://newtab" ||
     activeTab.url === "about:blank" ||
     activeTab.url === "https://";
+
+  const barTitle = (() => {
+    if (!activeTab || isNewTab) return "";
+    const url = activeTab.url || "";
+    if (
+      url.startsWith("petezah://gameviewer") ||
+      url.startsWith("petezah://appviewer")
+    ) {
+      try {
+        const fromQuery = new URLSearchParams(url.split("?")[1] || "").get(
+          "title",
+        );
+        if (fromQuery?.trim()) return fromQuery.trim();
+      } catch {}
+    }
+    const title = activeTab.title?.trim() || "";
+    if (!title || title === "New Tab") return "";
+    const scheme = url.startsWith("petezah://")
+      ? url.replace("petezah://", "").split("?")[0]
+      : "";
+    if (scheme && title.toLowerCase() === scheme.toLowerCase()) return "";
+    if (/^(game|app|gameviewer|appviewer)$/i.test(title)) return "";
+    return title;
+  })();
 
   const handleBack = () => {
     try {
@@ -245,9 +271,13 @@ export default function Toolbar({
           spellCheck={false}
         />
 
-        {!isUrlFocused && activeTab && !isNewTab && (
-          <span className="text-[10px] font-mono" style={{ color: "hsla(0,0%,100%,0.4)" }}>
-            {activeTab.url.split(".").pop()?.split("/")[0]}
+        {!isUrlFocused && barTitle && (
+          <span
+            className="text-[10px] max-w-[40%] truncate"
+            style={{ color: "hsla(0,0%,100%,0.4)" }}
+            title={barTitle}
+          >
+            {barTitle}
           </span>
         )}
       </div>
