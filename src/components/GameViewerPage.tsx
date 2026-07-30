@@ -12,6 +12,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useInterstitialUnlock, InterstitialOverlay } from "./InterstitialAdGate";
 import { openNativeWindow } from "@/lib/openTabBridge";
+import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
+import { ensureProxyEngine } from "@/lib/browserInit";
 
 interface GameViewerPageProps {
   url: string;
@@ -55,6 +57,17 @@ function ControlBtn({
   );
 }
 
+function needsScramjetProxy(raw: string): boolean {
+  try {
+    const u = new URL(raw, window.location.origin);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    if (u.origin === window.location.origin) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default function GameViewerPage({
   url,
   title,
@@ -63,10 +76,12 @@ export default function GameViewerPage({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const frameHostRef = useRef<HTMLIFrameElement | null>(null);
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
   const { unlocked, phase } = useInterstitialUnlock("game");
+  const useProxy = needsScramjetProxy(url);
 
   useEffect(() => {
     const handler = () => {
@@ -83,6 +98,54 @@ export default function GameViewerPage({
       openNativeWindow("/storage/ag/originals/Resent-Client-main/index.html");
     }
   }, [url]);
+
+  useEffect(() => {
+    if (!unlocked || !useProxy) return;
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    ensureProxyEngine().catch(() => {});
+
+    const tryCreate = () => {
+      if (!pxReady()) return false;
+      try {
+        if (frameHostRef.current?.parentNode) return true;
+        const scFrame = pxCreateFrame();
+        if (!scFrame) return false;
+        scFrame.frame.style.cssText =
+          "position:absolute;inset:0;width:100%;height:100%;border:none;opacity:0;transition:opacity 0.25s ease;";
+        scFrame.frame.src = pxEncode(url);
+        scFrame.frame.onload = () => {
+          scFrame.frame.style.opacity = "1";
+        };
+        frameHostRef.current = scFrame.frame;
+        wrapper.appendChild(scFrame.frame);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (!tryCreate()) {
+      const interval = setInterval(() => {
+        if (tryCreate()) clearInterval(interval);
+      }, 100);
+      return () => {
+        clearInterval(interval);
+        if (frameHostRef.current?.parentNode) {
+          frameHostRef.current.parentNode.removeChild(frameHostRef.current);
+        }
+        frameHostRef.current = null;
+      };
+    }
+
+    return () => {
+      if (frameHostRef.current?.parentNode) {
+        frameHostRef.current.parentNode.removeChild(frameHostRef.current);
+      }
+      frameHostRef.current = null;
+    };
+  }, [url, unlocked, useProxy]);
 
   const applyZoom = (z: number) => {
     const wrapper = wrapperRef.current;
@@ -132,18 +195,20 @@ export default function GameViewerPage({
             transition: "transform 0.2s ease",
           }}
         >
-          <iframe
-            ref={iframeRef}
-            src={unlocked ? url : "about:blank"}
-            sandbox="allow-scripts allow-pointer-lock allow-forms allow-same-origin allow-downloads"
-            style={{
-              width: "100%",
-              height: "100%",
-              border: "none",
-              display: "block",
-            }}
-            title={title || "Game"}
-          />
+          {!useProxy && (
+            <iframe
+              ref={iframeRef}
+              src={unlocked ? url : "about:blank"}
+              sandbox="allow-scripts allow-pointer-lock allow-forms allow-same-origin allow-downloads allow-popups allow-popups-to-escape-sandbox"
+              style={{
+                width: "100%",
+                height: "100%",
+                border: "none",
+                display: "block",
+              }}
+              title={title || "Game"}
+            />
+          )}
         </div>
 
         <InterstitialOverlay phase={phase} />
@@ -183,7 +248,6 @@ export default function GameViewerPage({
                   backdropFilter: "blur(20px)",
                   boxShadow:
                     "0 4px 32px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.04) inset",
-                  userSelect: "none",
                   pointerEvents: "auto",
                   cursor: "grab",
                 }}
@@ -192,149 +256,96 @@ export default function GameViewerPage({
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    paddingRight: 4,
-                    color: "rgba(255,255,255,0.18)",
+                    padding: "0 4px",
+                    color: "rgba(255,255,255,0.2)",
+                    cursor: "grab",
                   }}
                 >
                   <GripHorizontal size={12} />
                 </div>
-
+                <div
+                  style={{
+                    width: 1,
+                    height: 14,
+                    background: "rgba(255,255,255,0.08)",
+                    margin: "0 2px",
+                  }}
+                />
                 {onBack && (
-                  <>
-                    <button
-                      onClick={onBack}
-                      style={{
-                        padding: "3px 8px",
-                        borderRadius: 8,
-                        fontSize: 11,
-                        fontWeight: 500,
-                        color: "rgba(255,255,255,0.4)",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        transition: "color 0.15s",
-                        whiteSpace: "nowrap",
-                      }}
-                      onMouseEnter={(e) =>
-                        ((e.currentTarget as HTMLButtonElement).style.color =
-                          "rgba(255,255,255,0.85)")
-                      }
-                      onMouseLeave={(e) =>
-                        ((e.currentTarget as HTMLButtonElement).style.color =
-                          "rgba(255,255,255,0.4)")
-                      }
-                    >
-                      ← Back
-                    </button>
-                    <div
-                      style={{
-                        width: 1,
-                        height: 14,
-                        background: "rgba(255,255,255,0.07)",
-                        flexShrink: 0,
-                      }}
-                    />
-                  </>
+                  <ControlBtn onClick={onBack} title="Back to games">
+                    <span style={{ fontSize: 10, fontWeight: 600 }}>Games</span>
+                  </ControlBtn>
                 )}
-
-                <ControlBtn
-                  onClick={() => applyZoom(zoom - 0.25)}
-                  title="Zoom out"
-                >
-                  <ZoomOut size={12} />
+                <ControlBtn onClick={() => applyZoom(zoom - 0.1)} title="Zoom out">
+                  <ZoomOut size={13} />
                 </ControlBtn>
                 <span
                   style={{
                     fontSize: 10,
-                    color: "rgba(255,255,255,0.3)",
-                    fontVariantNumeric: "tabular-nums",
-                    minWidth: 28,
+                    color: "rgba(255,255,255,0.35)",
+                    minWidth: 32,
                     textAlign: "center",
-                    flexShrink: 0,
+                    fontVariantNumeric: "tabular-nums",
                   }}
                 >
                   {Math.round(zoom * 100)}%
                 </span>
-                <ControlBtn
-                  onClick={() => applyZoom(zoom + 0.25)}
-                  title="Zoom in"
-                >
-                  <ZoomIn size={12} />
+                <ControlBtn onClick={() => applyZoom(zoom + 0.1)} title="Zoom in">
+                  <ZoomIn size={13} />
                 </ControlBtn>
-
                 <div
                   style={{
                     width: 1,
                     height: 14,
-                    background: "rgba(255,255,255,0.07)",
-                    flexShrink: 0,
+                    background: "rgba(255,255,255,0.08)",
+                    margin: "0 2px",
                   }}
                 />
-
+                <ControlBtn onClick={handleFullscreen} title="Fullscreen">
+                  {isFullscreen ? <Minimize size={13} /> : <Maximize size={13} />}
+                </ControlBtn>
                 <ControlBtn onClick={openExternal} title="Open in new tab">
-                  <ExternalLink size={12} />
+                  <ExternalLink size={13} />
                 </ControlBtn>
-                <ControlBtn
-                  onClick={handleFullscreen}
-                  title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-                >
-                  {isFullscreen ? (
-                    <Minimize size={12} />
-                  ) : (
-                    <Maximize size={12} />
-                  )}
-                </ControlBtn>
-
-                <div
-                  style={{
-                    width: 1,
-                    height: 14,
-                    background: "rgba(255,255,255,0.07)",
-                    flexShrink: 0,
-                  }}
-                />
-
-                <ControlBtn
-                  onClick={() => setControlsVisible(false)}
-                  title="Hide controls"
-                >
-                  <EyeOff size={12} />
-                </ControlBtn>
+                {isFullscreen && (
+                  <ControlBtn
+                    onClick={() => setControlsVisible(false)}
+                    title="Hide controls"
+                  >
+                    <EyeOff size={13} />
+                  </ControlBtn>
+                )}
               </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
 
         <AnimatePresence>
-          {!controlsVisible && (
+          {isFullscreen && !controlsVisible && (
             <motion.button
               initial={{ opacity: 0 }}
-              animate={{ opacity: 0.35 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              whileHover={{ opacity: 1 }}
               onClick={() => setControlsVisible(true)}
               style={{
                 position: "absolute",
-                bottom: 12,
-                left: "50%",
-                transform: "translateX(-50%)",
+                bottom: 16,
+                right: 16,
+                zIndex: 50,
+                width: 32,
+                height: 32,
+                borderRadius: 10,
+                background: "rgba(6,12,26,0.7)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "rgba(255,255,255,0.4)",
                 display: "flex",
                 alignItems: "center",
-                gap: 6,
-                padding: "5px 14px",
-                borderRadius: 10,
-                background: "rgba(6, 12, 26, 0.75)",
-                border: "1px solid rgba(255,255,255,0.07)",
-                backdropFilter: "blur(12px)",
-                color: "rgba(255,255,255,0.75)",
-                fontSize: 11,
+                justifyContent: "center",
                 cursor: "pointer",
-                zIndex: 50,
-                transition: "opacity 0.2s",
-                whiteSpace: "nowrap",
               }}
+              title="Show controls"
             >
-              <Eye size={11} /> Show Controls
+              <Eye size={14} />
             </motion.button>
           )}
         </AnimatePresence>

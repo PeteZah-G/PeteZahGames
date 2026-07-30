@@ -39,15 +39,18 @@ function resolveModel(raw) {
   return DEFAULT_MODEL;
 }
 
-function sanitizeMessages(messages) {
+function sanitizeMessages(messages, { keepImages = true } = {}) {
   if (!Array.isArray(messages)) return null;
   const out = [];
-  for (const msg of messages.slice(-48)) {
+  let keptImage = false;
+  const sliced = messages.slice(-48);
+  for (let i = sliced.length - 1; i >= 0; i--) {
+    const msg = sliced[i];
     if (!msg || typeof msg !== 'object') continue;
     const role = msg.role === 'assistant' || msg.role === 'system' || msg.role === 'user' ? msg.role : null;
     if (!role) continue;
     if (typeof msg.content === 'string') {
-      out.push({ role, content: msg.content.slice(0, 12000) });
+      out.unshift({ role, content: msg.content.slice(0, 12000) });
       continue;
     }
     if (Array.isArray(msg.content)) {
@@ -56,17 +59,33 @@ function sanitizeMessages(messages) {
         if (!part || typeof part !== 'object') continue;
         if (part.type === 'text' && typeof part.text === 'string') {
           parts.push({ type: 'text', text: part.text.slice(0, 8000) });
-        } else if (part.type === 'image_url' && part.image_url?.url && typeof part.image_url.url === 'string') {
+        } else if (
+          keepImages &&
+          !keptImage &&
+          part.type === 'image_url' &&
+          part.image_url?.url &&
+          typeof part.image_url.url === 'string'
+        ) {
           const url = part.image_url.url;
-          if (url.startsWith('data:image/') && url.length < 4_500_000) {
+          if (url.startsWith('data:image/') && url.length <= 7_500_000) {
             parts.push({ type: 'image_url', image_url: { url } });
+            keptImage = true;
           }
         }
       }
-      if (parts.length) out.push({ role, content: parts });
+      if (parts.length) out.unshift({ role, content: parts.length === 1 && parts[0].type === 'text' ? parts[0].text : parts });
     }
   }
   return out.length ? out : null;
+}
+
+function messagesHaveImage(messages) {
+  if (!Array.isArray(messages)) return false;
+  return messages.some(
+    (m) =>
+      Array.isArray(m?.content) &&
+      m.content.some((p) => p?.type === 'image_url' && typeof p?.image_url?.url === 'string')
+  );
 }
 
 const MAX_CONCURRENT = 5;
@@ -99,7 +118,15 @@ router.post('/', async (req, res) => {
   }
 
   const resolvedModel = resolveModel(model);
-  const safeMessages = sanitizeMessages(groqMessages);
+  const wantsVision =
+    resolvedModel.includes('scout') ||
+    resolvedModel.includes('vision') ||
+    messagesHaveImage(groqMessages);
+  const safeMessages = sanitizeMessages(groqMessages, { keepImages: true });
+
+  if (wantsVision && !messagesHaveImage(safeMessages)) {
+    return res.status(400).json({ error: 'Image too large or missing. Try a smaller image.' });
+  }
 
   const isSimple = prompt.length <= CACHE_MAX_PROMPT_LEN && !safeMessages;
   const cacheKey = isSimple ? normalizeCacheKey(prompt) : null;

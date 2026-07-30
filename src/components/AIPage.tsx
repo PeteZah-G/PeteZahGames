@@ -788,7 +788,9 @@ export default function AIPage({
 
       for (const entry of newHistory) {
         if (entry.role === "user") {
-          if (entry.image) {
+          const isLastUser =
+            entry === [...newHistory].reverse().find((e) => e.role === "user");
+          if (entry.image && isLastUser) {
             groqMessages.push({
               role: "user",
               content: [
@@ -906,7 +908,29 @@ export default function AIPage({
     const reader = new FileReader();
     reader.onload = (e) => {
       const result = e.target?.result as string;
-      setPendingImage({ base64: result.split(",")[1], mime: file.type });
+      if (!result) return;
+      const img = new window.Image();
+      img.onload = () => {
+        const maxW = 1280;
+        const scale = img.width > maxW ? maxW / img.width : 1;
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          setPendingImage({ base64: result.split(",")[1], mime: file.type });
+          return;
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+        setPendingImage({ base64: dataUrl.split(",")[1], mime: "image/jpeg" });
+      };
+      img.onerror = () => {
+        setPendingImage({ base64: result.split(",")[1], mime: file.type });
+      };
+      img.src = result;
     };
     reader.readAsDataURL(file);
   };

@@ -96,6 +96,15 @@ import {
   gamePlayLimiter,
   achievementHeartbeatLimiter,
 } from './api/game-stats.js';
+import {
+  getGamesCatalogHandler,
+  getAdminExcludedGamesHandler,
+  adminExcludeGameHandler,
+  adminUnexcludeGameHandler,
+  adminAddGlobalGameHandler,
+  adminRemoveGlobalGameHandler,
+  adminGamesLimiter,
+} from './api/game-catalog.js';
 import { websocketNormalHandler, websocketTorHandler } from './api/websocket-auth.js';
 import capRouter from './routes/cap.js';
 import { createCapGateMiddleware, sendVerifyPage, requireGateUpgrade } from './middleware/cap-gate.js';
@@ -334,8 +343,14 @@ app.get('/api/announcements/active', getActiveAnnouncementHandler);
 
 app.post('/api/games/play', gamePlayLimiter, recordGamePlayHandler);
 app.get('/api/games/plays', getGamePlaysMapHandler);
+app.get('/api/games/catalog', getGamesCatalogHandler);
 app.get('/api/admin/game-stats', getAdminGameStatsHandler);
 app.get('/api/admin/game-live', getAdminGameLiveHandler);
+app.get('/api/admin/games/excluded', getAdminExcludedGamesHandler);
+app.post('/api/admin/games/exclude', adminGamesLimiter, adminExcludeGameHandler);
+app.delete('/api/admin/games/exclude/:gameId', adminGamesLimiter, adminUnexcludeGameHandler);
+app.post('/api/admin/games', adminGamesLimiter, adminAddGlobalGameHandler);
+app.delete('/api/admin/games/:id', adminGamesLimiter, adminRemoveGlobalGameHandler);
 
 app.get('/api/achievements', getMyAchievementsHandler);
 app.post('/api/achievements/heartbeat', achievementHeartbeatLimiter, achievementHeartbeatHandler);

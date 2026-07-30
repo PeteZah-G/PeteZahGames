@@ -953,7 +953,8 @@ function TabPane({
     tab.url === "about:blank" ||
     tab.url === "https://";
 
-  const isGames = tab.url === "petezah://games";
+  const isGames =
+    tab.url === "petezah://games" || tab.url.startsWith("petezah://games?");
   const isAI = tab.url === "petezah://ai";
   const isApps = tab.url === "petezah://apps";
   const isMusic =
@@ -1004,12 +1005,14 @@ function TabPane({
   }
 
   if (isGames) {
+    const params = new URLSearchParams(tab.url.split("?")[1] || "");
+    const adminEdit = params.get("adminEdit") === "1";
     return (
       <div
         className="absolute inset-0"
         style={{ display: isVisible ? "block" : "none" }}
       >
-        <GamesPage onNavigate={onNavigate} />
+        <GamesPage onNavigate={onNavigate} adminEdit={adminEdit} />
       </div>
     );
   }

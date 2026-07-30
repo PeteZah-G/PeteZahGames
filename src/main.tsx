@@ -119,11 +119,14 @@ if (
     const link = w.document.createElement("link");
     link.rel = "icon";
     link.href = localStorage.getItem("siteLogo") || "/logo.png";
+    if (link.href.startsWith("/")) link.href = window.location.origin + link.href;
     w.document.head.appendChild(link);
     const iframe = w.document.createElement("iframe");
-    iframe.src = "/";
+    iframe.src = window.location.origin + "/";
+    iframe.setAttribute("allow", "fullscreen; clipboard-read; clipboard-write; display-capture");
     iframe.style.cssText = "width:100vw;height:100vh;border:none;";
     w.document.body.style.margin = "0";
+    w.document.body.style.overflow = "hidden";
     w.document.body.appendChild(iframe);
     window.location.href = localStorage.getItem("panicUrl") || "https://classroom.google.com";
   }

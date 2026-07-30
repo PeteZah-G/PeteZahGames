@@ -5,7 +5,7 @@ import {
   Zap, ChevronRight, Lock, Mail, KeyRound, Download, Upload, Trash2,
   Megaphone, MessageSquare, Palette, Shield, Sliders, Camera,
   UserCog, Users, Ban, UserMinus, ShieldCheck, ShieldOff, Plus, ExternalLink, Image, Pipette,
-  Music2, MapPin, Link2, Heart, Globe2, Radio, Monitor, BarChart3, Copy, Trophy, Gamepad2,
+  Music2, MapPin, Link2, Heart, Globe2, Radio, Monitor, BarChart3, Copy, Trophy, Gamepad2, Pencil,
 } from "lucide-react";
 import { BadgeChip, BadgeRow, type BadgeInfo } from "./BadgeChip";
 import {
@@ -451,11 +451,14 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
     const link = w.document.createElement("link");
     link.rel = "icon";
     link.href = localStorage.getItem("siteLogo") || "/logo.png";
+    if (link.href.startsWith("/")) link.href = window.location.origin + link.href;
     w.document.head.appendChild(link);
     const iframe = w.document.createElement("iframe");
-    iframe.src = "/";
+    iframe.src = window.location.origin + "/";
+    iframe.setAttribute("allow", "fullscreen; clipboard-read; clipboard-write; display-capture");
     iframe.style.cssText = "width:100vw;height:100vh;border:none;";
     w.document.body.style.margin = "0";
+    w.document.body.style.overflow = "hidden";
     w.document.body.appendChild(iframe);
   }
 
@@ -536,6 +539,8 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   const [gameSearch, setGameSearch] = useState("");
   const [gameSearchDebounced, setGameSearchDebounced] = useState("");
   const [gameLive, setGameLive] = useState<any>(null);
+  const [excludedGames, setExcludedGames] = useState<any[]>([]);
+  const [excludedLoading, setExcludedLoading] = useState(false);
   const [resendBusy, setResendBusy] = useState(false);
 
   function hydrateProfile(u: AuthUser) {
@@ -815,11 +820,13 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       Promise.all([
         fetch(url, { credentials: "include" }).then((r) => r.json()),
         fetch("/api/admin/game-live", { credentials: "include" }).then((r) => r.json()),
+        fetch("/api/admin/games/excluded", { credentials: "include" }).then((r) => r.json()),
       ])
-        .then(([stats, live]) => {
+        .then(([stats, live, excl]) => {
           if (cancelled) return;
           setGameStats(stats);
           setGameLive(live);
+          setExcludedGames(Array.isArray(excl?.excluded) ? excl.excluded : []);
         })
         .catch(() => {
           if (!cancelled) {
@@ -838,6 +845,22 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       window.clearInterval(t);
     };
   }, [section, user, gameSearchDebounced]);
+
+  async function unsuspendGame(gameId: string) {
+    setExcludedLoading(true);
+    try {
+      const r = await fetch(`/api/admin/games/exclude/${encodeURIComponent(gameId)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!r.ok) throw new Error("fail");
+      setExcludedGames((prev) => prev.filter((g) => g.gameId !== gameId));
+    } catch {
+      alert("Could not unsuspend game.");
+    } finally {
+      setExcludedLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (section !== "updates" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
@@ -2897,12 +2920,25 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                     <Gamepad2 size={14} style={{ color: C.accent }} />
                     Game Stats
                   </h2>
-                  <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: `${C.accentDim}40`, border: `1px solid ${C.borderFocus}`, color: C.accent }}>
-                    {(gameLive?.clients ?? 0)} live · {(gameStats?.totals?.totalPlays ?? 0)} plays
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate("petezah://games?adminEdit=1")}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                        fontSize: 11, fontWeight: 650, padding: "6px 10px", borderRadius: 8,
+                        background: C.accentDim, border: `1px solid ${C.borderFocus}`, color: C.accent, cursor: "pointer",
+                      }}
+                    >
+                      <Pencil size={11} /> Edit Games
+                    </button>
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: `${C.accentDim}40`, border: `1px solid ${C.borderFocus}`, color: C.accent }}>
+                      {(gameLive?.clients ?? 0)} live · {(gameStats?.totals?.totalPlays ?? 0)} plays
+                    </span>
+                  </div>
                 </div>
                 <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 14px" }}>
-                  Top 50 most played · search any game · live list/viewer presence
+                  Top 50 most played · search any game · live list/viewer presence · Edit Games for global add/suspend
                 </p>
 
                 <div style={{
@@ -3006,6 +3042,46 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                         </div>
                       ))
                     )}
+                  </div>
+                )}
+
+                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "18px 0 8px" }}>
+                  Suspended games ({excludedGames.length})
+                </p>
+                {!excludedGames.length ? (
+                  <p style={{ fontSize: 12, color: C.textMuted, margin: 0 }}>No globally suspended games</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: "28vh", overflowY: "auto" }}>
+                    {excludedGames.map((g: any) => (
+                      <div key={g.gameId} style={{
+                        display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8,
+                        background: C.surface, border: `1px solid ${C.border}`,
+                      }}>
+                        {g.imageUrl ? (
+                          <img src={g.imageUrl} alt="" loading="lazy" decoding="async" style={{ width: 28, height: 22, borderRadius: 5, objectFit: "cover", flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: 28, height: 22, borderRadius: 5, background: C.elevated, flexShrink: 0 }} />
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: 12, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.label || g.gameId}</p>
+                          <p style={{ margin: "2px 0 0", fontSize: 10, color: C.textMuted }}>
+                            {g.excludedAt ? new Date(g.excludedAt).toLocaleString() : "Suspended"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={excludedLoading}
+                          onClick={() => unsuspendGame(g.gameId)}
+                          style={{
+                            fontSize: 11, fontWeight: 650, padding: "5px 9px", borderRadius: 7, cursor: "pointer",
+                            background: C.accentDim, border: `1px solid ${C.borderFocus}`, color: C.accent, flexShrink: 0,
+                            opacity: excludedLoading ? 0.6 : 1,
+                          }}
+                        >
+                          Unsuspend
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

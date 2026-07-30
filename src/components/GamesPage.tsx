@@ -37,10 +37,12 @@ interface Game {
   imageUrl: string;
   categories: string[];
   isCustom?: boolean;
+  isGlobal?: boolean;
 }
 
 interface GamesPageProps {
   onNavigate?: (url: string) => void;
+  adminEdit?: boolean;
 }
 
 function getCustomGames(): Game[] {
@@ -197,8 +199,8 @@ function AddGameModal({ onAdd, onClose }: { onAdd: (g: Game) => void; onClose: (
   );
 }
 
-function GameOptionsMenu({ game, isFav, onFav, onRemove, onShare, onClose }: {
-  game: Game; isFav: boolean; onFav: () => void; onRemove: () => void; onShare: () => void; onClose: () => void;
+function GameOptionsMenu({ game, isFav, onFav, onRemove, onShare, onClose, adminMode = false }: {
+  game: Game; isFav: boolean; onFav: () => void; onRemove: () => void; onShare: () => void; onClose: () => void; adminMode?: boolean;
 }) {
   return (
     <motion.div
@@ -217,18 +219,25 @@ function GameOptionsMenu({ game, isFav, onFav, onRemove, onShare, onClose }: {
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors"><X size={14} /></button>
         </div>
         <div className="flex flex-col gap-2">
-          <button onClick={onFav}
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-accent border border-border text-sm font-medium text-foreground hover:bg-accent/70 transition-all">
-            <Star size={13} className={isFav ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"} />
-            {isFav ? "Unfavorite" : "Favorite"}
-          </button>
-          <button onClick={onShare}
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-accent border border-border text-sm font-medium text-foreground hover:bg-accent/70 transition-all">
-            <Share2 size={13} className="text-muted-foreground" /> Share Game
-          </button>
+          {!adminMode && (
+            <button onClick={onFav}
+              className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-accent border border-border text-sm font-medium text-foreground hover:bg-accent/70 transition-all">
+              <Star size={13} className={isFav ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"} />
+              {isFav ? "Unfavorite" : "Favorite"}
+            </button>
+          )}
+          {!adminMode && (
+            <button onClick={onShare}
+              className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-accent border border-border text-sm font-medium text-foreground hover:bg-accent/70 transition-all">
+              <Share2 size={13} className="text-muted-foreground" /> Share Game
+            </button>
+          )}
           <button onClick={onRemove}
             className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-sm font-medium text-destructive hover:bg-destructive/20 transition-all">
-            <Trash2 size={13} /> Remove Game
+            <Trash2 size={13} />
+            {adminMode
+              ? (game.isGlobal ? "Delete global game" : "Suspend for everyone")
+              : "Remove Game"}
           </button>
         </div>
       </motion.div>
@@ -334,7 +343,7 @@ function GameCard({ game, isFav, onPlay, onOptions, priority = false, index = 0 
   );
 }
 
-export default function GamesPage({ onNavigate }: GamesPageProps) {
+export default function GamesPage({ onNavigate, adminEdit = false }: GamesPageProps) {
   const [allGames, setAllGames] = useState<Game[]>([]);
   const [playCounts, setPlayCounts] = useState<Record<string, number>>({});
   const [listReady, setListReady] = useState(false);
@@ -346,19 +355,53 @@ export default function GamesPage({ onNavigate }: GamesPageProps) {
   const [optionsGame, setOptionsGame] = useState<Game | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [adminOk, setAdminOk] = useState(false);
+  const [adminBusy, setAdminBusy] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const isAdminMode = adminEdit && adminOk;
+
+  useEffect(() => {
+    if (!adminEdit) {
+      setAdminOk(false);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/me", { credentials: "include" })
+      .then(async (r) => {
+        if (!r.ok) throw new Error("auth");
+        const d = await r.json();
+        const u = d?.user;
+        const ok = !!u && ((u.is_admin ?? 0) >= 1 || !!u.is_owner);
+        if (!cancelled) setAdminOk(ok);
+      })
+      .catch(() => {
+        if (!cancelled) setAdminOk(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [adminEdit]);
 
   useEffect(() => {
     async function load() {
       try {
-        const [res, playsRes] = await Promise.all([
+        const [res, playsRes, catalogRes] = await Promise.all([
           fetch("/storage/data/collection.json"),
           fetch("/api/games/plays").catch(() => null),
+          fetch("/api/games/catalog", { credentials: "include" }).catch(() => null),
         ]);
         const data = await res.json();
         const remote: Game[] = data.games.map((g: Game) => ({ ...g, id: generateGameId(g), isCustom: false }));
         const custom = getCustomGames();
         const hidden = getHiddenGames();
+        let exclusions: string[] = [];
+        let globals: Game[] = [];
+        if (catalogRes && catalogRes.ok) {
+          const catalog = await catalogRes.json();
+          if (Array.isArray(catalog?.exclusions)) exclusions = catalog.exclusions;
+          if (Array.isArray(catalog?.globals)) globals = catalog.globals;
+        }
+        const excluded = new Set(exclusions);
         let counts: Record<string, number> = {};
         if (playsRes && playsRes.ok) {
           const playsData = await playsRes.json();
@@ -367,12 +410,16 @@ export default function GamesPage({ onNavigate }: GamesPageProps) {
           }
         }
         setPlayCounts(counts);
-        setAllGames([...custom, ...remote].filter(g => !hidden.includes(g.id)));
+        setAllGames(
+          [...globals, ...custom, ...remote].filter(
+            (g) => !hidden.includes(g.id) && !excluded.has(g.id),
+          ),
+        );
         setListReady(true);
       } catch {
         const custom = getCustomGames();
         const hidden = getHiddenGames();
-        setAllGames(custom.filter(g => !hidden.includes(g.id)));
+        setAllGames(custom.filter((g) => !hidden.includes(g.id)));
         setListReady(true);
       }
     }
@@ -426,19 +473,87 @@ export default function GamesPage({ onNavigate }: GamesPageProps) {
     setOptionsGame(null);
   }, []);
 
-  const handleRemove = useCallback((game: Game) => {
-    if (game.isCustom) saveCustomGames(getCustomGames().filter(g => g.id !== game.id));
-    const hidden = getHiddenGames(); hidden.push(game.id); saveHiddenGames(hidden);
-    setAllGames(prev => prev.filter(g => g.id !== game.id));
-    setFavorites(prev => { const next = prev.filter(x => x !== game.id); saveFavorites(next); return next; });
-    setOptionsGame(null);
-  }, []);
+  const handleRemove = useCallback(async (game: Game) => {
+    if (isAdminMode) {
+      if (adminBusy) return;
+      setAdminBusy(true);
+      try {
+        if (game.isGlobal) {
+          const r = await fetch(`/api/admin/games/${encodeURIComponent(game.id)}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+          if (!r.ok) throw new Error("fail");
+        } else {
+          const r = await fetch("/api/admin/games/exclude", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              gameId: game.id,
+              label: game.label,
+              imageUrl: game.imageUrl || "",
+            }),
+          });
+          if (!r.ok) throw new Error("fail");
+        }
+        setAllGames((prev) => prev.filter((g) => g.id !== game.id));
+        setOptionsGame(null);
+      } catch {
+        alert("Could not delete game globally. Try again.");
+      } finally {
+        setAdminBusy(false);
+      }
+      return;
+    }
 
-  const handleAddGame = useCallback((game: Game) => {
+    if (game.isCustom) saveCustomGames(getCustomGames().filter((g) => g.id !== game.id));
+    const hidden = getHiddenGames();
+    hidden.push(game.id);
+    saveHiddenGames(hidden);
+    setAllGames((prev) => prev.filter((g) => g.id !== game.id));
+    setFavorites((prev) => {
+      const next = prev.filter((x) => x !== game.id);
+      saveFavorites(next);
+      return next;
+    });
+    setOptionsGame(null);
+  }, [isAdminMode, adminBusy]);
+
+  const handleAddGame = useCallback(async (game: Game) => {
+    if (isAdminMode) {
+      if (adminBusy) return;
+      setAdminBusy(true);
+      try {
+        const r = await fetch("/api/admin/games", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            label: game.label,
+            url: game.url,
+            imageUrl: game.imageUrl,
+            categories: game.categories || [],
+          }),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data?.error || "fail");
+        if (data?.game) {
+          setAllGames((prev) => [data.game, ...prev]);
+        }
+        setShowAdd(false);
+      } catch (e: any) {
+        alert(e?.message || "Could not add global game.");
+      } finally {
+        setAdminBusy(false);
+      }
+      return;
+    }
+
     saveCustomGames([game, ...getCustomGames()]);
-    setAllGames(prev => [game, ...prev]);
+    setAllGames((prev) => [game, ...prev]);
     setShowAdd(false);
-  }, []);
+  }, [isAdminMode, adminBusy]);
 
   const randomGame = () => {
     if (!filtered.length) return;
@@ -458,6 +573,25 @@ export default function GamesPage({ onNavigate }: GamesPageProps) {
         }}
       >
         <div className="max-w-4xl mx-auto">
+          {isAdminMode && (
+            <div className="mb-3 flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10">
+              <p className="text-[11px] text-amber-100/90 font-medium">
+                Admin edit mode — deletes are global · adds are global for everyone
+              </p>
+              <button
+                type="button"
+                onClick={() => onNavigate?.("petezah://account")}
+                className="text-[10px] px-2 py-1 rounded-lg border border-white/10 text-muted-foreground hover:text-foreground"
+              >
+                Exit
+              </button>
+            </div>
+          )}
+          {adminEdit && !adminOk && listReady && (
+            <div className="mb-3 px-3 py-2 rounded-xl border border-destructive/30 bg-destructive/10 text-[11px] text-destructive">
+              Admin access required for Edit Games.
+            </div>
+          )}
           <div className="flex items-center gap-2 mb-3">
             <button
               onClick={randomGame}
@@ -557,6 +691,7 @@ export default function GamesPage({ onNavigate }: GamesPageProps) {
             onRemove={() => handleRemove(optionsGame)}
             onShare={() => { setShareUrl(resolveGameUrl(optionsGame.url)); setOptionsGame(null); }}
             onClose={() => setOptionsGame(null)}
+            adminMode={isAdminMode}
           />
         )}
         {shareUrl && <ShareModal url={shareUrl} onClose={() => setShareUrl(null)} />}
