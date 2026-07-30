@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PeteZah VM · Firefox WASM</title>
+    <title>PeteZah VM</title>
     <link id="favicon" rel="icon" type="image/png" href="/logo.png" />
     <link rel="stylesheet" href="./pete-vm.css" />
     <script type="module" crossorigin src="./assets/index-D39giZCc.js"></script>
@@ -14,7 +14,7 @@
       var k = "chrome-demo-opts";
       var o = JSON.parse(localStorage.getItem(k) || "{}");
       var proto = location.protocol === "https:" ? "wss:" : "ws:";
-      o.wisp = proto + "//" + location.host + "/api/alt-wisp-1/";
+      o.wisp = proto + "//" + location.host + "/api/alt-wisp-3/";
       if (o.gpu === undefined) o.gpu = true;
       if (o.jit === undefined) o.jit = false;
       localStorage.setItem(k, JSON.stringify(o));
@@ -57,50 +57,33 @@
   </script>
 
     <section id="splash" aria-live="polite">
-      <header class="top-nav">
-        <div class="nav-left">
-          <a class="pz-exit" href="/">← Exit to PeteZah</a>
-          <a class="nav-brand" href="/" rel="noreferrer" aria-label="PeteZah">
-            <img src="/logo.png" alt="PeteZah" height="28" style="border-radius:6px" onerror="this.style.display='none'" />
-          </a>
-          <a class="nav-brand-label" href="/" rel="noreferrer">
-            PeteZah <span class="labs-badge">VM</span>
-          </a>
-        </div>
-        <div class="nav-links">
-          <a
-            class="nav-link"
-            href="https://github.com/HeyPuter/firefox-wasm"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="GitHub"
-          >
-            <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true">
-              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
-            </svg>
-          </a>
-        </div>
-      </header>
+      <a class="pz-exit" href="/">← Back to PeteZah</a>
+
       <main class="stage">
         <div id="splash-shell" class="stage-inner" data-phase="loading">
-          <div class="logo-lockup">
+          <div class="pz-hero">
+            <img
+              class="pz-hero-art"
+              src="/logo.png"
+              width="120"
+              height="120"
+              alt="PeteZah"
+              decoding="async"
+              onerror="this.src='logo.webp'"
+            />
+            <h1 class="pz-hero-title">PeteZah VM</h1>
+            <p class="pz-hero-sub">Firefox in your browser</p>
+          </div>
+
+          <!-- Kept for Puter chrome-demo JS expectations; visually hidden -->
+          <div class="logo-lockup" hidden aria-hidden="true">
             <span class="logo-tile firefox-tile">
-              <img class="project-logo" src="logo.webp" alt="Firefox" />
-            </span>
-            <span class="logo-x" aria-hidden="true">&times;</span>
-            <span class="logo-tile wasm-tile">
-              <svg class="wasm-mark" viewBox="97.43 0 107.62 107.62" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="WebAssembly">
-                <rect x="97.43" y="0" width="107.62" height="107.62" fill="#fff" />
-                <path fill="#4d8dff" transform="translate(-0.21)" d="M163.76,0c0,.19,0,.38,0,.58a12.34,12.34,0,0,1-24.68,0c0-.2,0-.39,0-.58H97.64V107.62H205.26V0ZM149,96.1l-5.24-25.93h-.09L138,96.1h-7.22L122.6,58h7.13l4.88,25.93h.09L140.58,58h6.67l5.28,26.25h.09L158.19,58h7L156.1,96.1Zm39.26,0-2.43-8.48H173l-1.87,8.48H164L173.22,58h11.25l11.21,38.1Z"/>
-                <polygon fill="#4d8dff" transform="translate(-0.21)" points="177.3 67.39 174.19 81.37 183.87 81.37 180.3 67.39 177.3 67.39"/>
-              </svg>
+              <img class="project-logo" src="logo.webp" alt="" />
             </span>
           </div>
-          <h1 id="project-title" class="splash-title">PeteZah Firefox VM</h1>
-          <p class="project-copy">
-            Gecko compiled to WebAssembly.<br />
-            A real Firefox UI, running entirely inside PeteZah.
-          </p>
+          <h1 id="project-title" class="splash-title" hidden>PeteZah VM</h1>
+          <p class="project-copy" hidden></p>
+
           <div id="pz-coi-warn">
             This tab is not cross-origin isolated, so WASM workers cannot start.
             Open <strong>/firefox-wasm/</strong> as a top-level page (not an iframe) and ensure COOP/COEP headers are present.
@@ -120,7 +103,7 @@
 
             <div class="panel-ready" aria-label="Launch">
               <button id="start-btn" type="button" class="start-btn">
-                Launch PeteZah VM
+                Launch Firefox
               </button>
               <p id="jspi-note" class="jspi-note" hidden></p>
               <details class="advanced">
@@ -148,7 +131,7 @@
                     <input type="text" id="opt-wisp" spellcheck="false" autocomplete="off" aria-label="Wisp server" />
                   </label>
                   <p class="branding-note">
-                    UK Wisp by default (/api/alt-wisp-1/). Fallback: /wisp/
+                    Virginia Wisp by default (/api/alt-wisp-3/). Fallback: /wisp/
                   </p>
                 </div>
               </details>
@@ -160,16 +143,6 @@
             <div id="console-output" class="console-box" role="log" aria-label="Startup console output"></div>
           </section>
         </div>
-
-        <a
-          class="powered-badge"
-          href="https://developer.puter.com/labs/firefox-wasm/"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <span class="powered-dot" aria-hidden="true"></span>
-          Engine by <strong>Puter</strong> · Firefox in WebAssembly
-        </a>
       </main>
     </section>
     <canvas id="screen" width="1024" height="768" tabindex="0"></canvas>
