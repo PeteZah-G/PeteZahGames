@@ -618,6 +618,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
 
   async function rotateForce2faQr() {
     setAuthErr("");
+    setAuthOk("");
     setForce2faBusy(true);
     setForce2faCode("");
     try {
@@ -633,7 +634,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
         return;
       }
       setForce2faQr({ secret: d.secret, qrDataUrl: d.qrDataUrl });
-      setAuthOk("New QR generated — remove the old PeteZah entry in Authenticator, then scan again.");
+      setAuthOk("New QR ready — rescan with your authenticator app.");
     } catch {
       setAuthErr("Network error regenerating QR");
     } finally {
@@ -1128,6 +1129,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   async function handleForce2faEnable(e: React.FormEvent) {
     e.preventDefault();
     setAuthErr("");
+    setAuthOk("");
     setForce2faBusy(true);
     try {
       const r = await fetch("/api/auth/2fa/enable", {
@@ -1579,69 +1581,71 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
         style={{ height: "100%", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", overflow: "auto" }}
       >
         <motion.div
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
-          style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "360px", padding: "24px 20px" }}
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}
+          style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "320px", padding: "12px 16px" }}
         >
           <div style={{
             background: "hsla(216, 32%, 7%, 0.75)", backdropFilter: "blur(20px)",
-            border: `1px solid ${C.border}`, borderRadius: "14px", padding: "28px 24px",
+            border: `1px solid ${C.border}`, borderRadius: "14px", padding: "18px 18px 14px",
             boxShadow: "0 24px 48px hsla(216, 50%, 4%, 0.5)",
           }}>
-            <div style={{ textAlign: "center", marginBottom: "18px" }}>
+            <div style={{ textAlign: "center", marginBottom: "12px" }}>
               <div style={{
-                width: "40px", height: "40px", borderRadius: "10px", margin: "0 auto 12px",
+                width: "34px", height: "34px", borderRadius: "9px", margin: "0 auto 8px",
                 background: C.accentDim, border: `1px solid ${C.borderFocus}`,
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                <Lock size={18} color={C.accent} />
+                <Lock size={15} color={C.accent} />
               </div>
-              <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: "0 0 3px" }}>
+              <h2 style={{ fontSize: "14px", fontWeight: 700, color: C.text, margin: "0 0 2px" }}>
                 Set up 2FA to continue
               </h2>
-              <p style={{ fontSize: "11px", color: C.textSub, margin: 0, lineHeight: 1.45 }}>
-                Owner and staff accounts must enable authenticator 2FA before accessing PeteZah.
+              <p style={{ fontSize: "11px", color: C.textSub, margin: 0, lineHeight: 1.4 }}>
+                Staff accounts require an authenticator app.
               </p>
             </div>
             {authErr && (
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", borderRadius: "7px", marginBottom: "14px",
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "7px 9px", borderRadius: "7px", marginBottom: "10px",
                 background: "hsl(0 60% 50% / 0.08)", border: "1px solid hsl(0 60% 50% / 0.2)", color: "hsl(0 60% 68%)", fontSize: "11px" }}>
                 <AlertCircle size={11} style={{ flexShrink: 0 }} />{authErr}
               </div>
             )}
+            {authOk && (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "7px 9px", borderRadius: "7px", marginBottom: "10px",
+                background: "hsl(142 50% 40% / 0.1)", border: "1px solid hsl(142 50% 40% / 0.25)", color: "hsl(142 45% 70%)", fontSize: "11px" }}>
+                {authOk}
+              </div>
+            )}
             {force2faBusy && !force2faQr ? (
-              <div style={{ display: "flex", justifyContent: "center", padding: "24px 0" }}>
+              <div style={{ display: "flex", justifyContent: "center", padding: "16px 0" }}>
                 <Loader2 className="animate-spin" size={18} color={C.accent} />
               </div>
             ) : force2faQr ? (
-              <form onSubmit={handleForce2faEnable} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                <img src={force2faQr.qrDataUrl} alt="2FA QR" style={{ width: 168, height: 168, borderRadius: 10, alignSelf: "center", background: "#fff" }} />
-                <p style={{ fontSize: 11, color: C.textSub, margin: 0, textAlign: "center", lineHeight: 1.45 }}>
-                  Scan with Google Authenticator, then enter the 6-digit code. If it keeps failing, remove any old PeteZah entry and use <strong style={{ color: C.text }}>New QR</strong> below.
-                </p>
-                <p style={{ fontSize: 11, color: C.textSub, margin: 0, textAlign: "center" }}>
-                  Or enter secret:{" "}
-                  <span
-                    data-no-obfuscate="true"
-                    style={{
-                      color: C.text,
-                      fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                      fontSize: 10,
-                      wordBreak: "break-all",
-                      overflowWrap: "anywhere",
-                    }}
-                  >
-                    {force2faQr.secret}
-                  </span>
+              <form onSubmit={handleForce2faEnable} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <img src={force2faQr.qrDataUrl} alt="2FA QR" style={{ width: 132, height: 132, borderRadius: 8, alignSelf: "center", background: "#fff" }} />
+                <p
+                  data-no-obfuscate="true"
+                  style={{
+                    fontSize: 10,
+                    color: C.textSub,
+                    margin: 0,
+                    textAlign: "center",
+                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                    wordBreak: "break-all",
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {force2faQr.secret}
                 </p>
                 <Field
                   value={force2faCode}
                   onChange={(e: any) => setForce2faCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="Code from authenticator"
+                  placeholder="6-digit code"
                   icon={KeyRound}
                   maxLength={6}
                 />
                 <button type="submit" disabled={force2faBusy || force2faCode.trim().length !== 6} style={{
-                  width: "100%", padding: "10px", borderRadius: "8px", border: `1px solid ${C.borderFocus}`,
+                  width: "100%", padding: "9px", borderRadius: "8px", border: `1px solid ${C.borderFocus}`,
                   background: C.accentDim, color: C.text, fontSize: "13px", fontWeight: 600,
                   display: "flex", alignItems: "center", justifyContent: "center", gap: "7px",
                   cursor: force2faBusy || force2faCode.trim().length !== 6 ? "not-allowed" : "pointer",
@@ -1655,12 +1659,12 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                   onClick={rotateForce2faQr}
                   disabled={force2faBusy}
                   style={{
-                    width: "100%", padding: "8px", borderRadius: "8px", border: `1px solid ${C.border}`,
-                    background: "transparent", color: C.textSub, fontSize: "12px", fontWeight: 500,
-                    cursor: force2faBusy ? "not-allowed" : "pointer",
+                    background: "none", border: "none", color: C.textSub, fontSize: "11px",
+                    cursor: force2faBusy ? "not-allowed" : "pointer", padding: "2px 0 0",
+                    textAlign: "center",
                   }}
                 >
-                  New QR (invalidates previous scan)
+                  New QR
                 </button>
               </form>
             ) : null}
@@ -1673,7 +1677,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                 setForce2faQr(null);
                 notifyAuthChanged();
               }}
-              style={{ width: "100%", marginTop: "14px", background: "none", border: "none", cursor: "pointer",
+              style={{ width: "100%", marginTop: "10px", background: "none", border: "none", cursor: "pointer",
                 fontSize: "11px", color: C.textSub, textAlign: "center" }}
             >
               Sign out
