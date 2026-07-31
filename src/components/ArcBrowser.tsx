@@ -41,7 +41,7 @@ function isTypingTarget(target: EventTarget | null) {
 
 export default function ArcBrowser() {
   const state = useBrowserState();
-  const { user } = useAuth();
+  const { user, mustSetup2fa, requires2fa } = useAuth();
   const splitTab = state.splitTabId
     ? state.tabs.find((t) => t.id === state.splitTabId)
     : undefined;
@@ -53,6 +53,13 @@ export default function ArcBrowser() {
   const zoomIn = useCallback(() => setZoomLevel((z) => Math.min(z + 10, 200)), []);
   const zoomOut = useCallback(() => setZoomLevel((z) => Math.max(z - 10, 50)), []);
   const resetZoom = useCallback(() => setZoomLevel(100), []);
+
+  useEffect(() => {
+    if (!mustSetup2fa && !requires2fa) return;
+    const url = state.focusedTab?.url || "";
+    if (url.startsWith("petezah://account")) return;
+    state.navigateToUrl("petezah://account");
+  }, [mustSetup2fa, requires2fa, state.focusedTab?.url, state.navigateToUrl]);
 
   const toggleContentFullscreen = useCallback(() => {
     const el = contentRef.current;

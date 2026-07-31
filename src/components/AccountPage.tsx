@@ -25,6 +25,7 @@ interface AuthUser {
   favorite_music?: FavTrack[]; profile_public?: boolean; show_activity?: boolean;
   avatar_url?: string; is_admin?: number; is_owner?: boolean; created_at?: number;
   email_verified?: boolean | number; totp_enabled?: boolean | number;
+  must_setup_2fa?: boolean;
 }
 interface FavTrack {
   id: string; title: string; artist: string; artwork: string | null;
@@ -421,6 +422,12 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   const [authErr, setAuthErr]     = useState("");
   const [authOk, setAuthOk]       = useState("");
   const [authLoading, setAuthLoading] = useState(false);
+  const [login2fa, setLogin2fa] = useState<{ email?: string } | null>(null);
+  const [login2faCode, setLogin2faCode] = useState("");
+  const [force2faSetup, setForce2faSetup] = useState(false);
+  const [force2faQr, setForce2faQr] = useState<{ secret: string; qrDataUrl: string } | null>(null);
+  const [force2faCode, setForce2faCode] = useState("");
+  const [force2faBusy, setForce2faBusy] = useState(false);
 
   const [username, setUsername]   = useState("");
   const [bio, setBio]             = useState("");
@@ -563,15 +570,50 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
 
   useEffect(() => {
     fetch("/api/me", { credentials: "include" })
-      .then(r => r.json())
-      .then(d => {
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (r.status === 401 && d.code === "REQUIRES_2FA") {
+          setLogin2fa({ email: d.email });
+          setUser(null);
+          return;
+        }
         if (d.user) {
           setUser(d.user);
           hydrateProfile(d.user);
+          if (d.user.must_setup_2fa) setForce2faSetup(true);
         }
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!force2faSetup || force2faQr || !user?.must_setup_2fa) return;
+    let cancelled = false;
+    (async () => {
+      setForce2faBusy(true);
+      try {
+        const r = await fetch("/api/auth/2fa/setup", {
+          method: "POST",
+          credentials: "include",
+          headers: { Accept: "application/json" },
+        });
+        const d = await r.json().catch(() => ({}));
+        if (cancelled) return;
+        if (r.ok && d.qrDataUrl) {
+          setForce2faQr({ secret: d.secret, qrDataUrl: d.qrDataUrl });
+        } else {
+          setAuthErr(d.error || "Could not start 2FA setup");
+        }
+      } catch {
+        if (!cancelled) setAuthErr("Network error starting 2FA setup");
+      } finally {
+        if (!cancelled) setForce2faBusy(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [force2faSetup, force2faQr, user?.must_setup_2fa]);
 
   useEffect(() => {
     try {
@@ -968,6 +1010,28 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
     }
   }
 
+  async function finishAuthSuccess(u: AuthUser) {
+    setUser(u);
+    hydrateProfile(u);
+    notifyAuthChanged();
+    const result = await reconcileSettings();
+    loadLocalSettings();
+    if (result === "pulled") setSyncNote("Synced from your account");
+    else if (result === "pushed") setSyncNote("Local settings uploaded");
+    setTimeout(() => setSyncNote(""), 3000);
+    const pending = consumePendingAuth();
+    if (pending?.type === "tor") {
+      await applyVpnRegion("tor");
+      onNavigate("petezah://newtab");
+    } else if (pending?.type === "movies") {
+      onNavigate("petezah://movies");
+    } else if (pending?.type === "feedback") {
+      onNavigate("petezah://feedback");
+    } else if (pending?.type === "firefox" || pending?.type === "vm") {
+      onNavigate("petezah://vm");
+    }
+  }
+
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
     setAuthErr(""); setAuthOk("");
@@ -986,29 +1050,80 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       const d = await r.json();
       if (!r.ok) setAuthErr(d.error || "Something went wrong");
       else if (authMode === "signup") { setAuthOk(d.message || "Account created! You can sign in now."); setAuthMode("signin"); setPassword(""); setAcceptedLegal(false); }
-      else {
+      else if (d.requires2fa) {
+        setLogin2fa({ email: d.email });
+        setLogin2faCode("");
+        setPassword("");
+        setAuthOk(d.message || "Enter your authenticator code.");
+      } else if (d.requires2faSetup) {
+        setForce2faSetup(true);
+        setForce2faQr(null);
+        setForce2faCode("");
         setUser(d.user);
         hydrateProfile(d.user);
-        notifyAuthChanged();
-        const result = await reconcileSettings();
-        loadLocalSettings();
-        if (result === "pulled") setSyncNote("Synced from your account");
-        else if (result === "pushed") setSyncNote("Local settings uploaded");
-        setTimeout(() => setSyncNote(""), 3000);
-        const pending = consumePendingAuth();
-        if (pending?.type === "tor") {
-          await applyVpnRegion("tor");
-          onNavigate("petezah://newtab");
-        } else if (pending?.type === "movies") {
-          onNavigate("petezah://movies");
-        } else if (pending?.type === "feedback") {
-          onNavigate("petezah://feedback");
-        } else if (pending?.type === "firefox" || pending?.type === "vm") {
-          onNavigate("petezah://vm");
-        }
+        setPassword("");
+        setAuthOk("Staff accounts must enable 2FA before continuing.");
+      } else {
+        await finishAuthSuccess(d.user);
       }
     } catch { setAuthErr("Network error. Please try again."); }
     finally { setAuthLoading(false); }
+  }
+
+  async function handleLogin2fa(e: React.FormEvent) {
+    e.preventDefault();
+    setAuthErr("");
+    setAuthLoading(true);
+    try {
+      const r = await fetch("/api/auth/2fa/verify", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ code: login2faCode.trim() }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setAuthErr(d.error || "Invalid code");
+        if (d.code === "REQUIRES_SIGNIN") {
+          setLogin2fa(null);
+        }
+        return;
+      }
+      setLogin2fa(null);
+      setLogin2faCode("");
+      await finishAuthSuccess(d.user);
+    } catch {
+      setAuthErr("Network error. Please try again.");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function handleForce2faEnable(e: React.FormEvent) {
+    e.preventDefault();
+    setAuthErr("");
+    setForce2faBusy(true);
+    try {
+      const r = await fetch("/api/auth/2fa/enable", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ code: force2faCode.trim() }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setAuthErr(d.error || "Could not enable 2FA");
+        return;
+      }
+      setForce2faSetup(false);
+      setForce2faQr(null);
+      setForce2faCode("");
+      await finishAuthSuccess(d.user);
+    } catch {
+      setAuthErr("Network error. Please try again.");
+    } finally {
+      setForce2faBusy(false);
+    }
   }
 
   async function resendVerification(overrideEmail?: string) {
@@ -1359,6 +1474,168 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       <Loader2 size={20} className="animate-spin" style={{ color: C.accent }} />
     </div>
   );
+
+  if (login2fa) {
+    return (
+      <div
+        data-no-obfuscate="true"
+        className="no-obfuscate"
+        style={{ height: "100%", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", overflow: "hidden" }}
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+          style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "320px", padding: "0 20px" }}
+        >
+          <div style={{
+            background: "hsla(216, 32%, 7%, 0.75)", backdropFilter: "blur(20px)",
+            border: `1px solid ${C.border}`, borderRadius: "14px", padding: "28px 24px",
+            boxShadow: "0 24px 48px hsla(216, 50%, 4%, 0.5)",
+          }}>
+            <div style={{ textAlign: "center", marginBottom: "20px" }}>
+              <div style={{
+                width: "40px", height: "40px", borderRadius: "10px", margin: "0 auto 12px",
+                background: C.accentDim, border: `1px solid ${C.borderFocus}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <ShieldCheck size={18} color={C.accent} />
+              </div>
+              <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: "0 0 3px" }}>
+                Two-factor authentication
+              </h2>
+              <p style={{ fontSize: "11px", color: C.textSub, margin: 0 }}>
+                Staff accounts require an authenticator code
+                {login2fa.email ? ` for ${login2fa.email}` : ""}.
+              </p>
+            </div>
+            {authErr && (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", borderRadius: "7px", marginBottom: "14px",
+                background: "hsl(0 60% 50% / 0.08)", border: "1px solid hsl(0 60% 50% / 0.2)", color: "hsl(0 60% 68%)", fontSize: "11px" }}>
+                <AlertCircle size={11} style={{ flexShrink: 0 }} />{authErr}
+              </div>
+            )}
+            <form onSubmit={handleLogin2fa} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <Field value={login2faCode} onChange={(e: any) => setLogin2faCode(e.target.value)} placeholder="6-digit code" icon={KeyRound} maxLength={6} />
+              <button type="submit" disabled={authLoading || login2faCode.trim().length !== 6} style={{
+                marginTop: "4px", width: "100%", padding: "10px", borderRadius: "8px", border: `1px solid ${C.borderFocus}`,
+                background: C.accentDim, color: C.text, fontSize: "13px", fontWeight: 600,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "7px",
+                cursor: authLoading || login2faCode.trim().length !== 6 ? "not-allowed" : "pointer",
+                opacity: authLoading || login2faCode.trim().length !== 6 ? 0.7 : 1,
+              }}>
+                {authLoading && <Loader2 size={13} className="animate-spin" />}
+                Verify & continue
+              </button>
+            </form>
+            <button
+              type="button"
+              onClick={async () => {
+                await fetch("/api/signout", { method: "POST", credentials: "include" });
+                setLogin2fa(null);
+                setLogin2faCode("");
+                setAuthErr("");
+              }}
+              style={{ width: "100%", marginTop: "14px", background: "none", border: "none", cursor: "pointer",
+                fontSize: "11px", color: C.textSub, textAlign: "center" }}
+            >
+              Back to sign in
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (user && (force2faSetup || user.must_setup_2fa)) {
+    return (
+      <div
+        data-no-obfuscate="true"
+        className="no-obfuscate"
+        style={{ height: "100%", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", overflow: "auto" }}
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+          style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "360px", padding: "24px 20px" }}
+        >
+          <div style={{
+            background: "hsla(216, 32%, 7%, 0.75)", backdropFilter: "blur(20px)",
+            border: `1px solid ${C.border}`, borderRadius: "14px", padding: "28px 24px",
+            boxShadow: "0 24px 48px hsla(216, 50%, 4%, 0.5)",
+          }}>
+            <div style={{ textAlign: "center", marginBottom: "18px" }}>
+              <div style={{
+                width: "40px", height: "40px", borderRadius: "10px", margin: "0 auto 12px",
+                background: C.accentDim, border: `1px solid ${C.borderFocus}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <Lock size={18} color={C.accent} />
+              </div>
+              <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: "0 0 3px" }}>
+                Set up 2FA to continue
+              </h2>
+              <p style={{ fontSize: "11px", color: C.textSub, margin: 0, lineHeight: 1.45 }}>
+                Owner and staff accounts must enable authenticator 2FA before accessing PeteZah.
+              </p>
+            </div>
+            {authErr && (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", borderRadius: "7px", marginBottom: "14px",
+                background: "hsl(0 60% 50% / 0.08)", border: "1px solid hsl(0 60% 50% / 0.2)", color: "hsl(0 60% 68%)", fontSize: "11px" }}>
+                <AlertCircle size={11} style={{ flexShrink: 0 }} />{authErr}
+              </div>
+            )}
+            {force2faBusy && !force2faQr ? (
+              <div style={{ display: "flex", justifyContent: "center", padding: "24px 0" }}>
+                <Loader2 className="animate-spin" size={18} color={C.accent} />
+              </div>
+            ) : force2faQr ? (
+              <form onSubmit={handleForce2faEnable} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <img src={force2faQr.qrDataUrl} alt="2FA QR" style={{ width: 168, height: 168, borderRadius: 10, alignSelf: "center", background: "#fff" }} />
+                <p style={{ fontSize: 11, color: C.textSub, margin: 0, textAlign: "center" }}>
+                  Or enter secret:{" "}
+                  <span
+                    data-no-obfuscate="true"
+                    style={{
+                      color: C.text,
+                      fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                      fontSize: 10,
+                      wordBreak: "break-all",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {force2faQr.secret}
+                  </span>
+                </p>
+                <Field value={force2faCode} onChange={(e: any) => setForce2faCode(e.target.value)} placeholder="Code from authenticator" icon={KeyRound} maxLength={6} />
+                <button type="submit" disabled={force2faBusy || force2faCode.trim().length !== 6} style={{
+                  width: "100%", padding: "10px", borderRadius: "8px", border: `1px solid ${C.borderFocus}`,
+                  background: C.accentDim, color: C.text, fontSize: "13px", fontWeight: 600,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: "7px",
+                  cursor: force2faBusy || force2faCode.trim().length !== 6 ? "not-allowed" : "pointer",
+                  opacity: force2faBusy || force2faCode.trim().length !== 6 ? 0.7 : 1,
+                }}>
+                  {force2faBusy && <Loader2 size={13} className="animate-spin" />}
+                  Enable 2FA & continue
+                </button>
+              </form>
+            ) : null}
+            <button
+              type="button"
+              onClick={async () => {
+                await fetch("/api/signout", { method: "POST", credentials: "include" });
+                setUser(null);
+                setForce2faSetup(false);
+                setForce2faQr(null);
+                notifyAuthChanged();
+              }}
+              style={{ width: "100%", marginTop: "14px", background: "none", border: "none", cursor: "pointer",
+                fontSize: "11px", color: C.textSub, textAlign: "center" }}
+            >
+              Sign out
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (!user) return (
     <div style={{ height: "100%", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", overflow: "hidden" }}>

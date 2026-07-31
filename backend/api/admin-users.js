@@ -10,7 +10,14 @@ function requireAdmin(req, res) {
     res.status(401).json({ error: 'Unauthorized' });
     return null;
   }
-  const row = db.prepare('SELECT is_admin, email FROM users WHERE id = ?').get(req.session.user.id);
+  if (req.session.must_setup_2fa || req.session.user.must_setup_2fa || !req.session.totpOk) {
+    res.status(403).json({
+      error: 'Two-factor authentication required',
+      code: req.session.must_setup_2fa || req.session.user.must_setup_2fa ? 'MUST_SETUP_2FA' : 'REQUIRES_2FA',
+    });
+    return null;
+  }
+  const row = db.prepare('SELECT is_admin, email, totp_enabled FROM users WHERE id = ?').get(req.session.user.id);
   if (!row) {
     res.status(401).json({ error: 'Unauthorized' });
     return null;
@@ -23,6 +30,10 @@ function requireAdmin(req, res) {
   }
   if (level < 1 && !owner) {
     res.status(403).json({ error: 'Forbidden' });
+    return null;
+  }
+  if ((level >= 1 || owner) && !row.totp_enabled) {
+    res.status(403).json({ error: 'Set up two-factor authentication to continue', code: 'MUST_SETUP_2FA' });
     return null;
   }
   req.session.user.is_admin = Math.max(level, owner ? 3 : level);

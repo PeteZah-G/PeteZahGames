@@ -3,6 +3,13 @@ import db from '../db.js';
 import { isOwnerEmail } from '../utils/auth-roles.js';
 import { getClientIP } from '../utils/client-ip.js';
 import { isIpBanned } from '../middleware/ip-ban.js';
+import {
+  buildFullSessionUser,
+  establishPending2faSession,
+  establishSetupSession,
+  isElevatedRole,
+} from '../utils/elevated-auth.js';
+import { maskEmail } from '../utils/elevated-auth.js';
 
 const DUMMY_HASH = '$2b$10$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ12';
 
@@ -24,7 +31,9 @@ export async function signinHandler(req, res) {
 
   try {
     const user = db.prepare(
-      'SELECT id, email, password_hash, username, bio, avatar_url, email_verified, ip, is_admin, banned FROM users WHERE lower(email) = ?'
+      `SELECT id, email, password_hash, username, bio, avatar_url, email_verified, ip, is_admin, banned,
+              totp_enabled, totp_secret
+       FROM users WHERE lower(email) = ?`
     ).get(email);
 
     const hashToCompare = user ? user.password_hash : DUMMY_HASH;
@@ -42,24 +51,39 @@ export async function signinHandler(req, res) {
 
     if (isOwner && (user.is_admin || 0) < 3) {
       db.prepare('UPDATE users SET is_admin = 3 WHERE id = ?').run(user.id);
+      user.is_admin = 3;
     }
 
     if (clientIp) db.prepare('UPDATE users SET ip = ? WHERE id = ?').run(clientIp, user.id);
 
-    const sessionUser = {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      bio: user.bio,
-      avatar_url: user.avatar_url,
-      is_admin: effectiveAdmin,
-      is_owner: isOwner,
-    };
+    const elevated = isElevatedRole(effectiveAdmin, user.email);
 
+    if (elevated) {
+      if (user.totp_enabled && user.totp_secret) {
+        await establishPending2faSession(req, user);
+        return res.status(200).json({
+          requires2fa: true,
+          email: maskEmail(user.email),
+          message: 'Enter your authenticator code to continue.',
+        });
+      }
+
+      const setupUser = await establishSetupSession(req, user);
+      return res.status(200).json({
+        requires2faSetup: true,
+        user: setupUser,
+        message: 'Two-factor authentication is required for staff accounts.',
+      });
+    }
+
+    const sessionUser = buildFullSessionUser(user);
     await new Promise((resolve, reject) => {
       req.session.regenerate((err) => {
         if (err) return reject(err);
         req.session.user = sessionUser;
+        req.session.totpOk = true;
+        delete req.session.pending2fa;
+        delete req.session.must_setup_2fa;
         req.session.save((saveErr) => (saveErr ? reject(saveErr) : resolve()));
       });
     });

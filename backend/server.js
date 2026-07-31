@@ -29,7 +29,6 @@ import { updateIPReputation } from './middleware/security.js';
 import challengeRouter from './routes/challenge.js';
 import aiRouter from './routes/ai.js';
 import moviesRouter from './routes/movies.js';
-import videoRouter from './routes/video.js';
 import musicRouter from './routes/music.js';
 import mochiRouter from './routes/mochi.js';
 import db from './db.js';
@@ -75,6 +74,14 @@ import {
   claimLinkHandler,
   getAdminLinkStatsHandler,
 } from './api/get-links.js';
+import {
+  accountTotpLimiter,
+  auth2faStatusHandler,
+  verifyLogin2faHandler,
+  setupAccount2faHandler,
+  enableAccount2faHandler,
+} from './api/account-2fa.js';
+import { elevated2faGate } from './middleware/elevated-2fa-gate.js';
 import {
   adsGateLimiter,
   adsGateHandler,
@@ -284,9 +291,9 @@ app.get('/1k123.js', (_req, res) => {
 });
 
 app.use('/api', challengeRouter);
+app.use('/api', elevated2faGate);
 app.use('/api/generate', aiLimiter, express.json({ limit: '20mb' }), aiRouter);
 app.use('/api/tmdb', moviesRouter);
-app.use('/api/video', videoRouter);
 app.use('/api/music', musicRouter);
 
 app.post('/api/signup', signupLimiter, signupHandler);
@@ -294,6 +301,11 @@ app.post('/api/signin', signinHandler);
 app.post('/api/signout', signoutHandler);
 app.get('/api/verify-email', verifyEmailHandler);
 app.post('/api/verify-email/resend', authLimiter, resendVerificationHandler);
+
+app.get('/api/auth/2fa/status', auth2faStatusHandler);
+app.post('/api/auth/2fa/verify', accountTotpLimiter, verifyLogin2faHandler);
+app.post('/api/auth/2fa/setup', accountTotpLimiter, setupAccount2faHandler);
+app.post('/api/auth/2fa/enable', accountTotpLimiter, enableAccount2faHandler);
 
 app.get('/api/me', getMeHandler);
 app.put('/api/me', updateProfileHandler);

@@ -4,18 +4,41 @@ import { sanitizeUsername } from '../utils/sanitize.js';
 
 function sanitizeContent(content) {
   if (typeof content !== 'string') return '';
-  let cleaned = content;
-  cleaned = cleaned.replace(/\\u[\dA-F]{4}/gi, (match) => String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16)));
-  cleaned = cleaned.replace(/&#x?[0-9a-f]+;?/gi, '');
-  cleaned = cleaned.replace(/\x00/g, '');
-  cleaned = cleaned.replace(/\\/g, '');
-  return cleaned
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;');
+  let cleaned = content.replace(/\x00/g, '');
+  // Decode legacy HTML-entity storage so apostrophes display correctly
+  cleaned = cleaned
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/gi, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&#x2F;/gi, '/')
+    .replace(/&#x([0-9a-f]+);?/gi, (_, h) => {
+      try {
+        return String.fromCodePoint(parseInt(h, 16));
+      } catch {
+        return '';
+      }
+    })
+    .replace(/&#(\d+);?/g, (_, n) => {
+      try {
+        return String.fromCodePoint(parseInt(n, 10));
+      } catch {
+        return '';
+      }
+    });
+  // Strip tags / dangerous protocols; keep plain text (React escapes on render)
+  cleaned = cleaned.replace(/<[^>]*>/g, '');
+  cleaned = cleaned.replace(/javascript:/gi, '');
+  cleaned = cleaned.replace(/vbscript:/gi, '');
+  cleaned = cleaned.replace(/data:/gi, '');
+  cleaned = cleaned.replace(/on\w+\s*=/gi, '');
+  return cleaned.trim().slice(0, 10000);
+}
+
+function decodeCommentForClient(content) {
+  return sanitizeContent(typeof content === 'string' ? content : '');
 }
 
 function validateContent(content) {
@@ -71,7 +94,7 @@ export async function addCommentHandler(req, res) {
     id,
     comment: {
       id,
-      content: sanitizedContent,
+      content: decodeCommentForClient(sanitizedContent),
       created_at: now,
       username: sanitizeUsername(me?.username || '') || 'User',
       avatar_url: me?.avatar_url && String(me.avatar_url).startsWith('/uploads/avatars/') ? me.avatar_url : null,
@@ -91,7 +114,7 @@ export async function getCommentsHandler(req, res) {
     .all(type, targetId);
   const comments = rows.map((c) => ({
     id: c.id,
-    content: c.content,
+    content: decodeCommentForClient(c.content),
     created_at: c.created_at,
     user_id: c.user_id,
     username: sanitizeUsername(c.username || '') || 'User',

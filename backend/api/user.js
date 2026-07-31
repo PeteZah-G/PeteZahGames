@@ -68,6 +68,12 @@ function publicUser(row) {
 }
 
 export async function getMeHandler(req, res) {
+  if (req.session?.pending2fa?.userId) {
+    return res.status(401).json({
+      error: 'Two-factor authentication required',
+      code: 'REQUIRES_2FA',
+    });
+  }
   if (!req.session?.user) return res.status(401).json({ error: 'Unauthorized' });
   const user = db.prepare(`SELECT ${PROFILE_COLS} FROM users WHERE id = ?`).get(req.session.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
@@ -78,10 +84,36 @@ export async function getMeHandler(req, res) {
   }
 
   const is_owner = isOwnerEmail(user.email);
-  req.session.user.is_admin = user.is_admin;
-  req.session.user.username = user.username;
-  req.session.user.avatar_url = user.avatar_url;
-  req.session.user.is_owner = is_owner;
+  const mustSetup =
+    !!(req.session.must_setup_2fa || req.session.user?.must_setup_2fa) ||
+    ((is_owner || (user.is_admin || 0) >= 1) && !user.totp_enabled);
+
+  if (mustSetup) {
+    req.session.must_setup_2fa = true;
+    req.session.user = {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      bio: user.bio,
+      avatar_url: user.avatar_url,
+      is_admin: 0,
+      is_owner: false,
+      must_setup_2fa: true,
+    };
+    delete req.session.totpOk;
+  } else {
+    req.session.user.is_admin = user.is_admin;
+    req.session.user.username = user.username;
+    req.session.user.avatar_url = user.avatar_url;
+    req.session.user.is_owner = is_owner;
+    delete req.session.user.must_setup_2fa;
+    if (!req.session.totpOk && (is_owner || (user.is_admin || 0) >= 1)) {
+      // Should not happen if gate is active; keep privileges locked
+    } else if (!(is_owner || (user.is_admin || 0) >= 1)) {
+      req.session.totpOk = true;
+    }
+  }
+
   await new Promise((resolve, reject) => req.session.save((err) => (err ? reject(err) : resolve())));
 
   res.json({
@@ -93,7 +125,9 @@ export async function getMeHandler(req, res) {
       show_activity: user.show_activity !== 0,
       email_verified: !!user.email_verified,
       totp_enabled: !!user.totp_enabled,
-      is_owner,
+      is_owner: mustSetup ? false : is_owner,
+      is_admin: mustSetup ? 0 : user.is_admin,
+      must_setup_2fa: mustSetup,
     },
   });
 }

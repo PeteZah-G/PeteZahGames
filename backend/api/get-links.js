@@ -1,13 +1,21 @@
-import { randomUUID, createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
+import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import rateLimit from 'express-rate-limit';
-import * as OTPAuth from 'otpauth';
 import QRCode from 'qrcode';
 import bcrypt from 'bcrypt';
 import db from '../db.js';
 import { isOwnerEmail } from '../utils/auth-roles.js';
 import { toIPv4 } from '../middleware/security.js';
+import {
+  decryptTotpSecret,
+  encryptTotpSecret,
+  generateTotpSecret,
+  makeTotp,
+  normalizeTotpCode,
+  verifyTotpCode,
+} from '../utils/totp.js';
+import { isElevatedRole } from '../utils/elevated-auth.js';
 
 export const BLOCKERS = [
   'securly',
@@ -27,34 +35,6 @@ export const BLOCKERS = [
 const WEEKLY_LIMIT = 2;
 const MAX_LINK_LEN = 512;
 const LINK_HOST_RE = /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/i;
-
-function totpKey() {
-  return createHash('sha256')
-    .update(String(process.env.SESSION_SECRET || process.env.TOKEN_SECRET || 'petezah-totp'))
-    .digest();
-}
-
-function encryptSecret(plain) {
-  if (!plain) return null;
-  const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', totpKey(), iv);
-  const enc = Buffer.concat([cipher.update(String(plain), 'utf8'), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return `v1:${iv.toString('base64url')}:${tag.toString('base64url')}:${enc.toString('base64url')}`;
-}
-
-function decryptSecret(stored) {
-  if (!stored) return null;
-  if (!String(stored).startsWith('v1:')) return String(stored);
-  const parts = String(stored).split(':');
-  if (parts.length !== 4) return null;
-  const iv = Buffer.from(parts[1], 'base64url');
-  const tag = Buffer.from(parts[2], 'base64url');
-  const data = Buffer.from(parts[3], 'base64url');
-  const decipher = createDecipheriv('aes-256-gcm', totpKey(), iv);
-  decipher.setAuthTag(tag);
-  return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
-}
 
 export const linksClaimLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -151,28 +131,10 @@ function loadBlockerPool(blocker) {
   return out;
 }
 
-function makeTotp(secretBase32, email) {
-  return new OTPAuth.TOTP({
-    issuer: 'PeteZah',
-    label: email || 'links',
-    algorithm: 'SHA1',
-    digits: 6,
-    period: 30,
-    secret: OTPAuth.Secret.fromBase32(secretBase32),
-  });
-}
-
-function verifyTotpCode(secretBase32, code, email) {
-  if (typeof code !== 'string' || !/^\d{6}$/.test(code.trim())) return false;
-  const totp = makeTotp(secretBase32, email);
-  const delta = totp.validate({ token: code.trim(), window: 1 });
-  return delta !== null;
-}
-
 function getAuthUserRow(userId) {
   return db
     .prepare(
-      `SELECT id, email, email_verified, password_hash, totp_secret, totp_enabled, totp_pending_secret
+      `SELECT id, email, email_verified, password_hash, is_admin, totp_secret, totp_enabled, totp_pending_secret
        FROM users WHERE id = ?`
     )
     .get(userId);
@@ -244,10 +206,10 @@ export async function setupLinksTotpHandler(req, res) {
       return res.status(400).json({ error: '2FA is already enabled.' });
     }
 
-    const secret = new OTPAuth.Secret({ size: 20 });
+    const secret = generateTotpSecret();
     const base32 = secret.base32;
     db.prepare('UPDATE users SET totp_pending_secret = ?, updated_at = ? WHERE id = ?').run(
-      encryptSecret(base32),
+      encryptTotpSecret(base32),
       Date.now(),
       user.id
     );
@@ -284,19 +246,19 @@ export async function enableLinksTotpHandler(req, res) {
       return res.status(400).json({ error: 'Start 2FA setup first.' });
     }
 
-    const pendingPlain = decryptSecret(user.totp_pending_secret);
+    const pendingPlain = decryptTotpSecret(user.totp_pending_secret);
     if (!pendingPlain) {
       return res.status(400).json({ error: 'Start 2FA setup first.' });
     }
 
-    const code = typeof req.body?.code === 'string' ? req.body.code : '';
+    const code = normalizeTotpCode(req.body?.code);
     if (!verifyTotpCode(pendingPlain, code, user.email)) {
       return res.status(401).json({ error: 'Invalid authenticator code.' });
     }
 
     db.prepare(
       `UPDATE users SET totp_secret = ?, totp_enabled = 1, totp_pending_secret = NULL, updated_at = ? WHERE id = ?`
-    ).run(encryptSecret(pendingPlain), Date.now(), user.id);
+    ).run(encryptTotpSecret(pendingPlain), Date.now(), user.id);
 
     return res.json({ ok: true, totpEnabled: true });
   } catch (err) {
@@ -312,16 +274,21 @@ export async function disableLinksTotpHandler(req, res) {
   try {
     const user = getAuthUserRow(sessionUser.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
+    if (isElevatedRole(user.is_admin, user.email)) {
+      return res.status(403).json({
+        error: 'Staff and owner accounts cannot disable two-factor authentication.',
+      });
+    }
     if (!user.totp_enabled || !user.totp_secret) {
       return res.status(400).json({ error: '2FA is not enabled.' });
     }
 
-    const secretPlain = decryptSecret(user.totp_secret);
+    const secretPlain = decryptTotpSecret(user.totp_secret);
     if (!secretPlain) {
       return res.status(400).json({ error: '2FA is misconfigured. Contact support.' });
     }
 
-    const code = typeof req.body?.code === 'string' ? req.body.code : '';
+    const code = normalizeTotpCode(req.body?.code);
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
     if (!password || password.length > 256) {
       return res.status(400).json({ error: 'Password is required to disable 2FA.' });
@@ -356,11 +323,11 @@ export async function claimLinkHandler(req, res) {
     }
 
     if (user.totp_enabled) {
-      const secretPlain = decryptSecret(user.totp_secret);
+      const secretPlain = decryptTotpSecret(user.totp_secret);
       if (!secretPlain) {
         return res.status(403).json({ error: '2FA is misconfigured. Disable and re-enable it.' });
       }
-      const code = typeof req.body?.code === 'string' ? req.body.code : '';
+      const code = normalizeTotpCode(req.body?.code);
       if (!verifyTotpCode(secretPlain, code, user.email)) {
         return res.status(401).json({ error: 'Invalid authenticator code.' });
       }
