@@ -595,7 +595,8 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
         const r = await fetch("/api/auth/2fa/setup", {
           method: "POST",
           credentials: "include",
-          headers: { Accept: "application/json" },
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({}),
         });
         const d = await r.json().catch(() => ({}));
         if (cancelled) return;
@@ -614,6 +615,31 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       cancelled = true;
     };
   }, [force2faSetup, force2faQr, user?.must_setup_2fa]);
+
+  async function rotateForce2faQr() {
+    setAuthErr("");
+    setForce2faBusy(true);
+    setForce2faCode("");
+    try {
+      const r = await fetch("/api/auth/2fa/setup", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ rotate: true }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.qrDataUrl) {
+        setAuthErr(d.error || "Could not regenerate QR");
+        return;
+      }
+      setForce2faQr({ secret: d.secret, qrDataUrl: d.qrDataUrl });
+      setAuthOk("New QR generated — remove the old PeteZah entry in Authenticator, then scan again.");
+    } catch {
+      setAuthErr("Network error regenerating QR");
+    } finally {
+      setForce2faBusy(false);
+    }
+  }
 
   useEffect(() => {
     try {
@@ -1589,6 +1615,9 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
             ) : force2faQr ? (
               <form onSubmit={handleForce2faEnable} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                 <img src={force2faQr.qrDataUrl} alt="2FA QR" style={{ width: 168, height: 168, borderRadius: 10, alignSelf: "center", background: "#fff" }} />
+                <p style={{ fontSize: 11, color: C.textSub, margin: 0, textAlign: "center", lineHeight: 1.45 }}>
+                  Scan with Google Authenticator, then enter the 6-digit code. If it keeps failing, remove any old PeteZah entry and use <strong style={{ color: C.text }}>New QR</strong> below.
+                </p>
                 <p style={{ fontSize: 11, color: C.textSub, margin: 0, textAlign: "center" }}>
                   Or enter secret:{" "}
                   <span
@@ -1604,7 +1633,13 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                     {force2faQr.secret}
                   </span>
                 </p>
-                <Field value={force2faCode} onChange={(e: any) => setForce2faCode(e.target.value)} placeholder="Code from authenticator" icon={KeyRound} maxLength={6} />
+                <Field
+                  value={force2faCode}
+                  onChange={(e: any) => setForce2faCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="Code from authenticator"
+                  icon={KeyRound}
+                  maxLength={6}
+                />
                 <button type="submit" disabled={force2faBusy || force2faCode.trim().length !== 6} style={{
                   width: "100%", padding: "10px", borderRadius: "8px", border: `1px solid ${C.borderFocus}`,
                   background: C.accentDim, color: C.text, fontSize: "13px", fontWeight: 600,
@@ -1614,6 +1649,18 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                 }}>
                   {force2faBusy && <Loader2 size={13} className="animate-spin" />}
                   Enable 2FA & continue
+                </button>
+                <button
+                  type="button"
+                  onClick={rotateForce2faQr}
+                  disabled={force2faBusy}
+                  style={{
+                    width: "100%", padding: "8px", borderRadius: "8px", border: `1px solid ${C.border}`,
+                    background: "transparent", color: C.textSub, fontSize: "12px", fontWeight: 500,
+                    cursor: force2faBusy ? "not-allowed" : "pointer",
+                  }}
+                >
+                  New QR (invalidates previous scan)
                 </button>
               </form>
             ) : null}

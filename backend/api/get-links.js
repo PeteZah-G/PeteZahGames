@@ -206,17 +206,23 @@ export async function setupLinksTotpHandler(req, res) {
       return res.status(400).json({ error: '2FA is already enabled.' });
     }
 
-    const secret = generateTotpSecret();
-    const base32 = secret.base32;
-    db.prepare('UPDATE users SET totp_pending_secret = ?, updated_at = ? WHERE id = ?').run(
-      encryptTotpSecret(base32),
-      Date.now(),
-      user.id
-    );
+    let base32 = null;
+    if (user.totp_pending_secret) {
+      base32 = decryptTotpSecret(user.totp_pending_secret);
+    }
+    if (!base32) {
+      const secret = generateTotpSecret();
+      base32 = secret.base32;
+      db.prepare('UPDATE users SET totp_pending_secret = ?, updated_at = ? WHERE id = ?').run(
+        encryptTotpSecret(base32),
+        Date.now(),
+        user.id
+      );
+    }
 
     const totp = makeTotp(base32, user.email);
-    const otpauth = totp.toString();
-    const qrDataUrl = await QRCode.toDataURL(otpauth, { margin: 1, width: 200 });
+    const otpauth = totp.toString().replace(/&algorithm=SHA1/i, '');
+    const qrDataUrl = await QRCode.toDataURL(otpauth, { margin: 1, width: 200, errorCorrectionLevel: 'M' });
 
     return res.json({
       secret: base32,

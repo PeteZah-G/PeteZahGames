@@ -7,6 +7,7 @@ import {
   encryptTotpSecret,
   generateTotpSecret,
   makeTotp,
+  normalizeBase32,
   normalizeTotpCode,
   verifyTotpCode,
 } from '../utils/totp.js';
@@ -126,17 +127,29 @@ export async function setupAccount2faHandler(req, res) {
 
     req.session.must_setup_2fa = true;
 
-    const secret = generateTotpSecret();
-    const base32 = secret.base32;
-    db.prepare('UPDATE users SET totp_pending_secret = ?, updated_at = ? WHERE id = ?').run(
-      encryptTotpSecret(base32),
-      Date.now(),
-      row.id
-    );
+    const rotate = req.body?.rotate === true || req.query?.rotate === '1';
+
+    let base32 = null;
+    if (!rotate && row.totp_pending_secret) {
+      base32 = decryptTotpSecret(row.totp_pending_secret);
+    }
+    if (!base32) {
+      const secret = generateTotpSecret();
+      base32 = normalizeBase32(secret.base32);
+      db.prepare('UPDATE users SET totp_pending_secret = ?, updated_at = ? WHERE id = ?').run(
+        encryptTotpSecret(base32),
+        Date.now(),
+        row.id
+      );
+    }
 
     const totp = makeTotp(base32, row.email);
-    const otpauth = totp.toString();
-    const qrDataUrl = await QRCode.toDataURL(otpauth, { margin: 1, width: 220 });
+    const otpauth = totp.toString().replace(/&algorithm=SHA1/i, '');
+    const qrDataUrl = await QRCode.toDataURL(otpauth, {
+      margin: 1,
+      width: 220,
+      errorCorrectionLevel: 'M',
+    });
     return res.json({ secret: base32, otpauth, qrDataUrl });
   } catch (err) {
     console.error('account 2fa setup error:', err);
