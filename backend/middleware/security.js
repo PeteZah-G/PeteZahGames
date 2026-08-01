@@ -199,9 +199,15 @@ export function checkSystemPressure(shield) {
   const blockRate = shield.getRecentBlockRate();
   const blockRatio = systemState.totalRequests > 0 ? blockRate / systemState.totalRequests : 0;
 
-  if (cpuUsage > 36 && blockRatio > 0.3 && systemState.state !== 'ATTACK') systemState.state = 'ATTACK';
-  else if (cpuUsage > 33 && blockRatio <= 0.3 && systemState.state === 'NORMAL') systemState.state = 'BUSY';
-  else if (cpuUsage <= 33 && systemState.state !== 'NORMAL') systemState.state = 'NORMAL';
+  if (shield?.forceAttackMode) {
+    systemState.state = 'ATTACK';
+  } else if (cpuUsage > 36 && blockRatio > 0.3 && systemState.state !== 'ATTACK') {
+    systemState.state = 'ATTACK';
+  } else if (cpuUsage > 33 && blockRatio <= 0.3 && systemState.state === 'NORMAL') {
+    systemState.state = 'BUSY';
+  } else if (cpuUsage <= 33 && systemState.state !== 'NORMAL') {
+    systemState.state = 'NORMAL';
+  }
 
   systemState.cpuHigh = cpuUsage > CPU_THRESHOLD || systemState.activeConnections > 25000;
   systemState.totalRequests = 0;
@@ -251,6 +257,11 @@ export function createGateMiddleware(shield) {
     const ip = toIPv4(null, req);
     const ua = req.headers['user-agent'] || '';
 
+    if (shield?.isKillSwitchActive?.() && !isKillSwitchExempt(req)) {
+      shield.incrementBlocked(ip, 'kill_switch');
+      return res.status(503).json({ error: 'Service temporarily unavailable' });
+    }
+
     if (checkCircuitBreaker(ip, shield)) {
       shield.incrementBlocked(ip, 'circuit_open');
       return res.status(429).json({ error: 'Too many requests' });
@@ -263,13 +274,36 @@ export function createGateMiddleware(shield) {
       return next();
     }
 
-    if (systemState.state === 'ATTACK' && !isTrustedRequest(req)) {
+    if ((systemState.state === 'ATTACK' || shield?.forceAttackMode) && !isTrustedRequest(req)) {
       shield.incrementBlocked(ip, 'attack_block');
       return res.status(503).json({ error: 'Service temporarily unavailable' });
     }
 
     next();
   };
+}
+
+export function isKillSwitchExempt(req) {
+  const raw = String(req.url || req.originalUrl || '');
+  const pathOnly = raw.split('?')[0];
+  if (pathOnly === '/api/admin/overview') return true;
+  if (pathOnly === '/api/admin/security/attack-mode') return true;
+  if (pathOnly === '/api/admin/security/kill-switch') return true;
+  if (pathOnly === '/api/me') return true;
+  if (pathOnly === '/api/signout' || pathOnly === '/api/signin') return true;
+  if (pathOnly.startsWith('/api/auth/2fa')) return true;
+  if (pathOnly === '/' || pathOnly === '/index.html') return true;
+  if (pathOnly.startsWith('/assets/')) return true;
+  if (pathOnly.startsWith('/vendor/')) return true;
+  if (pathOnly.startsWith('/cap')) return true;
+  if (pathOnly === '/verify' || pathOnly === '/verify.html') return true;
+  if (pathOnly === '/1k123.js') return true;
+  if (/\.(css|woff2?|ttf|png|jpg|jpeg|gif|webp|svg|ico)$/i.test(pathOnly)) return true;
+  return false;
+}
+
+export function isKillSwitchUrlExempt(url) {
+  return isKillSwitchExempt({ url: String(url || '') });
 }
 
 export function createMemoryProtection(shield) {

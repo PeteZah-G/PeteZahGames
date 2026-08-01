@@ -27,6 +27,27 @@ export const pfpLimiter = rateLimit({
   message: 'Too many profile picture uploads.'
 });
 
+export const securityActionLimiter = rateLimit({
+  windowMs: 15 * 60000,
+  max: 8,
+  keyGenerator: req => req.session?.user?.id || toIPv4(null, req),
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    updateIPReputation(toIPv4(null, req), -8);
+    res.status(429).json({ error: 'Too many security actions. Try again later.' });
+  },
+});
+
+export const adminOverviewLimiter = rateLimit({
+  windowMs: 60000,
+  max: 40,
+  keyGenerator: req => req.session?.user?.id || toIPv4(null, req),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many overview requests' },
+});
+
 export const localStorageLimiter = rateLimit({
   windowMs: 60000,
   max: 10,

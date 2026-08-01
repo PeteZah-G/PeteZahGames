@@ -3,6 +3,7 @@ import db from '../db.js';
 import { isOwnerEmail } from '../utils/auth-roles.js';
 import { reportGamePresence, clearGamePresence, sanitizeGameId } from './game-stats.js';
 import { trackProxyHosts } from './achievements.js';
+import { bumpProxySession } from '../utils/usage-daily.js';
 
 const STALE_MS = 30000;
 const MAX_CLIENTS = 4000;
@@ -93,6 +94,12 @@ export function reportPresenceHandler(req, res) {
     n: uname,
     t: Date.now(),
   });
+
+  if (urls.length) {
+    try {
+      bumpProxySession(clientId);
+    } catch {}
+  }
 
   if (user?.id && urls.length) {
     try {

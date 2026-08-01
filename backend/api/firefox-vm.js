@@ -4,6 +4,7 @@ import db from '../db.js';
 import { isOwnerEmail } from '../utils/auth-roles.js';
 import { toIPv4 } from '../middleware/security.js';
 import { recordVmSession } from './achievements.js';
+import { bumpUsage } from '../utils/usage-daily.js';
 
 const STALE_MS = 45000;
 const MAX_ACTIVE = 400;
@@ -154,6 +155,9 @@ export function firefoxVmHeartbeatHandler(req, res) {
 
   try {
     recordVmSession(user.id);
+  } catch {}
+  try {
+    bumpUsage('firefox_vm', 1);
   } catch {}
 
   if (Math.random() < 0.02) pruneHistory();

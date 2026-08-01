@@ -1,7 +1,6 @@
 import db from '../db.js';
 import { isOwnerEmail } from './auth-roles.js';
 
-/** Owner, admin, staff, or mod — anyone with elevated access. */
 export function isElevatedRole(isAdmin, email) {
   if (isOwnerEmail(email)) return true;
   return (Number(isAdmin) || 0) >= 1;
@@ -36,7 +35,6 @@ export function buildFullSessionUser(row) {
   };
 }
 
-/** Limited session while staff/owner must enroll 2FA. Privileges stripped. */
 export function buildSetupSessionUser(row) {
   return {
     id: row.id,
@@ -150,7 +148,6 @@ export function enforceElevatedSession(req) {
 
   if (row.totp_enabled) {
     if (req.session.totpOk) return { ok: true };
-    // Privileged session without completing 2FA — force challenge
     req.session.pending2fa = {
       userId: row.id,
       email: row.email,
@@ -170,7 +167,6 @@ export function enforceElevatedSession(req) {
     };
   }
 
-  // Elevated without 2FA enrolled — lock into setup
   req.session.must_setup_2fa = true;
   req.session.user = buildSetupSessionUser(row);
   delete req.session.totpOk;

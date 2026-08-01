@@ -1,5 +1,6 @@
 import express from 'express';
 import fetch from 'node-fetch';
+import { bumpUsage } from '../utils/usage-daily.js';
 
 const router = express.Router();
 const TMDB_BASE = 'https://api.themoviedb.org/3';
@@ -91,6 +92,7 @@ router.get('/tv/search', async (req, res) => {
 router.get('/movie/:id', async (req, res) => {
   try {
     const data = await fetchTMDB(`/movie/${req.params.id}`);
+    try { bumpUsage('movies', 1); } catch {}
     res.json(data);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -100,6 +102,7 @@ router.get('/movie/:id', async (req, res) => {
 router.get('/tv/:id', async (req, res) => {
   try {
     const data = await fetchTMDB(`/tv/${req.params.id}`);
+    try { bumpUsage('movies', 1); } catch {}
     res.json(data);
   } catch (e) {
     res.status(500).json({ error: e.message });

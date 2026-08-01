@@ -2,6 +2,7 @@ import db from '../db.js';
 import rateLimit from 'express-rate-limit';
 import { isOwnerEmail } from '../utils/auth-roles.js';
 import { toIPv4 } from '../middleware/security.js';
+import { bumpUsage } from '../utils/usage-daily.js';
 
 export const ACHIEVEMENTS = [
   { id: 'welcome_explorer', name: 'Welcome Explorer', desc: 'Create a PeteZah account', rarity: 'common', icon: 'Compass', color: '#6ee7b7', manual: false },
@@ -227,6 +228,10 @@ export function bumpStat(userId, column, by = 1) {
   db.prepare(
     `UPDATE user_stats SET ${column} = ${column} + ?, updated_at = ? WHERE user_id = ?`
   ).run(Math.min(Math.max(1, by), 5), now, userId);
+  try {
+    if (column === 'ai_messages') bumpUsage('ai', Math.min(Math.max(1, by), 5));
+    if (column === 'chat_messages') bumpUsage('chat', Math.min(Math.max(1, by), 5));
+  } catch {}
   evaluateAchievements(userId);
 }
 

@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { isOwnerEmail } from '../utils/auth-roles.js';
 import { toIPv4 } from '../middleware/security.js';
 import { evaluateAchievements } from './achievements.js';
+import { bumpUsage } from '../utils/usage-daily.js';
 
 const MAX_LABEL = 120;
 const MAX_ID = 200;
@@ -108,6 +109,10 @@ export function recordGamePlayHandler(req, res) {
       : gameId;
   const imageUrl = sanitizeImageUrl(req.body?.imageUrl);
   const now = Date.now();
+
+  try {
+    bumpUsage('games', 1);
+  } catch {}
 
   db.prepare(
     `INSERT INTO game_plays (game_id, label, image_url, plays, last_played_at)

@@ -11,6 +11,7 @@ function getResend() {
 }
 
 export async function sendVerificationEmail(to, verifyUrl) {
+  // how do u guys think I can make this look better?
   const resend = getResend();
   const { error } = await resend.emails.send({
     from: FROM,

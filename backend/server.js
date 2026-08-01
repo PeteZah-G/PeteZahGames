@@ -23,9 +23,14 @@ import { PX } from './px-paths.js';
 
 import { createCorsConfig, createSecurityHeaders, createUploadGuard } from './middleware/http-security.js';
 import { ddosShield } from './security/ddos-shield.js';
-import { toIPv4, systemState, createGateMiddleware, createMemoryProtection, checkCircuitBreaker, checkSystemPressure, cleanupSecurityMaps, isTrustedWS, adjustPowDifficulty } from './middleware/security.js';
-import { authLimiter, createApiLimiter, createAiLimiter, signupLimiter, localStorageLimiter, pfpLimiter } from './middleware/rate-limit.js';
-import { updateIPReputation } from './middleware/security.js';
+import { toIPv4, systemState, createGateMiddleware, createMemoryProtection, checkCircuitBreaker, checkSystemPressure, cleanupSecurityMaps, isTrustedWS, adjustPowDifficulty, isKillSwitchUrlExempt, updateIPReputation } from './middleware/security.js';
+import { setShieldRef } from './utils/shield-ref.js';
+import {
+  getAdminOverviewHandler,
+  setAttackModeHandler,
+  setKillSwitchHandler,
+} from './api/admin-dashboard.js';
+import { authLimiter, createApiLimiter, createAiLimiter, signupLimiter, localStorageLimiter, pfpLimiter, securityActionLimiter, adminOverviewLimiter } from './middleware/rate-limit.js';
 import challengeRouter from './routes/challenge.js';
 import aiRouter from './routes/ai.js';
 import moviesRouter from './routes/movies.js';
@@ -146,6 +151,7 @@ app.set('trust proxy', ['127.0.0.1', '::1']);
 
 const discordClient = new Client({ intents: [GatewayIntentBits.Guilds] });
 const shield = ddosShield(discordClient);
+setShieldRef(shield);
 
 discordClient.login(process.env.BOT_TOKEN).catch(err => console.error('Discord bot login failed:', err.message));
 shield.registerCommands(discordClient);
@@ -345,6 +351,9 @@ app.post('/api/admin/cleanup-comments', cleanupMaliciousCommentsHandler);
 app.get('/api/admin/staff', getAdminStaffHandler);
 app.get('/api/admin/users', getAdminUsersHandler);
 app.get('/api/admin/users/:id', getAdminUserHandler);
+app.get('/api/admin/overview', adminOverviewLimiter, getAdminOverviewHandler);
+app.post('/api/admin/security/attack-mode', securityActionLimiter, setAttackModeHandler);
+app.post('/api/admin/security/kill-switch', securityActionLimiter, setKillSwitchHandler);
 app.get('/api/admin/live-sites', getLiveSitesHandler);
 app.get('/api/admin/announcements', listAnnouncementsHandler);
 app.post('/api/admin/announcements', createAnnouncementHandler);
@@ -424,7 +433,14 @@ const MAX_WS_PER_IP = 100;
 const MAX_TOTAL_WS = 5000;
 
 const server = createServer((req, res) => {
-  shield.trackRequest(toIPv4(null, req));
+  const ip = toIPv4(null, req);
+  shield.trackRequest(ip);
+  if (shield.isKillSwitchActive() && !isKillSwitchUrlExempt(req.url)) {
+    shield.incrementBlocked(ip, 'kill_switch');
+    res.writeHead(503, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Service temporarily unavailable' }));
+    return;
+  }
   if (bare.shouldRoute(req)) bare.routeRequest(req, res);
   else if (barePremium.shouldRoute(req)) barePremium.routeRequest(req, res);
   else app.handle(req, res);
@@ -435,6 +451,11 @@ server.on('upgrade', (req, socket, head) => {
   const ip = toIPv4(null, req);
 
   shield.trackRequest(ip);
+
+  if (shield.isKillSwitchActive()) {
+    shield.incrementBlocked(ip, 'kill_switch');
+    return socket.destroy();
+  }
 
   if (url.startsWith('/!!/') || url.startsWith('/!cover!/')) {
     mochiWsProxy.ws(req, socket, head);
@@ -467,7 +488,7 @@ server.on('upgrade', (req, socket, head) => {
 
   if (!isWispUrl && !isBareUrl) return socket.destroy();
 
-  if (isWispUrl && systemState.state === 'ATTACK' && !isTrustedWS(req)) {
+  if (isWispUrl && (systemState.state === 'ATTACK' || shield.forceAttackMode) && !isTrustedWS(req)) {
     shield.incrementBlocked(ip, 'ws_attack_block');
     return socket.destroy();
   }

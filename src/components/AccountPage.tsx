@@ -6,6 +6,7 @@ import {
   Megaphone, MessageSquare, Palette, Shield, Sliders, Camera,
   UserCog, Users, Ban, UserMinus, ShieldCheck, ShieldOff, Plus, ExternalLink, Image, Pipette,
   Music2, MapPin, Link2, Heart, Globe2, Radio, Monitor, BarChart3, Copy, Trophy, Gamepad2, Pencil,
+  LayoutDashboard, Cpu, Database, Activity, Power, ShieldAlert, Server,
 } from "lucide-react";
 import { BadgeChip, BadgeRow, type BadgeInfo } from "./BadgeChip";
 import {
@@ -61,7 +62,7 @@ const SITE_PRESETS = [
   { id: "petezah",   label: "PeteZah",           favicon: "/logo.png" },
 ];
 
-type Section = "profile" | "get-links" | "achievements" | "appearance" | "cloaking" | "behavior" | "data" | "admin" | "live" | "firefox-vm" | "game-stats" | "link-stats" | "updates";
+type Section = "profile" | "get-links" | "achievements" | "appearance" | "cloaking" | "behavior" | "data" | "admin" | "users" | "live" | "firefox-vm" | "game-stats" | "link-stats" | "updates";
 
 const THEME_COLORS: Record<string, { bgColor: string; textColor: string }> = {
   "default":         { bgColor: "#020810", textColor: "#e8f0fa" },
@@ -402,7 +403,8 @@ const NAV: { id: Section; label: string; icon: any; adminOnly?: boolean }[] = [
   { id: "cloaking",   label: "Cloaking",    icon: Shield },
   { id: "behavior",   label: "Behavior",    icon: Sliders },
   { id: "data",       label: "Data",        icon: Download },
-  { id: "admin",      label: "Admin",       icon: UserCog, adminOnly: true },
+  { id: "admin",      label: "Admin",       icon: LayoutDashboard, adminOnly: true },
+  { id: "users",      label: "Users",       icon: UserCog, adminOnly: true },
   { id: "live",       label: "Live Sites",  icon: Radio, adminOnly: true },
   { id: "firefox-vm", label: "Firefox VM",  icon: Monitor, adminOnly: true },
   { id: "game-stats", label: "Game Stats",  icon: Gamepad2, adminOnly: true },
@@ -487,6 +489,13 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [staffLoading, setStaffLoading] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [overview, setOverview] = useState<any>(null);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewErr, setOverviewErr] = useState("");
+  const [secBusy, setSecBusy] = useState(false);
+  const [secErr, setSecErr] = useState("");
+  const [secModal, setSecModal] = useState<null | { action: "attack-on" | "attack-off" | "kill-on" | "kill-off" }>(null);
+  const [secPassword, setSecPassword] = useState("");
   const [liveSites, setLiveSites] = useState<{ url: string; username?: string | null; viewers?: number; updatedAt: number }[]>([]);
   const [liveLoading, setLiveLoading] = useState(false);
   const [liveClients, setLiveClients] = useState(0);
@@ -704,11 +713,52 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   }, []);
 
   useEffect(() => {
-    if (section === "admin" && user && (user.is_admin ?? 0) >= 1) {
+    if (section === "users" && user && (user.is_admin ?? 0) >= 1) {
       loadAdminUsers(1);
       loadStaff();
     }
   }, [section, user, loadAdminUsers, loadStaff]);
+
+  useEffect(() => {
+    if (section !== "admin" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const load = (initial = false) => {
+      if (document.hidden) return;
+      if (initial) setOverviewLoading(true);
+      fetch("/api/admin/overview", { credentials: "include" })
+        .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+          if (cancelled) return;
+          if (!ok) {
+            setOverviewErr(d.error || "Failed to load overview");
+            return;
+          }
+          setOverviewErr("");
+          setOverview(d);
+          if (typeof d.isOwner === "boolean") setIsOwner(d.isOwner);
+        })
+        .catch(() => {
+          if (!cancelled) setOverviewErr("Network error");
+        })
+        .finally(() => {
+          if (!cancelled && initial) setOverviewLoading(false);
+        });
+    };
+
+    load(true);
+    timer = window.setInterval(() => load(false), 15000);
+    const onVis = () => {
+      if (!document.hidden) load(false);
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      if (timer) window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [section, user]);
 
   useEffect(() => {
     if (section !== "live" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
@@ -1016,7 +1066,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   }
 
   useEffect(() => {
-    if (section !== "admin" || !(user && (user.is_admin ?? 0) >= 1)) return;
+    if (section !== "users" || !(user && (user.is_admin ?? 0) >= 1)) return;
     const q = adminSearch.trim();
     if (!q) return;
     const t = setTimeout(() => loadAdminUsers(1, q), 300);
@@ -1444,6 +1494,38 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   function resetData() {
     if (!confirm("Reset all local settings? This cannot be undone.")) return;
     localStorage.clear(); setS({}); document.title = "PeteZah";
+  }
+
+  async function confirmSecurityAction() {
+    if (!secModal || !secPassword) return;
+    setSecBusy(true);
+    setSecErr("");
+    try {
+      const enabled = secModal.action === "attack-on" || secModal.action === "kill-on";
+      const path =
+        secModal.action === "attack-on" || secModal.action === "attack-off"
+          ? "/api/admin/security/attack-mode"
+          : "/api/admin/security/kill-switch";
+      const r = await fetch(path, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ enabled, password: secPassword }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setSecErr(d.error || "Action failed");
+        return;
+      }
+      setSecModal(null);
+      setSecPassword("");
+      const ov = await fetch("/api/admin/overview", { credentials: "include" });
+      if (ov.ok) setOverview(await ov.json());
+    } catch {
+      setSecErr("Network error");
+    } finally {
+      setSecBusy(false);
+    }
   }
 
   async function adminAction(userId: string, action: string) {
@@ -2815,9 +2897,314 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
             )}
 
             {section === "admin" && isAdmin && (
+              <div style={{ maxWidth: "720px" }}>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
+                  <div>
+                    <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: 0 }}>Mission Control</h2>
+                    <p style={{ fontSize: "11px", color: C.textSub, margin: "2px 0 0" }}>
+                      Live snapshot · refreshes every 15s
+                    </p>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {overview?.security?.systemState && (
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, letterSpacing: "0.04em",
+                        padding: "3px 8px", borderRadius: 6,
+                        background: overview.security.systemState === "ATTACK" || overview.security.killSwitch
+                          ? "hsl(0 65% 45% / 0.15)"
+                          : overview.security.systemState === "BUSY"
+                            ? "hsl(38 80% 45% / 0.15)"
+                            : "hsl(152 45% 40% / 0.15)",
+                        color: overview.security.systemState === "ATTACK" || overview.security.killSwitch
+                          ? "hsl(0 70% 68%)"
+                          : overview.security.systemState === "BUSY"
+                            ? "hsl(38 80% 62%)"
+                            : "hsl(152 50% 62%)",
+                        border: `1px solid ${overview.security.systemState === "ATTACK" || overview.security.killSwitch
+                          ? "hsl(0 65% 50% / 0.35)"
+                          : overview.security.systemState === "BUSY"
+                            ? "hsl(38 80% 50% / 0.35)"
+                            : "hsl(152 45% 45% / 0.35)"}`,
+                      }}>
+                        {overview.security.killSwitch ? "KILL" : overview.security.systemState}
+                      </span>
+                    )}
+                    {overviewLoading && <Loader2 size={12} className="animate-spin" style={{ color: C.accent }} />}
+                  </div>
+                </div>
+
+                {overviewErr && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, marginBottom: 10,
+                    background: "hsl(0 60% 50% / 0.08)", border: "1px solid hsl(0 60% 50% / 0.2)", color: "hsl(0 60% 68%)", fontSize: 11 }}>
+                    <AlertCircle size={12} />{overviewErr}
+                  </div>
+                )}
+
+                {!overview && overviewLoading ? (
+                  <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
+                    <Loader2 size={18} className="animate-spin" style={{ color: C.accent }} />
+                  </div>
+                ) : overview ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div className="admin-overview-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
+                      {[
+                        {
+                          title: "Users",
+                          icon: Users,
+                          rows: [
+                            ["Total", overview.users?.total ?? 0],
+                            ["Today", overview.users?.newToday ?? 0],
+                            ["Week", overview.users?.newWeek ?? 0],
+                            ["Month", overview.users?.newMonth ?? 0],
+                            ["Verified", overview.users?.verified ?? 0],
+                            ["Unverified", overview.users?.unverified ?? 0],
+                          ],
+                        },
+                        {
+                          title: "Usage today",
+                          icon: Activity,
+                          rows: [
+                            ["Games", overview.usage?.games ?? 0],
+                            ["Proxy", overview.usage?.proxy ?? 0],
+                            ["AI", overview.usage?.ai ?? 0],
+                            ["Movies", overview.usage?.movies ?? 0],
+                            ["Music", overview.usage?.music ?? 0],
+                            ["Chat", overview.usage?.chat ?? 0],
+                            ["Firefox VM", overview.usage?.firefox_vm ?? 0],
+                          ],
+                        },
+                        {
+                          title: "System",
+                          icon: Server,
+                          rows: [
+                            ["CPU", `${overview.system?.cpuPercent ?? 0}%`],
+                            ["RAM", `${overview.system?.memory?.rssMb ?? 0} MB`],
+                            ["Sys mem", `${overview.system?.memory?.systemUsedPct ?? 0}%`],
+                            ["API avg", overview.system?.latency?.avgMs != null ? `${overview.system.latency.avgMs} ms` : "—"],
+                            ["API p95", overview.system?.latency?.p95Ms != null ? `${overview.system.latency.p95Ms} ms` : "—"],
+                            ["DB", overview.system?.db?.ok ? `${overview.system.db.latencyMs} ms` : "down"],
+                            ["WS", overview.security?.totalWS ?? 0],
+                          ],
+                        },
+                      ].map((col) => (
+                        <div key={col.title} style={{
+                          background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 11px",
+                          minHeight: 0,
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                            <col.icon size={12} style={{ color: C.accent }} />
+                            <span style={{ fontSize: 11, fontWeight: 700, color: C.text }}>{col.title}</span>
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            {col.rows.map(([label, value]) => (
+                              <div key={String(label)} style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
+                                <span style={{ fontSize: 10, color: C.textMuted }}>{label}</span>
+                                <span style={{ fontSize: 12, fontWeight: 650, color: C.text, fontVariantNumeric: "tabular-nums" }}>{value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="admin-overview-pair" style={{
+                      display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
+                    }}>
+                      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 11px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                          <Cpu size={12} style={{ color: C.accent }} />
+                          <span style={{ fontSize: 11, fontWeight: 700, color: C.text }}>Pressure</span>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 10px" }}>
+                          {[
+                            ["Req/min", overview.security?.requestRatePerMinute ?? 0],
+                            ["Blocks", overview.security?.mitigatedCount ?? 0],
+                            ["PoW", overview.security?.powDifficulty ?? 0],
+                            ["Uptime", `${Math.floor((overview.uptimeSec || 0) / 3600)}h`],
+                          ].map(([l, v]) => (
+                            <div key={String(l)} style={{ display: "flex", justifyContent: "space-between", gap: 6 }}>
+                              <span style={{ fontSize: 10, color: C.textMuted }}>{l}</span>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: C.text, fontVariantNumeric: "tabular-nums" }}>{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 11px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                          <Database size={12} style={{ color: C.accent }} />
+                          <span style={{ fontSize: 11, fontWeight: 700, color: C.text }}>Cache / edge</span>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ fontSize: 10, color: C.textMuted }}>Status</span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: C.text }}>{overview.system?.cache?.status || "—"}</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ fontSize: 10, color: C.textMuted }}>Compression</span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: C.text }}>{overview.system?.cache?.compression ? "on" : "off"}</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ fontSize: 10, color: C.textMuted }}>XDP blocks</span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: C.text }}>{overview.system?.cache?.xdpBlocks ?? 0}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{
+                      background: "hsla(216, 28%, 8%, 0.9)",
+                      border: `1px solid ${overview.security?.killSwitch || overview.security?.forceAttackMode ? "hsl(0 60% 45% / 0.35)" : C.border}`,
+                      borderRadius: 10, padding: "11px 12px",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <ShieldAlert size={13} style={{ color: overview.security?.killSwitch ? "hsl(0 70% 62%)" : C.accent }} />
+                          <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Security controls</span>
+                        </div>
+                        {!isOwner && (
+                          <span style={{ fontSize: 10, color: C.textMuted }}>Owner only</span>
+                        )}
+                      </div>
+                      <div className="admin-overview-pair" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <button
+                          type="button"
+                          disabled={!isOwner || secBusy}
+                          onClick={() => {
+                            setSecErr("");
+                            setSecPassword("");
+                            setSecModal({ action: overview.security?.forceAttackMode ? "attack-off" : "attack-on" });
+                          }}
+                          style={{
+                            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+                            padding: "10px 11px", borderRadius: 8, cursor: !isOwner || secBusy ? "not-allowed" : "pointer",
+                            opacity: !isOwner ? 0.55 : 1,
+                            background: overview.security?.forceAttackMode ? "hsl(0 60% 45% / 0.12)" : C.surface,
+                            border: `1px solid ${overview.security?.forceAttackMode ? "hsl(0 60% 50% / 0.35)" : C.border}`,
+                            color: C.text, textAlign: "left",
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 650 }}>Attack mode</div>
+                            <div style={{ fontSize: 10, color: C.textMuted, marginTop: 2 }}>
+                              {overview.security?.forceAttackMode ? "Forced on" : "Auto / off"}
+                            </div>
+                          </div>
+                          <Power size={14} style={{ color: overview.security?.forceAttackMode ? "hsl(0 70% 62%)" : C.textMuted }} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!isOwner || secBusy}
+                          onClick={() => {
+                            setSecErr("");
+                            setSecPassword("");
+                            setSecModal({ action: overview.security?.killSwitch ? "kill-off" : "kill-on" });
+                          }}
+                          style={{
+                            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+                            padding: "10px 11px", borderRadius: 8, cursor: !isOwner || secBusy ? "not-allowed" : "pointer",
+                            opacity: !isOwner ? 0.55 : 1,
+                            background: overview.security?.killSwitch ? "hsl(0 60% 45% / 0.12)" : C.surface,
+                            border: `1px solid ${overview.security?.killSwitch ? "hsl(0 60% 50% / 0.35)" : C.border}`,
+                            color: C.text, textAlign: "left",
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 650 }}>Kill switch</div>
+                            <div style={{ fontSize: 10, color: C.textMuted, marginTop: 2 }}>
+                              {overview.security?.killSwitch ? "Active" : "Standby"}
+                            </div>
+                          </div>
+                          <Zap size={14} style={{ color: overview.security?.killSwitch ? "hsl(0 70% 62%)" : C.textMuted }} />
+                        </button>
+                      </div>
+                      {secErr && (
+                        <p style={{ fontSize: 11, color: "hsl(0 60% 68%)", margin: "8px 0 0" }}>{secErr}</p>
+                      )}
+                    </div>
+
+                    {secModal && (
+                      <div style={{
+                        position: "fixed", inset: 0, zIndex: 80, background: "hsla(216, 40%, 4%, 0.55)",
+                        display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+                      }} onClick={() => !secBusy && setSecModal(null)}>
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            width: "100%", maxWidth: 320, background: "hsla(216, 32%, 8%, 0.96)",
+                            border: `1px solid ${C.border}`, borderRadius: 12, padding: 16,
+                            boxShadow: "0 24px 48px hsla(216, 50%, 4%, 0.55)",
+                          }}
+                        >
+                          <h3 style={{ margin: "0 0 4px", fontSize: 14, color: C.text, fontWeight: 700 }}>
+                            Confirm with password
+                          </h3>
+                          <p style={{ margin: "0 0 12px", fontSize: 11, color: C.textSub, lineHeight: 1.4 }}>
+                            {secModal.action === "attack-on" && "Turn on attack mode. Untrusted traffic will be rejected."}
+                            {secModal.action === "attack-off" && "Turn off forced attack mode."}
+                            {secModal.action === "kill-on" && "Activate kill switch. Proxy and most APIs will stop until you disable it."}
+                            {secModal.action === "kill-off" && "Deactivate kill switch and restore service."}
+                          </p>
+                          <input
+                            type="password"
+                            autoFocus
+                            value={secPassword}
+                            onChange={(e) => setSecPassword(e.target.value)}
+                            placeholder="Account password"
+                            style={{
+                              width: "100%", boxSizing: "border-box", padding: "9px 11px", borderRadius: 8,
+                              border: `1px solid ${C.border}`, background: C.surface, color: C.text, fontSize: 13,
+                              outline: "none", marginBottom: 10,
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") void confirmSecurityAction();
+                            }}
+                          />
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              type="button"
+                              disabled={secBusy}
+                              onClick={() => setSecModal(null)}
+                              style={{
+                                flex: 1, padding: "8px", borderRadius: 8, border: `1px solid ${C.border}`,
+                                background: "transparent", color: C.textSub, fontSize: 12, cursor: "pointer",
+                              }}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              disabled={secBusy || !secPassword}
+                              onClick={() => void confirmSecurityAction()}
+                              style={{
+                                flex: 1, padding: "8px", borderRadius: 8, border: `1px solid hsl(0 60% 50% / 0.4)`,
+                                background: "hsl(0 60% 45% / 0.18)", color: C.text, fontSize: 12, fontWeight: 650,
+                                cursor: secBusy || !secPassword ? "not-allowed" : "pointer",
+                                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                              }}
+                            >
+                              {secBusy && <Loader2 size={12} className="animate-spin" />}
+                              Confirm
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+
+                <style>{`
+                  @media (max-width: 640px) {
+                    .admin-overview-grid { grid-template-columns: 1fr !important; }
+                    .admin-overview-pair { grid-template-columns: 1fr !important; }
+                  }
+                `}</style>
+              </div>
+            )}
+
+            {section === "users" && isAdmin && (
               <div style={{ maxWidth: "600px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "3px" }}>
-                  <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: 0 }}>Admin Panel</h2>
+                  <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: 0 }}>Users</h2>
                   <span style={{ fontSize: "10px", fontWeight: 600, padding: "3px 8px", borderRadius: "6px", background: `${C.accentDim}40`, border: `1px solid ${C.borderFocus}`, color: C.accent }}>
                     {adminTab === "staff" ? `${staffList.length} team` : adminSearchActive ? `${adminUsers.length} results` : `${adminTotal} users`}
                   </span>

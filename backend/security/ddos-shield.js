@@ -866,7 +866,7 @@ class DDoSShield {
       }
 
       if (interaction.commandName === 'kill-switch') {
-        this.killSwitchActive = true;
+        this.setKillSwitch(true, { hardExit: true });
 
         const embed = new EmbedBuilder()
           .setTitle('🔴 KILL SWITCH ACTIVATED')
@@ -878,13 +878,6 @@ class DDoSShield {
 
         await interaction.reply({ embeds: [embed] });
         await this.sendLog(null, embed);
-
-        setTimeout(() => {
-          if (this.killSwitchActive) {
-            console.log('KILL SWITCH: Terminating process...');
-            process.exit(0);
-          }
-        }, 5000);
       }
 
       if (interaction.commandName === 'startup') {
@@ -895,7 +888,7 @@ class DDoSShield {
           });
         }
 
-        this.killSwitchActive = false;
+        this.setKillSwitch(false);
 
         const embed = new EmbedBuilder()
           .setTitle('✅ Server Restored')
@@ -913,7 +906,8 @@ class DDoSShield {
       }
 
       if (interaction.commandName === 'attack-mode') {
-        this.forceAttackMode = true;
+        const ss = interaction.client.systemState || null;
+        this.setForceAttackMode(true, ss);
 
         const embed = new EmbedBuilder()
           .setTitle('⚔️ Attack Mode Activated')
@@ -935,7 +929,8 @@ class DDoSShield {
           });
         }
 
-        this.forceAttackMode = false;
+        const ss = interaction.client.systemState || null;
+        this.setForceAttackMode(false, ss);
 
         const embed = new EmbedBuilder()
           .setTitle('✅ Attack Mode Deactivated')
@@ -945,15 +940,42 @@ class DDoSShield {
 
         await interaction.reply({ embeds: [embed] });
         await this.sendLog(null, embed);
-
-        if (this.isUnderAttack) {
-          await this.endAttackAlert();
-        }
       }
     });
   }
 
   isKillSwitchActive() {
+    return this.killSwitchActive;
+  }
+
+  setForceAttackMode(enabled, systemStateRef = null) {
+    const on = !!enabled;
+    this.forceAttackMode = on;
+    if (systemStateRef) {
+      if (on) {
+        systemStateRef.state = 'ATTACK';
+        if (!this.isUnderAttack) this.startAttackAlert(systemStateRef);
+      } else {
+        if (systemStateRef.state === 'ATTACK') systemStateRef.state = 'NORMAL';
+        if (this.isUnderAttack) this.endAttackAlert(systemStateRef);
+      }
+    } else if (!on && this.isUnderAttack) {
+      this.endAttackAlert();
+    }
+    return this.forceAttackMode;
+  }
+
+  setKillSwitch(enabled, { hardExit = false } = {}) {
+    const on = !!enabled;
+    this.killSwitchActive = on;
+    if (on && hardExit) {
+      setTimeout(() => {
+        if (this.killSwitchActive) {
+          console.log('KILL SWITCH: Terminating process...');
+          process.exit(0);
+        }
+      }, 5000);
+    }
     return this.killSwitchActive;
   }
 

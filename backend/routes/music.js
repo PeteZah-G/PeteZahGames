@@ -1,5 +1,6 @@
 import express from 'express';
 import fetch from 'node-fetch';
+import { bumpUsage } from '../utils/usage-daily.js';
 
 const router = express.Router();
 
@@ -129,6 +130,7 @@ router.get('/stream/:id', async (req, res) => {
   try {
     const clientId = await resolveClientId();
     const data = await fetchStreamUrl(id, clientId);
+    try { bumpUsage('music', 1); } catch {}
     res.json(data);
   } catch (e) {
     res.status(500).json({ error: e.message });
