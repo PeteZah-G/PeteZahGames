@@ -1,12 +1,15 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type CSSProperties, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, ListMusic,
-  Plus, Trash2, Share2, X, Music2, Heart, Copy, Check, Disc3,
+  Plus, Trash2, Share2, X, Music2, Heart, Copy, Check, Disc3, Flame,
+  Sparkles, Zap, Radio, ChevronLeft, ChevronRight, MoreHorizontal,
+  ListPlus, ListEnd, Library,
 } from "lucide-react";
 import { requestSyncSoon } from "@/lib/settingsSync";
 import { pxEncode } from "@/lib/px";
 import { trackAchievementEvent } from "@/lib/achievementEvents";
+import { AdResponsiveBanner } from "@/components/ads/Adsterra";
 
 interface Track {
   id: string;
@@ -25,30 +28,41 @@ interface Playlist {
   createdAt: number;
 }
 
+interface BrowseSection {
+  id: string;
+  title: string;
+  icon: string;
+  tracks: Track[];
+}
+
+type NavView = "browse" | "search" | "library" | "playlist";
+
 const S = {
   bg: "transparent",
-  surface: "hsla(220, 32%, 8%, 0.72)",
-  elevated: "hsla(215, 28%, 14%, 0.85)",
+  surface: "hsla(220, 32%, 8%, 0.55)",
+  elevated: "hsla(215, 28%, 14%, 0.72)",
+  glass: "hsla(220, 35%, 6%, 0.42)",
   border: "hsla(210, 40%, 70%, 0.12)",
   borderFocus: "hsla(205, 80%, 55%, 0.55)",
   accent: "hsl(205 85% 62%)",
   accentDim: "hsla(205, 70%, 45%, 0.22)",
+  accentHot: "hsla(340, 78%, 58%, 0.92)",
   text: "hsla(0, 0%, 98%, 0.95)",
   textSub: "hsla(210, 20%, 70%, 0.65)",
   textMuted: "hsla(210, 15%, 55%, 0.55)",
   danger: "hsl(0 60% 56%)",
-  success: "hsl(150 50% 45%)",
 };
 
 const MUSIC_KEY = "petezah-music";
 const LIKED_KEY = "petezah-music-liked";
+const ease = [0.22, 1, 0.36, 1] as const;
 
 function loadPlaylists(): Playlist[] {
   try {
     const raw = localStorage.getItem(MUSIC_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  return [{ id: "default", name: "Liked", tracks: [], createdAt: Date.now() }];
+  return [{ id: "default", name: "Liked Mix", tracks: [], createdAt: Date.now() }];
 }
 
 function savePlaylists(playlists: Playlist[]) {
@@ -120,6 +134,17 @@ function parseMusicUrl(url?: string) {
   }
 }
 
+function sectionIcon(name: string) {
+  switch (name) {
+    case "flame": return <Flame size={14} />;
+    case "sparkles": return <Sparkles size={14} />;
+    case "zap": return <Zap size={14} />;
+    case "radio": return <Radio size={14} />;
+    case "heart": return <Heart size={14} />;
+    default: return <Disc3 size={14} />;
+  }
+}
+
 export default function MusicPage({
   onNavigate,
   initialUrl,
@@ -130,11 +155,13 @@ export default function MusicPage({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Track[]>([]);
   const [trending, setTrending] = useState<Track[]>([]);
+  const [sections, setSections] = useState<BrowseSection[]>([]);
   const [loading, setLoading] = useState(false);
+  const [browseLoading, setBrowseLoading] = useState(true);
   const [error, setError] = useState("");
   const [playlists, setPlaylists] = useState<Playlist[]>(loadPlaylists);
   const [liked, setLiked] = useState<Track[]>(loadLiked);
-  const [libraryView, setLibraryView] = useState<"discover" | "liked" | "playlist">("discover");
+  const [nav, setNav] = useState<NavView>("browse");
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
   const [queue, setQueue] = useState<Track[]>([]);
   const [queueIndex, setQueueIndex] = useState(0);
@@ -146,6 +173,7 @@ export default function MusicPage({
   const [shareMsg, setShareMsg] = useState("");
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [showNewPlaylist, setShowNewPlaylist] = useState(false);
+  const [menuTrack, setMenuTrack] = useState<Track | null>(null);
   const [addMenuTrack, setAddMenuTrack] = useState<Track | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -156,10 +184,20 @@ export default function MusicPage({
   useEffect(() => { saveLiked(liked); }, [liked]);
 
   useEffect(() => {
-    fetch("/api/music/trending")
-      .then((r) => r.json())
-      .then((d) => setTrending(d.tracks || []))
-      .catch(() => {});
+    let cancelled = false;
+    setBrowseLoading(true);
+    Promise.all([
+      fetch("/api/music/browse").then((r) => r.json()).catch(() => ({ sections: [] })),
+      fetch("/api/music/trending").then((r) => r.json()).catch(() => ({ tracks: [] })),
+    ]).then(([browse, trend]) => {
+      if (cancelled) return;
+      const secs: BrowseSection[] = browse.sections || [];
+      setSections(secs);
+      setTrending(trend.tracks?.length ? trend.tracks : secs[0]?.tracks || []);
+    }).finally(() => {
+      if (!cancelled) setBrowseLoading(false);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -173,7 +211,7 @@ export default function MusicPage({
       };
       setPlaylists((prev) => [imported, ...prev]);
       setActivePlaylistId(imported.id);
-      setLibraryView("playlist");
+      setNav("playlist");
       if (imported.tracks.length) {
         setQueue(imported.tracks);
         setQueueIndex(0);
@@ -195,9 +233,8 @@ export default function MusicPage({
   }, [initialUrl]);
 
   useEffect(() => {
-    if (!query.trim()) {
-      setResults([]);
-      setError("");
+    if (nav !== "search" || !query.trim()) {
+      if (!query.trim()) setResults([]);
       return;
     }
     if (searchTimer.current) clearTimeout(searchTimer.current);
@@ -219,7 +256,7 @@ export default function MusicPage({
     return () => {
       if (searchTimer.current) clearTimeout(searchTimer.current);
     };
-  }, [query]);
+  }, [query, nav]);
 
   const loadAndPlay = useCallback(async (track: Track) => {
     const audio = audioRef.current;
@@ -242,6 +279,25 @@ export default function MusicPage({
     const idx = nextQueue.findIndex((t) => t.id === track.id);
     setQueue(nextQueue);
     setQueueIndex(idx >= 0 ? idx : 0);
+  }, []);
+
+  const playNext = useCallback((track: Track) => {
+    setQueue((prev) => {
+      if (!prev.length) return [track];
+      const next = [...prev];
+      next.splice(queueIndex + 1, 0, track);
+      return next;
+    });
+  }, [queueIndex]);
+
+  const addToQueue = useCallback((track: Track) => {
+    setQueue((prev) => {
+      if (!prev.length) {
+        setQueueIndex(0);
+        return [track];
+      }
+      return [...prev, track];
+    });
   }, []);
 
   useEffect(() => {
@@ -324,6 +380,7 @@ export default function MusicPage({
     setNewPlaylistName("");
     setShowNewPlaylist(false);
     setActivePlaylistId(pl.id);
+    setNav("playlist");
     trackAchievementEvent("playlist");
   };
 
@@ -336,6 +393,7 @@ export default function MusicPage({
       })
     );
     setAddMenuTrack(null);
+    setMenuTrack(null);
   };
 
   const removeFromPlaylist = (playlistId: string, trackId: string) => {
@@ -346,7 +404,10 @@ export default function MusicPage({
 
   const deletePlaylist = (id: string) => {
     setPlaylists((prev) => prev.filter((p) => p.id !== id));
-    if (activePlaylistId === id) setActivePlaylistId(null);
+    if (activePlaylistId === id) {
+      setActivePlaylistId(null);
+      setNav("browse");
+    }
   };
 
   const shareTrack = async (track: Track) => {
@@ -376,20 +437,23 @@ export default function MusicPage({
   };
 
   const activePlaylist = playlists.find((p) => p.id === activePlaylistId);
-  const displayList = query.trim()
-    ? results
-    : libraryView === "playlist" && activePlaylist
-      ? activePlaylist.tracks
-      : libraryView === "liked"
-        ? liked
-        : trending;
-  const listLabel = query.trim()
-    ? "Search"
-    : libraryView === "playlist" && activePlaylist
-      ? activePlaylist.name
-      : libraryView === "liked"
-        ? "Liked"
-        : "Trending";
+  const listTracks =
+    nav === "search"
+      ? results
+      : nav === "playlist" && activePlaylist
+        ? activePlaylist.tracks
+        : nav === "library"
+          ? liked
+          : trending;
+
+  const mainTitle =
+    nav === "search"
+      ? "Search"
+      : nav === "playlist" && activePlaylist
+        ? activePlaylist.name
+        : nav === "library"
+          ? "Your Library"
+          : "Browse";
 
   return (
     <div
@@ -400,92 +464,96 @@ export default function MusicPage({
     >
       <audio ref={audioRef} preload="metadata" />
 
-      <div
-        className="music-header"
-        style={{
-          display: "flex", alignItems: "center", gap: 14, padding: "16px 20px 12px",
-          borderBottom: `1px solid ${S.border}`, flexShrink: 0,
-          backdropFilter: "blur(12px)",
-          background: "hsla(220, 35%, 6%, 0.45)",
-        }}
-      >
-        <div
-          className="music-brand"
-          style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: S.elevated,
-            border: `1px solid ${S.border}`, display: "flex", alignItems: "center", justifyContent: "center",
-          }}
-        >
-          <Music2 size={15} style={{ color: S.accent }} />
-        </div>
-        <div className="music-title" style={{ flex: 1, minWidth: 0 }}>
-          <h1 style={{ fontSize: 15, fontWeight: 700, color: S.text, margin: 0, letterSpacing: "-0.02em" }}>Music</h1>
-          <p style={{ fontSize: 10, color: S.textMuted, margin: 0 }}>Search · play · share</p>
-        </div>
-        <div
-          className="music-search"
-          style={{
-            flex: 1.4, maxWidth: 420, display: "flex", alignItems: "center", gap: 8,
-            background: S.elevated, border: `1px solid ${S.border}`, borderRadius: 12, padding: "9px 12px",
-          }}
-        >
-          <Search size={13} style={{ color: S.textMuted }} />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search songs…"
-            style={{
-              flex: 1, background: "none", border: "none", outline: "none",
-              color: S.text, fontSize: 12, fontFamily: "inherit",
-            }}
-          />
-          {query && (
-            <button onClick={() => setQuery("")} style={{ background: "none", border: "none", color: S.textMuted, cursor: "pointer", padding: 0, display: "flex" }}>
-              <X size={12} />
-            </button>
-          )}
-        </div>
-      </div>
-
       <div className="music-body" style={{ flex: 1, display: "flex", minHeight: 0 }}>
-        <div
+        {/* Sidebar */}
+        <motion.aside
           className="music-sidebar"
+          initial={{ opacity: 0, x: -18, filter: "blur(8px)" }}
+          animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+          transition={{ duration: 0.7, ease }}
           style={{
-            width: 200, borderRight: `1px solid ${S.border}`, padding: "14px 12px",
-            display: "flex", flexDirection: "column", gap: 4, overflowY: "auto", flexShrink: 0,
+            width: 196,
+            borderRight: `1px solid ${S.border}`,
+            padding: "14px 12px 12px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 3,
+            overflowY: "auto",
+            flexShrink: 0,
+            background: S.glass,
+            backdropFilter: "blur(18px)",
+            WebkitBackdropFilter: "blur(18px)",
           }}
         >
-          <p className="music-side-label" style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: S.textMuted, margin: "0 0 8px 6px" }}>
-            Library
-          </p>
+          <motion.h1
+            initial={{ opacity: 0, y: 10, letterSpacing: "0.14em", filter: "blur(6px)" }}
+            animate={{ opacity: 1, y: 0, letterSpacing: "-0.03em", filter: "blur(0px)" }}
+            transition={{ duration: 0.8, ease }}
+            style={{
+              fontSize: 22, fontWeight: 750, color: S.text, margin: "2px 4px 12px",
+              textShadow: "0 0 28px hsla(205, 80%, 60%, 0.18)",
+            }}
+          >
+            Music
+          </motion.h1>
+
           <SideBtn
-            active={libraryView === "discover" && !query}
-            onClick={() => { setLibraryView("discover"); setActivePlaylistId(null); setQuery(""); }}
-            icon={<Disc3 size={12} />}
-            label="Discover"
+            active={nav === "browse"}
+            onClick={() => { setNav("browse"); setActivePlaylistId(null); setQuery(""); }}
+            icon={<Flame size={13} />}
+            label="Browse"
+            delay={0.12}
           />
           <SideBtn
-            active={libraryView === "liked" && !query}
-            onClick={() => { setLibraryView("liked"); setActivePlaylistId(null); setQuery(""); }}
-            icon={<Heart size={12} />}
-            label={`Liked (${liked.length})`}
+            active={nav === "search"}
+            onClick={() => { setNav("search"); setActivePlaylistId(null); }}
+            icon={<Search size={13} />}
+            label="Search"
+            delay={0.18}
+          />
+          <SideBtn
+            active={nav === "library"}
+            onClick={() => { setNav("library"); setActivePlaylistId(null); setQuery(""); }}
+            icon={<Library size={13} />}
+            label="Your Library"
+            delay={0.24}
           />
 
-          <div className="music-side-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "14px 6px 8px" }}>
-            <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: S.textMuted, margin: 0 }}>
+          <div className="music-side-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "14px 4px 6px", gap: 6 }}>
+            <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: S.textMuted, margin: 0 }}>
               Playlists
             </p>
             <button
+              type="button"
               onClick={() => setShowNewPlaylist(true)}
-              style={{ background: "none", border: "none", color: S.accent, cursor: "pointer", padding: 0, display: "flex" }}
+              title="New playlist"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 3,
+                padding: "2px 6px",
+                borderRadius: 6,
+                border: `1px solid ${S.border}`,
+                background: "transparent",
+                color: S.textMuted,
+                fontSize: 9,
+                fontWeight: 550,
+                cursor: "pointer",
+                lineHeight: 1.2,
+              }}
             >
-              <Plus size={13} />
+              <Plus size={9} /> New
             </button>
           </div>
 
+          {playlists.length === 0 && (
+            <p style={{ fontSize: 10, color: S.textMuted, margin: "0 4px 8px", lineHeight: 1.4 }}>
+              Create your first playlist.
+            </p>
+          )}
+
           {showNewPlaylist && (
-            <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+            <div style={{ display: "flex", gap: 4, marginBottom: 8, marginInline: 4 }}>
               <input
                 autoFocus
                 value={newPlaylistName}
@@ -493,173 +561,201 @@ export default function MusicPage({
                 onKeyDown={(e) => e.key === "Enter" && createPlaylist()}
                 placeholder="Name"
                 style={{
-                  flex: 1, background: S.elevated, border: `1px solid ${S.border}`, borderRadius: 7,
-                  color: S.text, fontSize: 11, padding: "6px 8px", outline: "none",
+                  flex: 1, background: S.elevated, border: `1px solid ${S.border}`, borderRadius: 8,
+                  color: S.text, fontSize: 11, padding: "7px 9px", outline: "none",
                 }}
               />
               <button onClick={createPlaylist} style={{
-                background: S.accentDim, border: `1px solid ${S.borderFocus}`, borderRadius: 7,
-                color: S.accent, padding: "0 8px", cursor: "pointer",
+                background: S.accentDim, border: `1px solid ${S.borderFocus}`, borderRadius: 8,
+                color: S.accent, padding: "0 8px", cursor: "pointer", display: "flex", alignItems: "center",
               }}>
                 <Check size={12} />
               </button>
             </div>
           )}
 
-          {playlists.map((pl) => (
-            <div key={pl.id} style={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <SideBtn
-                  active={libraryView === "playlist" && activePlaylistId === pl.id}
-                  onClick={() => { setLibraryView("playlist"); setActivePlaylistId(pl.id); setQuery(""); }}
-                  icon={<ListMusic size={12} />}
-                  label={`${pl.name} (${pl.tracks.length})`}
-                />
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minHeight: 0, overflowY: "auto" }}>
+            {playlists.map((pl, i) => (
+              <div key={pl.id} style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <SideBtn
+                    active={nav === "playlist" && activePlaylistId === pl.id}
+                    onClick={() => { setNav("playlist"); setActivePlaylistId(pl.id); setQuery(""); }}
+                    icon={<ListMusic size={13} />}
+                    label={`${pl.name}`}
+                    delay={0.36 + i * 0.04}
+                  />
+                </div>
+                <button
+                  onClick={() => sharePlaylist(pl)}
+                  title="Share playlist"
+                  style={{ background: "none", border: "none", color: S.textMuted, cursor: "pointer", padding: 4, display: "flex" }}
+                >
+                  <Share2 size={11} />
+                </button>
+                <button
+                  onClick={() => deletePlaylist(pl.id)}
+                  title="Delete"
+                  style={{ background: "none", border: "none", color: S.textMuted, cursor: "pointer", padding: 4, display: "flex" }}
+                >
+                  <Trash2 size={11} />
+                </button>
               </div>
-              <button
-                onClick={() => sharePlaylist(pl)}
-                title="Share playlist"
-                style={{ background: "none", border: "none", color: S.textMuted, cursor: "pointer", padding: 4, display: "flex" }}
-              >
-                <Share2 size={11} />
-              </button>
-              <button
-                onClick={() => deletePlaylist(pl.id)}
-                title="Delete"
-                style={{ background: "none", border: "none", color: S.textMuted, cursor: "pointer", padding: 4, display: "flex" }}
-              >
-                <Trash2 size={11} />
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <div className="music-main" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-          <div className="music-list-header" style={{ padding: "14px 20px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <h2 style={{ fontSize: 13, fontWeight: 650, color: S.text, margin: 0 }}>{listLabel}</h2>
-            {activePlaylist && activePlaylist.tracks.length > 0 && (
-              <button
-                onClick={() => {
-                  setQueue(activePlaylist.tracks);
-                  setQueueIndex(0);
-                }}
-                style={{
-                  display: "flex", alignItems: "center", gap: 6, padding: "6px 11px", borderRadius: 8,
-                  background: S.accent, border: "none", color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer",
-                }}
-              >
-                <Play size={11} fill="#fff" /> Play all
-              </button>
-            )}
+            ))}
           </div>
 
+        </motion.aside>
+
+        {/* Main */}
+        <div className="music-main" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+          <motion.div
+            className="music-list-header"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15, ease }}
+            style={{
+              padding: "12px 16px 6px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              flexShrink: 0,
+            }}
+          >
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: S.text, margin: 0, letterSpacing: "-0.02em" }}>
+              {mainTitle}
+            </h2>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {nav === "playlist" && activePlaylist && activePlaylist.tracks.length > 0 && (
+                <button
+                  onClick={() => {
+                    setQueue(activePlaylist.tracks);
+                    setQueueIndex(0);
+                  }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 999,
+                    background: S.accent, border: "none", color: "#fff", fontSize: 11, fontWeight: 650, cursor: "pointer",
+                  }}
+                >
+                  <Play size={11} fill="#fff" /> Play all
+                </button>
+              )}
+              <div
+                style={{
+                  width: 30, height: 30, borderRadius: "50%",
+                  border: `1px solid ${S.border}`, background: S.elevated,
+                  display: "flex", alignItems: "center", justifyContent: "center", color: S.textMuted,
+                }}
+              >
+                <Music2 size={13} />
+              </div>
+            </div>
+          </motion.div>
+
+          {nav === "search" && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, ease }}
+              className="music-search"
+              style={{
+                margin: "0 22px 12px",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                background: S.elevated,
+                border: `1px solid ${S.border}`,
+                borderRadius: 12,
+                padding: "10px 12px",
+              }}
+            >
+              <Search size={14} style={{ color: S.textMuted }} />
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search songs, artists…"
+                style={{
+                  flex: 1, background: "none", border: "none", outline: "none",
+                  color: S.text, fontSize: 13, fontFamily: "inherit",
+                }}
+              />
+              {query && (
+                <button onClick={() => setQuery("")} style={{ background: "none", border: "none", color: S.textMuted, cursor: "pointer", padding: 0, display: "flex" }}>
+                  <X size={13} />
+                </button>
+              )}
+            </motion.div>
+          )}
+
           {error && (
-            <div style={{ margin: "0 20px 10px", padding: "8px 12px", borderRadius: 8, background: "hsl(0 60% 30% / 0.15)", border: `1px solid hsl(0 50% 40% / 0.3)`, color: S.danger, fontSize: 11 }}>
+            <div style={{ margin: "0 22px 10px", padding: "8px 12px", borderRadius: 8, background: "hsl(0 60% 30% / 0.15)", border: `1px solid hsl(0 50% 40% / 0.3)`, color: S.danger, fontSize: 11 }}>
               {error}
             </div>
           )}
 
-          <div className="music-track-list" style={{ flex: 1, overflowY: "auto", padding: "4px 12px 20px" }}>
-            {loading && <p style={{ textAlign: "center", color: S.textMuted, fontSize: 12, padding: 40 }}>Searching…</p>}
-            {!loading && displayList.length === 0 && (
-              <p style={{ textAlign: "center", color: S.textMuted, fontSize: 12, padding: 40 }}>
-                {query ? "No tracks found" : "Search for a song to get started"}
-              </p>
+          <div className="music-track-list" style={{ flex: 1, overflowY: "auto", padding: "4px 0 12px", scrollbarWidth: "none" }}>
+            {nav === "browse" ? (
+              <BrowseView
+                sections={sections}
+                trending={trending}
+                loading={browseLoading}
+                currentId={current?.id}
+                playing={playing}
+                onPlay={(track, list) => playTrack(track, list)}
+                onMenu={setMenuTrack}
+              />
+            ) : (
+              <TrackListView
+                tracks={listTracks}
+                loading={loading || (nav === "browse" && browseLoading)}
+                emptyLabel={
+                  nav === "search"
+                    ? query
+                      ? "No tracks found"
+                      : "Type to search the catalog"
+                    : nav === "library"
+                      ? "Liked tracks show up here"
+                      : "This playlist is empty"
+                }
+                currentId={current?.id}
+                playing={playing}
+                isLiked={isLiked}
+                onPlay={(track) => playTrack(track, listTracks)}
+                onLike={toggleLike}
+                onMenu={setMenuTrack}
+                onRemove={
+                  nav === "playlist" && activePlaylist
+                    ? (id) => removeFromPlaylist(activePlaylist.id, id)
+                    : undefined
+                }
+              />
             )}
-            <AnimatePresence>
-              {displayList.map((track, i) => {
-                const active = current?.id === track.id;
-                return (
-                  <motion.div
-                    key={`${listLabel}-${track.id}-${i}`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 12, padding: "8px 10px", borderRadius: 10,
-                      background: active ? S.accentDim : "transparent",
-                      border: `1px solid ${active ? S.borderFocus : "transparent"}`,
-                      cursor: "pointer", marginBottom: 2,
-                    }}
-                    onClick={() => playTrack(track, displayList)}
-                    onMouseEnter={(e) => {
-                      if (!active) (e.currentTarget as HTMLDivElement).style.background = S.elevated;
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!active) (e.currentTarget as HTMLDivElement).style.background = "transparent";
-                    }}
-                  >
-                    <div style={{
-                      width: 42, height: 42, borderRadius: 8, overflow: "hidden",
-                      background: S.elevated, flexShrink: 0, position: "relative",
-                    }}>
-                      {track.artwork ? (
-                        <img src={track.artwork} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      ) : (
-                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: S.textMuted }}>
-                          <Music2 size={14} />
-                        </div>
-                      )}
-                      {active && playing && (
-                        <div style={{
-                          position: "absolute", inset: 0, background: "hsl(216 32% 6% / 0.45)",
-                          display: "flex", alignItems: "center", justifyContent: "center", color: "#fff",
-                        }}>
-                          <Pause size={12} fill="#fff" />
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: active ? S.accent : S.text, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {track.title}
-                      </p>
-                      <p style={{ fontSize: 10, color: S.textMuted, margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {track.artist}
-                      </p>
-                    </div>
-                    <span style={{ fontSize: 10, color: S.textMuted, fontVariantNumeric: "tabular-nums" }}>
-                      {formatTime(track.duration)}
-                    </span>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); toggleLike(track); }}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: isLiked(track.id) ? S.accent : S.textMuted, padding: 4, display: "flex" }}
-                    >
-                      <Heart size={13} fill={isLiked(track.id) ? "currentColor" : "none"} />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setAddMenuTrack(track); }}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: S.textMuted, padding: 4, display: "flex" }}
-                    >
-                      <Plus size={13} />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); shareTrack(track); }}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: S.textMuted, padding: 4, display: "flex" }}
-                    >
-                      <Share2 size={12} />
-                    </button>
-                    {libraryView === "playlist" && activePlaylist && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); removeFromPlaylist(activePlaylist.id, track.id); }}
-                        style={{ background: "none", border: "none", cursor: "pointer", color: S.textMuted, padding: 4, display: "flex" }}
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    )}
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
+
+            {/* Ad sits below all shelves / lists — scroll to reach */}
+            <div style={{ padding: "28px 22px 48px", minHeight: 140 }}>
+              <AdResponsiveBanner />
+            </div>
           </div>
         </div>
       </div>
 
-      <div
+      {/* Player — only when a track is loaded */}
+      <AnimatePresence>
+      {current && (
+      <motion.div
         className="music-player"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 12 }}
+        transition={{ duration: 0.4, ease }}
         style={{
           borderTop: `1px solid ${S.border}`,
-          background: "hsla(220, 35%, 6%, 0.82)",
-          backdropFilter: "blur(16px)",
-          padding: "12px 18px 14px", flexShrink: 0,
+          background: "hsla(220, 35%, 6%, 0.72)",
+          backdropFilter: "blur(18px)",
+          WebkitBackdropFilter: "blur(18px)",
+          padding: "10px 14px 12px",
+          flexShrink: 0,
         }}
       >
         <div
@@ -729,20 +825,14 @@ export default function MusicPage({
             <button
               onClick={() => setLoopTrack((v) => !v)}
               title="Loop track"
-              style={{
-                ...ctrlBtn,
-                color: loopTrack ? S.accent : S.textMuted,
-              }}
+              style={{ ...ctrlBtn, color: loopTrack ? S.accent : S.textMuted }}
             >
               <Repeat1 size={14} />
             </button>
             <button
               onClick={() => setLoopPlaylist((v) => !v)}
               title="Loop playlist"
-              style={{
-                ...ctrlBtn,
-                color: loopPlaylist ? S.accent : S.textMuted,
-              }}
+              style={{ ...ctrlBtn, color: loopPlaylist ? S.accent : S.textMuted }}
             >
               <Repeat size={14} />
             </button>
@@ -753,7 +843,76 @@ export default function MusicPage({
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
+      )}
+      </AnimatePresence>
+
+      {/* Track action sheet */}
+      <AnimatePresence>
+        {menuTrack && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: "absolute", inset: 0, background: "hsla(220, 40%, 4%, 0.55)",
+              backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center",
+              zIndex: 40, padding: 16,
+            }}
+            onClick={() => setMenuTrack(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 18, scale: 0.96, filter: "blur(8px)" }}
+              animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: 10, scale: 0.97 }}
+              transition={{ duration: 0.35, ease }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "100%", maxWidth: 320,
+                background: "hsla(220, 28%, 10%, 0.82)",
+                border: `1px solid ${S.border}`,
+                borderRadius: 18,
+                padding: "16px 8px 10px",
+                boxShadow: "0 24px 70px hsla(0,0%,0%,0.5)",
+                backdropFilter: "blur(20px)",
+              }}
+            >
+              <div style={{ padding: "0 12px 12px" }}>
+                <p style={{ fontSize: 15, fontWeight: 700, color: S.text, margin: 0 }}>{menuTrack.title}</p>
+                <p style={{ fontSize: 12, color: S.textMuted, margin: "4px 0 0" }}>{menuTrack.artist}</p>
+              </div>
+              <MenuGroup>
+                <MenuItem icon={<Play size={15} />} label="Play now" onClick={() => { playTrack(menuTrack); setMenuTrack(null); }} />
+                <MenuItem icon={<ListEnd size={15} />} label="Play next" onClick={() => { playNext(menuTrack); setMenuTrack(null); }} />
+                <MenuItem icon={<ListPlus size={15} />} label="Add to queue" onClick={() => { addToQueue(menuTrack); setMenuTrack(null); }} />
+              </MenuGroup>
+              <MenuDivider />
+              <MenuGroup>
+                <MenuItem icon={<Plus size={15} />} label="Add to playlist" onClick={() => { setAddMenuTrack(menuTrack); setMenuTrack(null); }} />
+                <MenuItem
+                  icon={<Heart size={15} fill={isLiked(menuTrack.id) ? "currentColor" : "none"} />}
+                  label={isLiked(menuTrack.id) ? "Unlike" : "Like"}
+                  onClick={() => { toggleLike(menuTrack); setMenuTrack(null); }}
+                />
+              </MenuGroup>
+              <MenuDivider />
+              <MenuGroup>
+                <MenuItem icon={<Copy size={15} />} label="Copy link" onClick={() => { shareTrack(menuTrack); setMenuTrack(null); }} />
+                {menuTrack.permalink_url && (
+                  <MenuItem
+                    icon={<Share2 size={15} />}
+                    label="Open source"
+                    onClick={() => {
+                      window.open(menuTrack.permalink_url!, "_blank", "noopener,noreferrer");
+                      setMenuTrack(null);
+                    }}
+                  />
+                )}
+              </MenuGroup>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {addMenuTrack && (
@@ -762,8 +921,8 @@ export default function MusicPage({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             style={{
-              position: "absolute", inset: 0, background: "hsl(216 32% 4% / 0.65)",
-              display: "flex", alignItems: "center", justifyContent: "center", zIndex: 40,
+              position: "absolute", inset: 0, background: "hsla(220, 40%, 4%, 0.55)",
+              display: "flex", alignItems: "center", justifyContent: "center", zIndex: 45,
             }}
             onClick={() => setAddMenuTrack(null)}
           >
@@ -775,6 +934,7 @@ export default function MusicPage({
               style={{
                 width: 280, background: S.surface, border: `1px solid ${S.border}`,
                 borderRadius: 14, padding: 16, boxShadow: "0 20px 60px hsl(0 0% 0% / 0.45)",
+                backdropFilter: "blur(16px)",
               }}
             >
               <p style={{ fontSize: 12, fontWeight: 650, color: S.text, margin: "0 0 4px" }}>Add to playlist</p>
@@ -810,7 +970,7 @@ export default function MusicPage({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             style={{
-              position: "absolute", bottom: 100, left: "50%", transform: "translateX(-50%)",
+              position: "absolute", bottom: 110, left: "50%", transform: "translateX(-50%)",
               background: S.elevated, border: `1px solid ${S.borderFocus}`, borderRadius: 10,
               padding: "8px 14px", color: S.accent, fontSize: 11, fontWeight: 600,
               display: "flex", alignItems: "center", gap: 6, zIndex: 50, maxWidth: "80%",
@@ -824,7 +984,369 @@ export default function MusicPage({
   );
 }
 
-const ctrlBtn: React.CSSProperties = {
+function BrowseView({
+  sections,
+  trending,
+  loading,
+  currentId,
+  playing,
+  onPlay,
+  onMenu,
+}: {
+  sections: BrowseSection[];
+  trending: Track[];
+  loading: boolean;
+  currentId?: string;
+  playing: boolean;
+  onPlay: (track: Track, list: Track[]) => void;
+  onMenu: (track: Track) => void;
+}) {
+  const rows = sections.length
+    ? sections
+    : trending.length
+      ? [{ id: "top", title: "Top Hits", icon: "flame", tracks: trending }]
+      : [];
+
+  if (loading && !rows.length) {
+    return <p style={{ textAlign: "center", color: S.textMuted, fontSize: 12, padding: 48 }}>Loading shelves…</p>;
+  }
+  if (!rows.length) {
+    return <p style={{ textAlign: "center", color: S.textMuted, fontSize: 12, padding: 48 }}>Nothing to browse yet</p>;
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20, paddingBottom: 12 }}>
+      {rows.map((row, ri) => (
+        <ShelfRow
+          key={row.id}
+          title={row.title}
+          icon={sectionIcon(row.icon)}
+          tracks={row.tracks}
+          delay={0.18 + ri * 0.08}
+          currentId={currentId}
+          playing={playing}
+          onPlay={onPlay}
+          onMenu={onMenu}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ShelfRow({
+  title,
+  icon,
+  tracks,
+  delay,
+  currentId,
+  playing,
+  onPlay,
+  onMenu,
+}: {
+  title: string;
+  icon: ReactNode;
+  tracks: Track[];
+  delay: number;
+  currentId?: string;
+  playing: boolean;
+  onPlay: (track: Track, list: Track[]) => void;
+  onMenu: (track: Track) => void;
+}) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
+  const visibleTracks = tracks.filter((t) => !hiddenIds.has(t.id));
+
+  const hideTrack = useCallback((id: string) => {
+    setHiddenIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, []);
+
+  const scrollBy = (dir: number) => {
+    scrollerRef.current?.scrollBy({ left: dir * 300, behavior: "smooth" });
+  };
+
+  if (!visibleTracks.length) return null;
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
+      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      transition={{ duration: 0.65, delay, ease }}
+      style={{ paddingInline: 18 }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, color: S.text }}>
+          <span style={{ color: S.accent, display: "flex" }}>{icon}</span>
+          <h3 style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>{title}</h3>
+        </div>
+        <div style={{ display: "flex", gap: 5 }}>
+          <button onClick={() => scrollBy(-1)} style={chevBtn} aria-label="Scroll left">
+            <ChevronLeft size={13} />
+          </button>
+          <button onClick={() => scrollBy(1)} style={chevBtn} aria-label="Scroll right">
+            <ChevronRight size={13} />
+          </button>
+        </div>
+      </div>
+      <div
+        ref={scrollerRef}
+        className="music-shelf"
+        style={{
+          display: "flex",
+          gap: 12,
+          overflowX: "auto",
+          paddingBottom: 4,
+          scrollbarWidth: "none",
+        }}
+      >
+        {visibleTracks.map((track, i) => {
+          const active = currentId === track.id;
+          return (
+            <motion.button
+              key={track.id}
+              type="button"
+              initial={{ opacity: 0, y: 12, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.45, delay: delay + 0.05 + i * 0.03, ease }}
+              onClick={() => onPlay(track, visibleTracks)}
+              className="music-card"
+              style={{
+                flex: "0 0 128px",
+                width: 128,
+                background: "transparent",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                textAlign: "left",
+                color: S.text,
+              }}
+            >
+              <div
+                style={{
+                  width: 128,
+                  height: 128,
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  background: S.elevated,
+                  border: `1px solid ${active ? S.borderFocus : S.border}`,
+                  position: "relative",
+                  boxShadow: active ? `0 0 0 1px ${S.accentDim}` : "none",
+                }}
+              >
+                {track.artwork ? (
+                  <img
+                    src={track.artwork}
+                    alt=""
+                    loading="lazy"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    onError={() => hideTrack(track.id)}
+                  />
+                ) : (
+                  <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: S.textMuted }}>
+                    <Music2 size={20} />
+                  </div>
+                )}
+                <div
+                  className="music-card-overlay"
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: "linear-gradient(to top, hsla(220,40%,4%,0.55), transparent 55%)",
+                    opacity: active ? 1 : 0,
+                    transition: "opacity 0.2s ease",
+                    display: "flex",
+                    alignItems: "flex-end",
+                    justifyContent: "space-between",
+                    padding: 8,
+                  }}
+                >
+                  <span style={{
+                    width: 28, height: 28, borderRadius: "50%", background: S.accent,
+                    display: "flex", alignItems: "center", justifyContent: "center", color: "#fff",
+                  }}>
+                    {active && playing ? <Pause size={11} fill="#fff" /> : <Play size={11} fill="#fff" style={{ marginLeft: 1 }} />}
+                  </span>
+                  <span
+                    onClick={(e) => { e.stopPropagation(); onMenu(track); }}
+                    style={{
+                      width: 24, height: 24, borderRadius: "50%", background: "hsla(0,0%,0%,0.45)",
+                      display: "flex", alignItems: "center", justifyContent: "center", color: "#fff",
+                    }}
+                  >
+                    <MoreHorizontal size={13} />
+                  </span>
+                </div>
+              </div>
+              <p style={{
+                margin: "7px 1px 0", fontSize: 11, fontWeight: 650, color: active ? S.accent : S.text,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
+                {track.title}
+              </p>
+              <p style={{
+                margin: "2px 1px 0", fontSize: 10, color: S.textMuted,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
+                {track.artist}
+              </p>
+            </motion.button>
+          );
+        })}
+      </div>
+    </motion.section>
+  );
+}
+
+function TrackListView({
+  tracks,
+  loading,
+  emptyLabel,
+  currentId,
+  playing,
+  isLiked,
+  onPlay,
+  onLike,
+  onMenu,
+  onRemove,
+}: {
+  tracks: Track[];
+  loading: boolean;
+  emptyLabel: string;
+  currentId?: string;
+  playing: boolean;
+  isLiked: (id: string) => boolean;
+  onPlay: (track: Track) => void;
+  onLike: (track: Track) => void;
+  onMenu: (track: Track) => void;
+  onRemove?: (id: string) => void;
+}) {
+  if (loading) return <p style={{ textAlign: "center", color: S.textMuted, fontSize: 12, padding: 40 }}>Searching…</p>;
+  if (!tracks.length) return <p style={{ textAlign: "center", color: S.textMuted, fontSize: 12, padding: 40 }}>{emptyLabel}</p>;
+
+  return (
+    <div style={{ padding: "0 14px" }}>
+      <AnimatePresence>
+        {tracks.map((track, i) => {
+          const active = currentId === track.id;
+          return (
+            <motion.div
+              key={`${track.id}-${i}`}
+              initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 0.35, delay: Math.min(i * 0.02, 0.35), ease }}
+              style={{
+                display: "flex", alignItems: "center", gap: 12, padding: "8px 10px", borderRadius: 12,
+                background: active ? S.accentDim : "transparent",
+                border: `1px solid ${active ? S.borderFocus : "transparent"}`,
+                cursor: "pointer", marginBottom: 2,
+              }}
+              onClick={() => onPlay(track)}
+              onMouseEnter={(e) => {
+                if (!active) (e.currentTarget as HTMLDivElement).style.background = S.elevated;
+              }}
+              onMouseLeave={(e) => {
+                if (!active) (e.currentTarget as HTMLDivElement).style.background = "transparent";
+              }}
+            >
+              <div style={{
+                width: 44, height: 44, borderRadius: 10, overflow: "hidden",
+                background: S.elevated, flexShrink: 0, position: "relative",
+              }}>
+                {track.artwork ? (
+                  <img src={track.artwork} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: S.textMuted }}>
+                    <Music2 size={14} />
+                  </div>
+                )}
+                {active && playing && (
+                  <div style={{
+                    position: "absolute", inset: 0, background: "hsla(220, 35%, 6%, 0.45)",
+                    display: "flex", alignItems: "center", justifyContent: "center", color: "#fff",
+                  }}>
+                    <Pause size={12} fill="#fff" />
+                  </div>
+                )}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: active ? S.accent : S.text, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {track.title}
+                </p>
+                <p style={{ fontSize: 10, color: S.textMuted, margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {track.artist}
+                </p>
+              </div>
+              <span style={{ fontSize: 10, color: S.textMuted, fontVariantNumeric: "tabular-nums" }}>
+                {formatTime(track.duration)}
+              </span>
+              <button
+                onClick={(e) => { e.stopPropagation(); onLike(track); }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: isLiked(track.id) ? S.accent : S.textMuted, padding: 4, display: "flex" }}
+              >
+                <Heart size={13} fill={isLiked(track.id) ? "currentColor" : "none"} />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onMenu(track); }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: S.textMuted, padding: 4, display: "flex" }}
+              >
+                <MoreHorizontal size={14} />
+              </button>
+              {onRemove && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRemove(track.id); }}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: S.textMuted, padding: 4, display: "flex" }}
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function MenuGroup({ children }: { children: ReactNode }) {
+  return <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>{children}</div>;
+}
+
+function MenuDivider() {
+  return <div style={{ height: 1, background: S.border, margin: "6px 10px" }} />;
+}
+
+function MenuItem({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        width: "100%",
+        padding: "11px 14px",
+        borderRadius: 10,
+        border: "none",
+        background: "transparent",
+        color: S.text,
+        fontSize: 13,
+        cursor: "pointer",
+        textAlign: "left",
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = S.elevated; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+    >
+      <span style={{ width: 18, display: "flex", color: S.textSub }}>{icon}</span>
+      {label}
+    </button>
+  );
+}
+
+const ctrlBtn: CSSProperties = {
   background: "none",
   border: "none",
   color: "hsla(210, 20%, 75%, 0.7)",
@@ -835,28 +1357,45 @@ const ctrlBtn: React.CSSProperties = {
   justifyContent: "center",
 };
 
+const chevBtn: CSSProperties = {
+  width: 24,
+  height: 24,
+  borderRadius: "50%",
+  border: `1px solid ${S.border}`,
+  background: S.elevated,
+  color: S.textSub,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+};
+
 function SideBtn({
-  active, onClick, icon, label,
+  active, onClick, icon, label, delay = 0,
 }: {
   active: boolean;
   onClick: () => void;
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
+  delay?: number;
 }) {
   return (
-    <button
+    <motion.button
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.4, delay, ease }}
       onClick={onClick}
       className="music-side-btn"
       style={{
-        width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px",
-        borderRadius: 8, border: `1px solid ${active ? S.borderFocus : "transparent"}`,
-        background: active ? S.accentDim : "transparent",
-        color: active ? S.accent : S.textSub, fontSize: 11, fontWeight: 500, cursor: "pointer",
+        width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "7px 10px",
+        borderRadius: 999, border: "none",
+        background: active ? "hsla(210, 40%, 90%, 0.1)" : "transparent",
+        color: active ? S.text : S.textSub, fontSize: 12, fontWeight: active ? 600 : 500, cursor: "pointer",
         textAlign: "left", overflow: "hidden",
       }}
     >
-      <span style={{ flexShrink: 0, display: "flex" }}>{icon}</span>
+      <span style={{ flexShrink: 0, display: "flex", color: active ? S.accent : "inherit" }}>{icon}</span>
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-    </button>
+    </motion.button>
   );
 }

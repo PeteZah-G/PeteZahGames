@@ -289,4 +289,29 @@ try {
   console.error('announcements migration error:', e);
 }
 
+try {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ai_conversations (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      preview TEXT NOT NULL,
+      messages_json TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_ai_convos_user_updated ON ai_conversations(user_id, updated_at DESC);
+
+    CREATE TABLE IF NOT EXISTS ai_prompt_samples (
+      id TEXT PRIMARY KEY,
+      preview TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_ai_prompts_created ON ai_prompt_samples(created_at DESC);
+  `);
+} catch (e) {
+  console.error('ai_conversations migration error:', e);
+}
+
 export default db;

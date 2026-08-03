@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import fetch from 'node-fetch';
 import { checkCircuitBreaker, toIPv4 } from '../middleware/security.js';
+import { logAnonymousFirstPrompt } from '../api/ai-conversations.js';
 
 const router = Router();
 
@@ -189,6 +190,14 @@ router.post('/', async (req, res) => {
     const cached = getCached(cacheKey);
     if (cached) return res.json({ response: cached, cached: true });
   }
+
+  // Anonymous sample of first turns only (no user identity).
+  try {
+    const turnCount = Array.isArray(safeMessages) ? safeMessages.filter((m) => m.role === 'user').length : 1;
+    if (turnCount <= 1 && typeof prompt === 'string' && prompt.trim()) {
+      logAnonymousFirstPrompt(prompt);
+    }
+  } catch {}
 
   const callGroq = async () => {
     const controller = new AbortController();

@@ -18,7 +18,7 @@ export function createSecurityHeaders() {
       'Permissions-Policy',
       'geolocation=(), microphone=(), camera=(self), display-capture=(self)'
     );
-    res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     if (process.env.NODE_ENV === 'production') {
       res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }

@@ -376,11 +376,29 @@ body > .google-auto-placed,
 body > #google_vignette,
 body > div[id^="aswift_"],
 body > iframe[id^="google_ads_iframe"],
-body > iframe[name^="google_ads_iframe"] {
+body > iframe[name^="google_ads_iframe"],
+body > div[class^="ns-"],
+body > div[id^="google_ads_frame"] {
   position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  top: auto !important;
   z-index: 5 !important;
   max-width: 100vw !important;
+  max-height: 100px !important;
+  height: auto !important;
+  overflow: hidden !important;
+  transform: none !important;
   pointer-events: auto;
+}
+
+body > #google_vignette {
+  max-height: 100dvh !important;
+}
+
+.pz-google-ad-label {
+  display: none;
 }
 @font-face {
   font-family: plusjakartasans-obf;
@@ -494,30 +512,13 @@ body > iframe[name^="google_ads_iframe"] {
     justify-content: center;
   }
 
-  .music-header {
-    flex-wrap: wrap !important;
-    gap: 10px !important;
-    padding: 12px 12px 10px !important;
-  }
-  .music-title {
-    flex: 1 1 auto !important;
-  }
-  .music-title p {
-    display: none;
-  }
-  .music-search {
-    flex: 1 1 100% !important;
-    max-width: none !important;
-    order: 3;
-    padding: 8px 10px !important;
-  }
   .music-body {
     flex-direction: column !important;
   }
   .music-sidebar {
     width: 100% !important;
     border-right: none !important;
-    border-bottom: 1px solid hsl(216 20% 16%) !important;
+    border-bottom: 1px solid hsla(210, 40%, 70%, 0.1) !important;
     flex-direction: row !important;
     flex-wrap: nowrap !important;
     align-items: center !important;
@@ -530,22 +531,44 @@ body > iframe[name^="google_ads_iframe"] {
   .music-sidebar::-webkit-scrollbar {
     display: none;
   }
-  .music-side-label {
+  .music-sidebar h1 {
+    font-size: 16px !important;
+    margin: 0 8px 0 0 !important;
+    flex-shrink: 0;
+  }
+  .music-side-label,
+  .music-side-shortcuts {
     display: none !important;
   }
   .music-side-btn {
     width: auto !important;
     white-space: nowrap;
     flex-shrink: 0;
+    border-radius: 999px !important;
   }
   .music-sidebar > div {
     flex-shrink: 0;
   }
   .music-list-header {
-    padding: 10px 12px 6px !important;
+    padding: 12px 14px 8px !important;
+  }
+  .music-list-header h2 {
+    font-size: 18px !important;
+  }
+  .music-search {
+    margin: 0 14px 10px !important;
+    max-width: none !important;
   }
   .music-track-list {
-    padding: 4px 8px 16px !important;
+    padding: 4px 0 12px !important;
+  }
+  .music-card {
+    flex: 0 0 112px !important;
+    width: 112px !important;
+  }
+  .music-card > div:first-child {
+    width: 112px !important;
+    height: 112px !important;
   }
   .music-player {
     padding: 10px 12px 12px !important;
@@ -616,4 +639,12 @@ body > iframe[name^="google_ads_iframe"] {
   .extensions-page .page-scroll {
     padding: 0 14px 24px !important;
   }
+}
+
+.music-card:hover .music-card-overlay {
+  opacity: 1 !important;
+}
+
+.music-shelf::-webkit-scrollbar {
+  display: none;
 }

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ad probe</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        background: #020810;
+        color: #e8eef7;
+        padding: 24px;
+      }
+      .slot {
+        margin: 16px 0 28px;
+        padding: 12px;
+        border: 1px dashed rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        text-align: center;
+      }
+      iframe {
+        border: 0;
+        display: block;
+        margin: 0 auto;
+        background: transparent;
+      }
+      .log {
+        font-size: 12px;
+        white-space: pre-wrap;
+        opacity: 0.75;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Adsterra probe</h1>
+    <p>If banners stay empty, check Network for invoke.js (403/blocked) or an ad blocker.</p>
+
+    <div class="slot">
+      <div>728×90</div>
+      <iframe id="a728" title="Advertisement 728" width="728" height="90" scrolling="no"></iframe>
+    </div>
+
+    <div class="slot">
+      <div>320×50</div>
+      <iframe id="a320" title="Advertisement 320" width="320" height="50" scrolling="no"></iframe>
+    </div>
+
+    <div class="slot">
+      <div>Native bar</div>
+      <div id="container-1f9ef1ea03eb9743ae2feb0b3f839a92" style="min-height: 48px"></div>
+      <script
+        async
+        data-cfasync="false"
+        src="https://pl25832426.effectivecpmnetwork.com/1f9ef1ea03eb9743ae2feb0b3f839a92/invoke.js"
+      ></script>
+    </div>
+
+    <pre class="log" id="log">Loading…</pre>
+    <script>
+      (function () {
+        function fill(id, key, w, h) {
+          var el = document.getElementById(id);
+          el.srcdoc =
+            "<!DOCTYPE html><html><head><meta charset='utf-8'><style>html,body{margin:0;padding:0;overflow:hidden;background:transparent}</style></head><body><script>window.atOptions={key:'" +
+            key +
+            "',format:'iframe',height:" +
+            h +
+            ",width:" +
+            w +
+            ",params:{}};</scr" +
+            "ipt><script src='https://www.highperformanceformat.com/" +
+            key +
+            "/invoke.js'></scr" +
+            "ipt></body></html>";
+        }
+        fill("a728", "5aed292251276d82b269fc3b8ecc354d", 728, 90);
+        fill("a320", "fee48967b89db2d0bd32a6c670ffa744", 320, 50);
+
+        setTimeout(function () {
+          var frames = Array.prototype.slice.call(document.querySelectorAll("iframe"));
+          var lines = frames.map(function (f) {
+            var d = f.contentDocument;
+            var childIframes = d ? d.querySelectorAll("iframe").length : -1;
+            var scripts = d ? d.scripts.length : -1;
+            var htmlLen = d && d.body ? d.body.innerHTML.length : 0;
+            return f.id + ": scripts=" + scripts + " childIframes=" + childIframes + " htmlLen=" + htmlLen;
+          });
+          var native = document.getElementById("container-1f9ef1ea03eb9743ae2feb0b3f839a92");
+          lines.push("native kids=" + (native ? native.children.length : 0) + " htmlLen=" + (native ? native.innerHTML.length : 0));
+          document.getElementById("log").textContent = lines.join("\n");
+        }, 3000);
+      })();
+    </script>
+  </body>
+</html>

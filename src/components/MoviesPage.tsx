@@ -7,6 +7,7 @@ import {
 import { pxEncode, pxReady } from "@/lib/px";
 import { applyVpnRegion, isSignedIn } from "@/lib/vpn";
 import { setPendingAuth } from "@/lib/authPending";
+import { AdResponsiveBanner } from "@/components/ads/Adsterra";
 
 interface CatalogItem {
   id: number;
@@ -929,23 +930,29 @@ export default function MoviesPage({ onNavigate }: { onNavigate?: (url: string) 
               </div>
             )}
             {!loading && catalog.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(148px, 1fr))", gap: 12 }}>
-                <AnimatePresence>
-                  {catalog.map((item) => {
-                    const type = mediaTypeOf(item);
-                    return (
-                      <PosterCard
-                        key={`${type}-${item.id}`}
-                        item={item}
-                        type={type}
-                        isFavorited={isFavorited(item.id, type)}
-                        onFavorite={toggleFavorite}
-                        onPlay={openPlayer}
-                      />
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
+              <>
+                <div style={{ padding: "0 0 12px" }}>
+                  <AdResponsiveBanner />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(148px, 1fr))", gap: 12 }}>
+                  <AnimatePresence>
+                    {catalog.map((item) => {
+                      const type = mediaTypeOf(item);
+                      return (
+                        <PosterCard
+                          key={`${type}-${item.id}`}
+                          item={item}
+                          type={type}
+                          isFavorited={isFavorited(item.id, type)}
+                          onFavorite={toggleFavorite}
+                          onPlay={openPlayer}
+                        />
+                      );
+                    })}
+                  </AnimatePresence>
+                </div>
+                <div style={{ paddingBottom: 96 }} />
+              </>
             )}
           </div>
         </div>

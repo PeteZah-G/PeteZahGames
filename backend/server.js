@@ -20,6 +20,8 @@ import process from 'process';
 import BetterSqlite3Session from 'better-sqlite3-session-store';
 import httpProxy from 'http-proxy';
 import { PX } from './px-paths.js';
+import { applySeoToHtml } from './utils/seo-meta.js';
+import fs, { existsSync } from 'node:fs';
 
 import { createCorsConfig, createSecurityHeaders, createUploadGuard } from './middleware/http-security.js';
 import { ddosShield } from './security/ddos-shield.js';
@@ -43,6 +45,14 @@ import { signinHandler } from './api/signin.js';
 import { signoutHandler } from './api/signout.js';
 import { getMeHandler, updateProfileHandler, uploadAvatarHandler, uploadBannerHandler, getPublicProfileHandler } from './api/user.js';
 import { getSettingsHandler, saveSettingsHandler } from './api/settings.js';
+import {
+  listConversationsHandler,
+  getConversationHandler,
+  upsertConversationHandler,
+  renameConversationHandler,
+  deleteConversationHandler,
+  adminAiPromptsHandler,
+} from './api/ai-conversations.js';
 import { addCommentHandler, getCommentsHandler, deleteCommentHandler, cleanupMaliciousCommentsHandler } from './api/comments.js';
 import { likeHandler, getLikesHandler } from './api/likes.js';
 import { adminUserActionHandler } from './api/admin-user-action.js';
@@ -123,7 +133,6 @@ import { createCapGateMiddleware, sendVerifyPage, requireGateUpgrade } from './m
 import { cleanupCapStore } from './cap/store.js';
 import { legalAcceptHandler, legalStatusHandler } from './legal/accept.js';
 import { redirectLegal, sendLegalPage } from './legal/pages.js';
-import { existsSync } from 'node:fs';
 
 const { createBareServer } = bareServerPkg;
 const SqliteStore = BetterSqlite3Session(session);
@@ -331,6 +340,13 @@ app.post('/api/ads/gate', adsGateLimiter, adsGateHandler);
 app.get('/api/settings', getSettingsHandler);
 app.put('/api/settings', localStorageLimiter, saveSettingsHandler);
 
+app.get('/api/ai/conversations', listConversationsHandler);
+app.get('/api/ai/conversations/:id', getConversationHandler);
+app.post('/api/ai/conversations', upsertConversationHandler);
+app.patch('/api/ai/conversations/:id', renameConversationHandler);
+app.delete('/api/ai/conversations/:id', deleteConversationHandler);
+app.get('/api/admin/ai-prompts', adminAiPromptsHandler);
+
 app.get('/api/changelog', getChangelogHandler);
 app.post('/api/changelog', createChangelogHandler);
 app.delete('/api/changelog/:id', deleteChangelogHandler);
@@ -403,7 +419,21 @@ if (IS_DEV) {
   app.use('/', createProxyMiddleware({ target: `http://localhost:${VITE_PORT}`, changeOrigin: true, ws: false }));
 } else {
   const distPath = path.join(__dirname, '../dist');
+  const indexPath = path.join(distPath, 'index.html');
+  let indexCache = { mtime: 0, html: '' };
+  function readIndexHtml() {
+    try {
+      const st = fs.statSync(indexPath);
+      if (st.mtimeMs !== indexCache.mtime || !indexCache.html) {
+        indexCache = { mtime: st.mtimeMs, html: fs.readFileSync(indexPath, 'utf8') };
+      }
+      return indexCache.html;
+    } catch {
+      return '';
+    }
+  }
   app.use(express.static(distPath, {
+    index: false,
     setHeaders(res, filePath) {
       if (filePath.endsWith('.html')) {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -424,7 +454,9 @@ if (IS_DEV) {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
-    res.sendFile(path.join(distPath, 'index.html'));
+    const raw = readIndexHtml();
+    if (!raw) return res.sendFile(indexPath);
+    res.type('html').send(applySeoToHtml(raw, req.headers.host || req.hostname));
   });
 }
 

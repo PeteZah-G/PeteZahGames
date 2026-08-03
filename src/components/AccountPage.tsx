@@ -62,7 +62,7 @@ const SITE_PRESETS = [
   { id: "petezah",   label: "PeteZah",           favicon: "/logo.png" },
 ];
 
-type Section = "profile" | "get-links" | "achievements" | "appearance" | "cloaking" | "behavior" | "data" | "admin" | "users" | "live" | "firefox-vm" | "game-stats" | "link-stats" | "updates";
+type Section = "profile" | "get-links" | "achievements" | "appearance" | "cloaking" | "behavior" | "data" | "admin" | "users" | "live" | "firefox-vm" | "game-stats" | "link-stats" | "updates" | "ai-prompts";
 
 const THEME_COLORS: Record<string, { bgColor: string; textColor: string }> = {
   "default":         { bgColor: "#020810", textColor: "#e8f0fa" },
@@ -260,40 +260,6 @@ function FluidCanvas({ enabled }: { enabled: boolean }) {
   );
 }
 
-function HypeAd() {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const container = ref.current;
-    if (!container) return;
-
-    // Set options before script loads
-    (window as any).atOptions = {
-      key: "5aed292251276d82b269fc3b8ecc354d",
-      format: "iframe",
-      height: 90,
-      width: 728,
-      params: {},
-    };
-
-    const script = document.createElement("script");
-    script.src = "https://www.highperformanceformat.com/5aed292251276d82b269fc3b8ecc354d/invoke.js";
-    script.async = true;
-    container.appendChild(script);
-
-    return () => {
-      if (container.contains(script)) container.removeChild(script);
-    };
-  }, []);
-
-  return (
-    <div
-      ref={ref}
-      style={{ display: "flex", justifyContent: "center", width: "100%", minHeight: 90 }}
-    />
-  );
-}
-
 const C = {
   bg:       "hsl(216 32% 6%)",
   surface:  "hsl(216 26% 9%)",
@@ -409,6 +375,7 @@ const NAV: { id: Section; label: string; icon: any; adminOnly?: boolean }[] = [
   { id: "firefox-vm", label: "Firefox VM",  icon: Monitor, adminOnly: true },
   { id: "game-stats", label: "Game Stats",  icon: Gamepad2, adminOnly: true },
   { id: "link-stats", label: "Link Stats",  icon: BarChart3, adminOnly: true },
+  { id: "ai-prompts", label: "AI Prompts", icon: MessageSquare, adminOnly: true },
   { id: "updates",    label: "Updates", icon: Megaphone, adminOnly: true },
 ];
 
@@ -511,6 +478,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   const [ffHistoryTotal, setFfHistoryTotal] = useState(0);
   const [ffHistoryLoading, setFfHistoryLoading] = useState(false);
   const [announcements, setAnnouncements] = useState<{ id: string; title: string; content: string; active: number; created_at: number; target_user_id?: string | null; target_username?: string | null }[]>([]);
+  const [aiPrompts, setAiPrompts] = useState<{ id: string; preview: string; createdAt: number }[]>([]);
   const [annTitle, setAnnTitle] = useState("");
   const [annContent, setAnnContent] = useState("");
   const [annTarget, setAnnTarget] = useState("");
@@ -987,6 +955,14 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       .then((r) => r.json())
       .then((d) => setAnnouncements(d.announcements || []))
       .catch(() => {});
+  }, [section, user]);
+
+  useEffect(() => {
+    if (section !== "ai-prompts" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
+    fetch("/api/admin/ai-prompts?limit=60", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setAiPrompts(d.prompts || []))
+      .catch(() => setAiPrompts([]));
   }, [section, user]);
 
   async function createAnnouncement() {
@@ -1870,9 +1846,6 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
               {resendBusy ? "Sending…" : "Resend verification email"}
             </button>
           )}
-        </div>
-        <div style={{ marginTop: "12px" }}>
-          <HypeAd />
         </div>
       </motion.div>
     </div>
@@ -3985,6 +3958,39 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                         >
                           {a.active ? "Suspend" : "Reactivate"}
                         </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {section === "ai-prompts" && isAdmin && (
+              <div style={{ maxWidth: "560px" }}>
+                <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: "0 0 3px" }}>AI Prompts</h2>
+                <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 16px" }}>
+                  Anonymous first questions only — no usernames, emails, or account links.
+                </p>
+                {aiPrompts.length === 0 ? (
+                  <p style={{ fontSize: 12, color: C.textMuted }}>No samples yet</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {aiPrompts.map((p) => (
+                      <div
+                        key={p.id}
+                        style={{
+                          padding: "10px 12px",
+                          borderRadius: 9,
+                          background: C.surface,
+                          border: `1px solid ${C.border}`,
+                        }}
+                      >
+                        <p style={{ margin: 0, fontSize: 12, color: C.text, lineHeight: 1.45 }}>
+                          {p.preview}
+                        </p>
+                        <p style={{ margin: "6px 0 0", fontSize: 10, color: C.textMuted }}>
+                          {new Date(p.createdAt).toLocaleString()}
+                        </p>
                       </div>
                     ))}
                   </div>

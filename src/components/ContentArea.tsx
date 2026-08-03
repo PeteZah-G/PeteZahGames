@@ -677,6 +677,27 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
   const [editingPreset, setEditingPreset] = useState<Preset | null | "new">(
     null,
   );
+  const [homeMusic, setHomeMusic] = useState<{
+    tracks: { id: string; title: string; artist: string; artwork: string | null }[];
+    artists: { id: string; name: string; avatar: string | null }[];
+  }>({ tracks: [], artists: [] });
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/music/home")
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled) return;
+        setHomeMusic({
+          tracks: d.tracks || [],
+          artists: d.artists || [],
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const savePresets = useCallback((updated: Preset[]) => {
     setPresets(updated);
@@ -803,6 +824,115 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
         >
           <VpnSelector onNavigate={onNavigate} />
         </motion.div>
+
+        {(homeMusic.artists.length > 0 || homeMusic.tracks.length > 0) && (
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.55, ease }}
+            className="w-full max-w-xl mt-1"
+            style={{ textAlign: "left" }}
+          >
+            {homeMusic.artists.length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, paddingInline: 2 }}>
+                  <p style={{ margin: 0, fontSize: 10, fontWeight: 650, letterSpacing: "0.08em", textTransform: "uppercase", color: "hsla(210,15%,70%,0.45)" }}>
+                    Top artists
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate("petezah://music")}
+                    style={{ background: "none", border: "none", color: "hsla(205,80%,70%,0.7)", fontSize: 10, cursor: "pointer" }}
+                  >
+                    Open Music
+                  </button>
+                </div>
+                <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 2, scrollbarWidth: "none" }}>
+                  {homeMusic.artists.slice(0, 8).map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => onNavigate("petezah://music")}
+                      title={a.name}
+                      style={{
+                        flex: "0 0 auto",
+                        width: 52,
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        cursor: "pointer",
+                        color: "hsla(0,0%,100%,0.85)",
+                      }}
+                    >
+                      <div style={{
+                        width: 52, height: 52, borderRadius: "50%", overflow: "hidden",
+                        background: "hsla(220,28%,14%,0.8)",
+                        border: "1px solid hsla(210,40%,70%,0.12)",
+                      }}>
+                        {a.avatar ? (
+                          <img src={a.avatar} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ) : (
+                          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "hsla(0,0%,100%,0.3)" }}>
+                            <Music size={14} />
+                          </div>
+                        )}
+                      </div>
+                      <p style={{ margin: "5px 0 0", fontSize: 9, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "hsla(0,0%,100%,0.55)" }}>
+                        {a.name}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {homeMusic.tracks.length > 0 && (
+              <div>
+                <p style={{ margin: "0 0 6px 2px", fontSize: 10, fontWeight: 650, letterSpacing: "0.08em", textTransform: "uppercase", color: "hsla(210,15%,70%,0.45)" }}>
+                  Top tracks
+                </p>
+                <div style={{ display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none" }}>
+                  {homeMusic.tracks.slice(0, 8).map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => onNavigate(`petezah://music?t=${t.id}`)}
+                      style={{
+                        flex: "0 0 92px",
+                        width: 92,
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        cursor: "pointer",
+                        textAlign: "left",
+                        color: "hsla(0,0%,100%,0.9)",
+                      }}
+                    >
+                      <div style={{
+                        width: 92, height: 92, borderRadius: 10, overflow: "hidden",
+                        background: "hsla(220,28%,14%,0.8)",
+                        border: "1px solid hsla(210,40%,70%,0.1)",
+                      }}>
+                        {t.artwork ? (
+                          <img src={t.artwork} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ) : (
+                          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "hsla(0,0%,100%,0.3)" }}>
+                            <Music size={16} />
+                          </div>
+                        )}
+                      </div>
+                      <p style={{ margin: "5px 1px 0", fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {t.title}
+                      </p>
+                      <p style={{ margin: "1px 1px 0", fontSize: 9, color: "hsla(0,0%,100%,0.4)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {t.artist}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
       </div>
       <AnimatePresence>
         {editingPreset && (

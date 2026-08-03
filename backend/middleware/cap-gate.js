@@ -1,15 +1,33 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
 import { hasValidGate } from '../cap/store.js';
 import { hasValidLegal } from '../legal/cookie.js';
+import { applySeoToHtml } from '../utils/seo-meta.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VERIFY_FILE = path.join(__dirname, '../../public/verify.html');
+
+let verifyCache = { mtime: 0, html: '' };
+
+function readVerifyTemplate() {
+  try {
+    const st = fs.statSync(VERIFY_FILE);
+    if (st.mtimeMs !== verifyCache.mtime || !verifyCache.html) {
+      verifyCache = { mtime: st.mtimeMs, html: fs.readFileSync(VERIFY_FILE, 'utf8') };
+    }
+    return verifyCache.html;
+  } catch {
+    return '';
+  }
+}
 
 const OPEN_EXACT = new Set([
   '/verify',
   '/verify.html',
   '/logo.png',
+  '/og-share.png',
+  '/ad-probe.html',
   '/favicon.ico',
   '/robots.txt',
   '/ads.txt',
@@ -71,10 +89,15 @@ export function createCapGateMiddleware() {
   };
 }
 
-export function sendVerifyPage(_req, res) {
+export function sendVerifyPage(req, res) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
-  res.sendFile(VERIFY_FILE);
+  const raw = readVerifyTemplate();
+  if (!raw) {
+    return res.sendFile(VERIFY_FILE);
+  }
+  const html = applySeoToHtml(raw, req.headers.host || req.hostname);
+  res.type('html').send(html);
 }
 
 export function requireGateUpgrade(req) {

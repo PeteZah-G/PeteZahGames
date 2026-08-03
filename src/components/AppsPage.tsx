@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Plus, Star, MoreVertical, X, Trash2, Share2, Copy, Check, Upload } from "lucide-react";
 import { requestSyncSoon } from "@/lib/settingsSync";
+import { AdResponsiveBanner, AdNativeBar } from "@/components/ads/Adsterra";
 
 function generateAppId(app: { label: string; url: string }) {
   return `${app.label}-${app.url}`.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
@@ -88,40 +89,6 @@ function saveHiddenApps(hidden: string[]) {
   try { localStorage.setItem("hiddenApps", JSON.stringify(hidden)); requestSyncSoon(); } catch {}
 }
 
-
-function HypeAd() {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const container = ref.current;
-    if (!container) return;
-
-    // Set options before script loads
-    (window as any).atOptions = {
-      key: "5aed292251276d82b269fc3b8ecc354d",
-      format: "iframe",
-      height: 90,
-      width: 728,
-      params: {},
-    };
-
-    const script = document.createElement("script");
-    script.src = "https://www.highperformanceformat.com/5aed292251276d82b269fc3b8ecc354d/invoke.js";
-    script.async = true;
-    container.appendChild(script);
-
-    return () => {
-      if (container.contains(script)) container.removeChild(script);
-    };
-  }, []);
-
-  return (
-    <div
-      ref={ref}
-      style={{ display: "flex", justifyContent: "center", width: "100%", minHeight: 90 }}
-    />
-  );
-}
 
 function AddAppModal({ onAdd, onClose }: { onAdd: (a: App) => void; onClose: () => void }) {
   const [title, setTitle] = useState("");
@@ -364,12 +331,18 @@ export default function AppsPage({ onNavigate }: AppsPageProps) {
               <p className="text-sm">No apps found</p>
             </div>
           ) : (
-            <div className="grid gap-3 apps-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
-              {filtered.map((app, i) => (
-                <AppCard key={app.id} app={app} isFav={favorites.includes(app.id)} index={i}
-                  onOpen={() => handleOpen(app)} onOptions={() => setOptionsApp(app)} />
-              ))}
-            </div>
+            <>
+              <div className="grid gap-3 apps-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
+                {filtered.map((app, i) => (
+                  <AppCard key={app.id} app={app} isFav={favorites.includes(app.id)} index={i}
+                    onOpen={() => handleOpen(app)} onOptions={() => setOptionsApp(app)} />
+                ))}
+              </div>
+              <div className="pt-4 pb-8">
+                <AdResponsiveBanner />
+                <AdNativeBar />
+              </div>
+            </>
           )}
         </div>
       </div>

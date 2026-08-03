@@ -1,3 +1,5 @@
+import { playAdsterraLoadingAd } from "@/components/ads/Adsterra";
+
 const SDK_SRC = "https://cdn.applixir.com/applixir.app.v6.1.0.js";
 const CONTAINER_ID = "pz-applixir-root";
 const AD_TIMEOUT_MS = 28000;
@@ -60,7 +62,7 @@ function loadSdk(): Promise<void> {
 
 export type AdGateResult =
   | { show: false; reason?: string }
-  | { show: true; apiKey: string; context: string };
+  | { show: true; apiKey: string; context: string; reason?: string };
 
 export async function requestAdGate(
   context: "game" | "app" | "vm"
@@ -153,9 +155,16 @@ export function playApplixirAd(apiKey: string, userId?: string): Promise<"done" 
 export async function runInterstitial(
   context: "game" | "app" | "vm",
   userId?: string
-): Promise<"shown" | "skipped"> {
+): Promise<"shown" | "skipped" | "fallback"> {
   const gate = await requestAdGate(context);
-  if (!gate.show) return "skipped";
-  const result = await playApplixirAd(gate.apiKey, userId);
-  return result === "error" ? "skipped" : "shown";
+  if (gate.show) {
+    const result = await playApplixirAd(gate.apiKey, userId);
+    return result === "error" ? "skipped" : "shown";
+  }
+  const reason = "reason" in gate ? gate.reason : undefined;
+  if (reason === "disabled" || reason === "network" || reason === "skip") {
+    await playAdsterraLoadingAd(2600);
+    return "fallback";
+  }
+  return "skipped";
 }

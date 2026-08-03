@@ -13,7 +13,12 @@ import {
   Pencil,
   ChevronDown,
   Monitor,
+  MessageSquare,
+  Plus,
+  Trash2,
+  Check,
 } from "lucide-react";
+import { AdResponsiveBanner } from "@/components/ads/Adsterra";
 
 interface Message {
   id: string;
@@ -27,6 +32,69 @@ interface HistoryEntry {
   role: "user" | "assistant";
   content: string;
   image?: { base64: string; mime: string };
+}
+
+interface ConvoMeta {
+  id: string;
+  title: string;
+  preview: string;
+  updatedAt: number;
+}
+
+const LOCAL_CONVOS_KEY = "petezah-ai-convos-lite";
+const WELCOME = "Hey! I'm PeteAI. What can I help you with?";
+
+function formatAiResponse(text: string) {
+  let out = text.trim();
+  out = out.replace(
+    /```(\w+)?\n([\s\S]*?)```/g,
+    (_: string, _lang: string, code: string) =>
+      `<pre style="background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:12px 14px;overflow-x:auto;font-size:11px;margin:8px 0;font-family:'Courier New',monospace;color:rgba(255,255,255,0.85);white-space:pre-wrap;"><code>${code
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")}</code></pre>`,
+  );
+  out = out.replace(
+    /`([^`]+)`/g,
+    "<code style=\"background:rgba(0,0,0,0.2);padding:1px 6px;border-radius:4px;font-size:0.88em;font-family:'Courier New',monospace;color:rgba(255,255,255,0.8);\">$1</code>",
+  );
+  out = out.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  out = out.replace(/\*(.+?)\*/g, "<em>$1</em>");
+  out = out.replace(
+    /(https?:\/\/[^\s<]+)/g,
+    '<a href="$1" target="_blank" style="color:var(--foreground);opacity:0.7;text-decoration:underline;text-underline-offset:2px;">$1</a>',
+  );
+  out = out.replace(/\n/g, "<br>");
+  return out;
+}
+
+function loadLocalConvos(): { meta: ConvoMeta; messages: { role: string; content: string }[] }[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_CONVOS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.slice(0, 20);
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalConvos(
+  items: { meta: ConvoMeta; messages: { role: string; content: string }[] }[],
+) {
+  try {
+    const slim = items.slice(0, 20).map((c) => ({
+      meta: c.meta,
+      messages: (c.messages || [])
+        .filter((m) => m.content && m.role)
+        .slice(-40)
+        .map((m) => ({
+          role: m.role === "assistant" || m.role === "ai" ? "assistant" : "user",
+          content: String(m.content).slice(0, 4000),
+        })),
+    }));
+    localStorage.setItem(LOCAL_CONVOS_KEY, JSON.stringify(slim));
+  } catch {}
 }
 
 const MODELS = [
@@ -63,47 +131,6 @@ const SYSTEM_PROMPT = `You are PeteAI, a helpful and friendly AI assistant devel
 Answer: [direct answer]
 [brief explanation if needed]
 For casual conversation, just respond naturally and briefly. Never reference the conversation format or mention "previous messages". Just respond naturally as if in a real conversation.`;
-
-
-function HypeAd() {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const container = ref.current;
-    if (!container) return;
-
-    // Set options before script loads
-    (window as any).atOptions = {
-      key: "5aed292251276d82b269fc3b8ecc354d",
-      format: "iframe",
-      height: 90,
-      width: 728,
-      params: {},
-    };
-
-    const script = document.createElement("script");
-    script.src =
-      "https://www.highperformanceformat.com/5aed292251276d82b269fc3b8ecc354d/invoke.js";
-    script.async = true;
-    container.appendChild(script);
-
-    return () => {
-      if (container.contains(script)) container.removeChild(script);
-    };
-  }, []);
-
-  return (
-    <div
-      ref={ref}
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        width: "100%",
-        minHeight: 90,
-      }}
-    />
-  );
-}
 
 function TypingDots() {
   return (
@@ -685,6 +712,12 @@ export default function AIPage({
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [showScreenWidget, setShowScreenWidget] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [convos, setConvos] = useState<ConvoMeta[]>([]);
+  const [activeConvoId, setActiveConvoId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [signedIn, setSignedIn] = useState(false);
   const handleScreenToggle = async () => {
     setShowScreenWidget(true);
   };
@@ -692,6 +725,8 @@ export default function AIPage({
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const activeConvoIdRef = useRef<string | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -700,11 +735,210 @@ export default function AIPage({
     }, 50);
   }, []);
 
-  useEffect(() => {
-    const welcome = "Hey! I'm PeteAI. What can I help you with?";
-    setMessages([{ id: "welcome", role: "ai", content: welcome }]);
-    setHistory([{ role: "assistant", content: welcome }]);
+  const resetToWelcome = useCallback(() => {
+    setMessages([{ id: "welcome", role: "ai", content: WELCOME }]);
+    setHistory([{ role: "assistant", content: WELCOME }]);
+    setShowSuggestions(true);
+    setActiveConvoId(null);
+    activeConvoIdRef.current = null;
   }, []);
+
+  const refreshConvoList = useCallback(async () => {
+    try {
+      const r = await fetch("/api/ai/conversations", { credentials: "include" });
+      if (r.status === 401) {
+        setSignedIn(false);
+        const local = loadLocalConvos();
+        setConvos(local.map((c) => c.meta).sort((a, b) => b.updatedAt - a.updatedAt));
+        return;
+      }
+      if (!r.ok) return;
+      setSignedIn(true);
+      const d = await r.json();
+      setConvos(d.conversations || []);
+    } catch {
+      const local = loadLocalConvos();
+      setConvos(local.map((c) => c.meta).sort((a, b) => b.updatedAt - a.updatedAt));
+    }
+  }, []);
+
+  useEffect(() => {
+    resetToWelcome();
+    refreshConvoList();
+  }, [resetToWelcome, refreshConvoList]);
+
+  const persistConversation = useCallback(
+    async (hist: HistoryEntry[], convoId: string | null) => {
+      const textMsgs = hist
+        .filter((m) => m.content?.trim())
+        .filter((m) => m.content !== WELCOME)
+        .map((m) => ({
+          role: m.role === "assistant" ? "assistant" : "user",
+          content: m.content,
+        }));
+      if (!textMsgs.some((m) => m.role === "user")) return convoId;
+
+      const preview =
+        textMsgs.find((m) => m.role === "user")?.content.slice(0, 80) || "New chat";
+
+      if (signedIn) {
+        try {
+          const r = await fetch("/api/ai/conversations", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: convoId, messages: textMsgs, title: preview }),
+          });
+          if (r.ok) {
+            const d = await r.json();
+            const id = d.conversation?.id || convoId;
+            activeConvoIdRef.current = id;
+            setActiveConvoId(id);
+            refreshConvoList();
+            return id as string;
+          }
+          if (r.status === 401) setSignedIn(false);
+        } catch {}
+      }
+
+      const id = convoId || `local-${Date.now()}`;
+      const meta: ConvoMeta = {
+        id,
+        title: preview.slice(0, 60),
+        preview: preview.slice(0, 120),
+        updatedAt: Date.now(),
+      };
+      const all = loadLocalConvos().filter((c) => c.meta.id !== id);
+      all.unshift({ meta, messages: textMsgs });
+      saveLocalConvos(all);
+      activeConvoIdRef.current = id;
+      setActiveConvoId(id);
+      setConvos(all.map((c) => c.meta));
+      return id;
+    },
+    [signedIn, refreshConvoList],
+  );
+
+  const schedulePersist = useCallback(
+    (hist: HistoryEntry[]) => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        persistConversation(hist, activeConvoIdRef.current);
+      }, 600);
+    },
+    [persistConversation],
+  );
+
+  const openConversation = useCallback(
+    async (id: string) => {
+      if (signedIn) {
+        try {
+          const r = await fetch(`/api/ai/conversations/${id}`, { credentials: "include" });
+          if (r.ok) {
+            const d = await r.json();
+            const msgs = (d.conversation?.messages || []) as { role: string; content: string }[];
+            const ui: Message[] = [
+              { id: "welcome", role: "ai", content: WELCOME },
+              ...msgs.map((m, i) => ({
+                id: `${id}-${i}`,
+                role: (m.role === "assistant" ? "ai" : "user") as "ai" | "user",
+                    content:
+                  m.role === "assistant" || m.role === "ai"
+                    ? formatAiResponse(m.content)
+                    : m.content,
+              })),
+            ];
+            const hist: HistoryEntry[] = [
+              { role: "assistant", content: WELCOME },
+              ...msgs.map((m) => ({
+                role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
+                content: m.content,
+              })),
+            ];
+            setMessages(ui);
+            setHistory(hist);
+            setActiveConvoId(id);
+            activeConvoIdRef.current = id;
+            setShowSuggestions(false);
+            setSidebarOpen(false);
+            return;
+          }
+        } catch {}
+      }
+      const local = loadLocalConvos().find((c) => c.meta.id === id);
+      if (!local) return;
+      const msgs = local.messages || [];
+      setMessages([
+        { id: "welcome", role: "ai", content: WELCOME },
+        ...msgs.map((m, i) => ({
+          id: `${id}-${i}`,
+          role: (m.role === "assistant" ? "ai" : "user") as "ai" | "user",
+          content:
+            m.role === "assistant"
+              ? formatAiResponse(m.content)
+              : m.content,
+        })),
+      ]);
+      setHistory([
+        { role: "assistant", content: WELCOME },
+        ...msgs.map((m) => ({
+          role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
+          content: m.content,
+        })),
+      ]);
+      setActiveConvoId(id);
+      activeConvoIdRef.current = id;
+      setShowSuggestions(false);
+      setSidebarOpen(false);
+    },
+    [signedIn],
+  );
+
+  const deleteConversation = useCallback(
+    async (id: string) => {
+      if (signedIn) {
+        try {
+          await fetch(`/api/ai/conversations/${id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        } catch {}
+        refreshConvoList();
+      } else {
+        const next = loadLocalConvos().filter((c) => c.meta.id !== id);
+        saveLocalConvos(next);
+        setConvos(next.map((c) => c.meta));
+      }
+      if (activeConvoIdRef.current === id) resetToWelcome();
+    },
+    [signedIn, refreshConvoList, resetToWelcome],
+  );
+
+  const renameConversation = useCallback(
+    async (id: string, title: string) => {
+      const clean = title.trim().slice(0, 80);
+      if (!clean) return;
+      if (signedIn) {
+        try {
+          await fetch(`/api/ai/conversations/${id}`, {
+            method: "PATCH",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: clean }),
+          });
+        } catch {}
+        refreshConvoList();
+      } else {
+        const all = loadLocalConvos().map((c) =>
+          c.meta.id === id ? { ...c, meta: { ...c.meta, title: clean } } : c,
+        );
+        saveLocalConvos(all);
+        setConvos(all.map((c) => c.meta));
+      }
+      setRenamingId(null);
+    },
+    [signedIn, refreshConvoList],
+  );
 
   useEffect(() => {
     const syncModel = () => {
@@ -724,29 +958,6 @@ export default function AIPage({
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
-
-  const formatResponse = (text: string) => {
-    let out = text.trim();
-    out = out.replace(
-      /```(\w+)?\n([\s\S]*?)```/g,
-      (_: string, _lang: string, code: string) =>
-        `<pre style="background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:12px 14px;overflow-x:auto;font-size:11px;margin:8px 0;font-family:'Courier New',monospace;color:rgba(255,255,255,0.85);white-space:pre-wrap;"><code>${code
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")}</code></pre>`,
-    );
-    out = out.replace(
-      /`([^`]+)`/g,
-      "<code style=\"background:rgba(0,0,0,0.2);padding:1px 6px;border-radius:4px;font-size:0.88em;font-family:'Courier New',monospace;color:rgba(255,255,255,0.8);\">$1</code>",
-    );
-    out = out.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-    out = out.replace(/\*(.+?)\*/g, "<em>$1</em>");
-    out = out.replace(
-      /(https?:\/\/[^\s<]+)/g,
-      '<a href="$1" target="_blank" style="color:var(--foreground);opacity:0.7;text-decoration:underline;text-underline-offset:2px;">$1</a>',
-    );
-    out = out.replace(/\n/g, "<br>");
-    return out;
-  };
 
   const sendMessage = useCallback(
     async (
@@ -812,7 +1023,7 @@ export default function AIPage({
             groqMessages.push({ role: "user", content: entry.content });
           }
         } else if (entry.role === "assistant" && entry.content?.trim()) {
-          if (entry.content === "Hey! I'm PeteAI. What can I help you with?") continue;
+          if (entry.content === WELCOME) continue;
           groqMessages.push({ role: "assistant", content: entry.content });
         }
       }
@@ -875,7 +1086,7 @@ export default function AIPage({
         else if (text.toLowerCase().includes("illegal"))
           aiResponse = "I can't help with anything illegal.";
 
-        const formatted = formatResponse(aiResponse);
+        const formatted = formatAiResponse(aiResponse);
         setMessages((prev) =>
           prev
             .filter((m) => m.id !== "thinking")
@@ -885,11 +1096,14 @@ export default function AIPage({
               content: formatted,
             }),
         );
-        setHistory((prev) =>
-          [...prev, { role: "assistant" as const, content: aiResponse }].slice(
-            -40,
-          ),
-        );
+        setHistory((prev) => {
+          const next = [
+            ...prev,
+            { role: "assistant" as const, content: aiResponse },
+          ].slice(-40);
+          schedulePersist(next);
+          return next;
+        });
       } catch (err: any) {
         setMessages((prev) => prev.filter((m) => m.id !== "thinking"));
         if (err.name !== "AbortError") {
@@ -911,7 +1125,7 @@ export default function AIPage({
         inputRef.current?.focus();
       }
     },
-    [input, pendingImage, isFetching, history, model],
+    [input, pendingImage, isFetching, history, model, schedulePersist],
   );
 
   const handleRegen = useCallback(() => {
@@ -975,8 +1189,161 @@ export default function AIPage({
   const canSend = (input.trim().length > 0 || !!pendingImage) && !isFetching;
 
   return (
-    <div className="absolute inset-0 flex flex-col overflow-hidden">
+    <div className="absolute inset-0 flex overflow-hidden">
+      {/* Hover-expand conversation rail */}
+      <aside
+        className="ai-convo-rail"
+        onMouseEnter={() => setSidebarOpen(true)}
+        onMouseLeave={() => {
+          if (!renamingId) setSidebarOpen(false);
+        }}
+        style={{
+          width: sidebarOpen ? 200 : 44,
+          flexShrink: 0,
+          borderRight: "1px solid rgba(255,255,255,0.06)",
+          background: "hsla(220, 32%, 7%, 0.35)",
+          backdropFilter: "blur(12px)",
+          transition: "width 0.22s ease",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          zIndex: 20,
+        }}
+      >
+        <div style={{ padding: "10px 8px 6px", display: "flex", flexDirection: "column", gap: 4 }}>
+          <button
+            type="button"
+            title="New chat"
+            onClick={() => {
+              resetToWelcome();
+              setSidebarOpen(false);
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              width: "100%",
+              padding: "7px 8px",
+              borderRadius: 8,
+              border: "1px solid rgba(255,255,255,0.07)",
+              background: "transparent",
+              color: "rgba(255,255,255,0.55)",
+              cursor: "pointer",
+              fontSize: 11,
+            }}
+          >
+            <Plus size={13} style={{ flexShrink: 0 }} />
+            {sidebarOpen && <span>New chat</span>}
+          </button>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "4px 6px 10px", scrollbarWidth: "none" }}>
+          {convos.length === 0 && sidebarOpen && (
+            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.28)", padding: "8px 6px", margin: 0 }}>
+              Past chats appear here{signedIn ? "" : " · sign in to sync"}.
+            </p>
+          )}
+          {convos.map((c) => {
+            const active = activeConvoId === c.id;
+            return (
+              <div
+                key={c.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  marginBottom: 2,
+                  borderRadius: 8,
+                  background: active ? "rgba(255,255,255,0.06)" : "transparent",
+                }}
+              >
+                {renamingId === c.id && sidebarOpen ? (
+                  <form
+                    style={{ flex: 1, display: "flex", gap: 4, padding: 4 }}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      renameConversation(c.id, renameValue);
+                    }}
+                  >
+                    <input
+                      autoFocus
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        background: "rgba(0,0,0,0.25)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        borderRadius: 6,
+                        color: "rgba(255,255,255,0.85)",
+                        fontSize: 10,
+                        padding: "4px 6px",
+                        outline: "none",
+                      }}
+                    />
+                    <button type="submit" style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", padding: 2 }}>
+                      <Check size={11} />
+                    </button>
+                  </form>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      title={c.title}
+                      onClick={() => openConversation(c.id)}
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "7px 8px",
+                        border: "none",
+                        background: "transparent",
+                        color: active ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.45)",
+                        cursor: "pointer",
+                        fontSize: 11,
+                        textAlign: "left",
+                      }}
+                    >
+                      <MessageSquare size={12} style={{ flexShrink: 0, opacity: 0.7 }} />
+                      {sidebarOpen && (
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {c.title}
+                        </span>
+                      )}
+                    </button>
+                    {sidebarOpen && (
+                      <div style={{ display: "flex", gap: 1, paddingRight: 4 }}>
+                        <button
+                          type="button"
+                          title="Rename"
+                          onClick={() => {
+                            setRenamingId(c.id);
+                            setRenameValue(c.title);
+                          }}
+                          style={{ background: "none", border: "none", color: "rgba(255,255,255,0.28)", cursor: "pointer", padding: 3 }}
+                        >
+                          <Pencil size={10} />
+                        </button>
+                        <button
+                          type="button"
+                          title="Delete"
+                          onClick={() => deleteConversation(c.id)}
+                          style={{ background: "none", border: "none", color: "rgba(255,255,255,0.28)", cursor: "pointer", padding: 3 }}
+                        >
+                          <Trash2 size={10} />
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </aside>
 
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
       <div
         className="flex-shrink-0 relative z-10 px-6 pt-4 pb-3 flex items-center justify-between"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
@@ -1098,7 +1465,7 @@ export default function AIPage({
                 </button>
               ))}
             </motion.div>
-            <HypeAd />
+            <AdResponsiveBanner />
           </>
         )}
       </div>
@@ -1230,6 +1597,7 @@ export default function AIPage({
           <ScreenWidget onClose={() => setShowScreenWidget(false)} />
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }
