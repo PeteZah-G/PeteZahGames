@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { hasValidGate } from '../cap/store.js';
 import { hasValidLegal } from '../legal/cookie.js';
 import { applySeoToHtml } from '../utils/seo-meta.js';
+import { isSocialPreviewBot } from './security.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VERIFY_FILE = path.join(__dirname, '../../public/verify.html');
@@ -65,10 +66,18 @@ function wantsHtml(req) {
   return !ext || ext === '.html';
 }
 
+function shouldBypassGateForCrawler(req) {
+  const ua = req.headers['user-agent'] || '';
+  if (isSocialPreviewBot(ua)) return true;
+  if (req.pzVerifiedBot) return true;
+  return false;
+}
+
 export function createCapGateMiddleware() {
   return (req, res, next) => {
     const p = req.path || '';
     if (isOpenPath(p)) return next();
+    if (shouldBypassGateForCrawler(req)) return next();
     if (hasValidGate(req) && hasValidLegal(req)) return next();
 
     if (p.startsWith('/api/') || p.startsWith('/!!/') || p.startsWith('/!cover!/')) {

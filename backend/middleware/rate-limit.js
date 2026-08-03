@@ -55,6 +55,15 @@ export const localStorageLimiter = rateLimit({
   message: 'Too many saves, slow down.'
 });
 
+export const aiConversationsLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 40,
+  keyGenerator: (req) => (req.session?.user?.id ? `u:${req.session.user.id}` : toIPv4(null, req)),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many AI chat requests. Slow down.' },
+});
+
 export function createApiLimiter(shield) {
   return rateLimit({
     windowMs: 60000,

@@ -147,12 +147,13 @@ const KNOWN_BOTS = {
   baiduspider: ['.crawl.baidu.com.', '.crawl.baidu.jp.'],
   yandexbot: ['.yandex.com.', '.yandex.ru.', '.yandex.net.'],
   facebookexternalhit: ['.facebook.com.', '.fbsv.net.'],
+  facebot: ['.facebook.com.', '.fbsv.net.'],
   twitterbot: ['.twitter.com.'],
-  discordbot: ['.discord.com.'],
+  discordbot: ['.discord.com.', '.discordapp.com.', '.discord.gg.'],
   telegrambot: ['.telegram.org.'],
   whatsapp: ['.facebook.com.', '.whatsapp.net.'],
   linkedinbot: ['.linkedin.com.'],
-  slackbot: ['.slack.com.'],
+  slackbot: ['.slack.com.', '.slack-bots.com.'],
   'archive.org_bot': ['.archive.org.'],
   ia_archiver: ['.archive.org.'],
   semrushbot: ['.semrush.com.'],
@@ -160,6 +161,17 @@ const KNOWN_BOTS = {
   mj12bot: ['.mj12bot.com.'],
   dotbot: ['.opensiteexplorer.org.', '.moz.com.']
 };
+
+/** Link-unfurl / share-preview crawlers (Discord, iMessage, Slack, etc.). */
+export function isSocialPreviewBot(ua = '') {
+  return /discordbot|facebookexternalhit|facebot|twitterbot|slackbot|telegrambot|whatsapp|linkedinbot|redditbot|embedly|quora link preview|pinterest|skypeuripreview|vkshare|iframely|meta-externalagent|meta-externalfetcher/i.test(
+    String(ua)
+  );
+}
+
+export function isSearchEngineBot(ua = '') {
+  return /googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|applebot|bytespider/i.test(String(ua));
+}
 
 export async function verifyLegitimateBot(ua, ip) {
   const cacheKey = `${ip}:${ua}`;
@@ -233,7 +245,7 @@ export function adjustPowDifficulty(shield) {
   else if (target < systemState.currentPowDifficulty) systemState.currentPowDifficulty = Math.max(systemState.currentPowDifficulty - 1, BASE_POW_DIFFICULTY);
 }
 
-const BOT_PATTERNS = [/googlebot/i, /bingbot/i, /slurp/i, /duckduckbot/i, /baiduspider/i, /yandexbot/i, /facebookexternalhit/i, /twitterbot/i, /discordbot/i, /telegrambot/i, /whatsapp/i, /linkedinbot/i, /slackbot/i, /archive\.org_bot/i, /ia_archiver/i, /semrushbot/i, /ahrefsbot/i, /mj12bot/i, /dotbot/i];
+const BOT_PATTERNS = [/googlebot/i, /bingbot/i, /slurp/i, /duckduckbot/i, /baiduspider/i, /yandexbot/i, /facebookexternalhit/i, /facebot/i, /meta-externalagent/i, /meta-externalfetcher/i, /twitterbot/i, /discordbot/i, /telegrambot/i, /whatsapp/i, /linkedinbot/i, /slackbot/i, /archive\.org_bot/i, /ia_archiver/i, /semrushbot/i, /ahrefsbot/i, /mj12bot/i, /dotbot/i];
 
 const OPEN_PATHS = new Set(['/api/signin', '/api/signup', '/api/bot-challenge', '/api/bot-verify', '/api/verify-email', '/api/verify-email/resend', '/api/legal/accept', '/api/legal/status', '/api/me', '/api/signout', '/api/comments', '/api/likes', '/api/changelog', '/api/presence', '/api/announcements/active', '/api/games/play', '/api/games/plays', '/api/games/catalog', '/api/websocket/normal', '/api/websocket/normal/', '/api/websocket/tor', '/api/websocket/tor/']);
 
@@ -269,8 +281,12 @@ export function createGateMiddleware(shield) {
 
     const botMatch = BOT_PATTERNS.find(p => p.test(ua));
     if (botMatch) {
+      // Share-preview crawlers often fail reverse-DNS; still let them read OG tags.
+      if (isSocialPreviewBot(ua)) return next();
       const verified = await verifyLegitimateBot(ua, ip);
       if (!verified) { shield.incrementBlocked(ip, 'fake_bot'); return res.status(403).json({ error: 'Forbidden' }); }
+      // Mark so cap-gate can skip the /verify wall for real crawlers.
+      req.pzVerifiedBot = true;
       return next();
     }
 

@@ -32,7 +32,7 @@ import {
   setAttackModeHandler,
   setKillSwitchHandler,
 } from './api/admin-dashboard.js';
-import { authLimiter, createApiLimiter, createAiLimiter, signupLimiter, localStorageLimiter, pfpLimiter, securityActionLimiter, adminOverviewLimiter } from './middleware/rate-limit.js';
+import { authLimiter, createApiLimiter, createAiLimiter, signupLimiter, localStorageLimiter, pfpLimiter, securityActionLimiter, adminOverviewLimiter, aiConversationsLimiter } from './middleware/rate-limit.js';
 import challengeRouter from './routes/challenge.js';
 import aiRouter from './routes/ai.js';
 import moviesRouter from './routes/movies.js';
@@ -340,11 +340,11 @@ app.post('/api/ads/gate', adsGateLimiter, adsGateHandler);
 app.get('/api/settings', getSettingsHandler);
 app.put('/api/settings', localStorageLimiter, saveSettingsHandler);
 
-app.get('/api/ai/conversations', listConversationsHandler);
-app.get('/api/ai/conversations/:id', getConversationHandler);
-app.post('/api/ai/conversations', upsertConversationHandler);
-app.patch('/api/ai/conversations/:id', renameConversationHandler);
-app.delete('/api/ai/conversations/:id', deleteConversationHandler);
+app.get('/api/ai/conversations', aiConversationsLimiter, listConversationsHandler);
+app.get('/api/ai/conversations/:id', aiConversationsLimiter, getConversationHandler);
+app.post('/api/ai/conversations', aiConversationsLimiter, upsertConversationHandler);
+app.patch('/api/ai/conversations/:id', aiConversationsLimiter, renameConversationHandler);
+app.delete('/api/ai/conversations/:id', aiConversationsLimiter, deleteConversationHandler);
 app.get('/api/admin/ai-prompts', adminAiPromptsHandler);
 
 app.get('/api/changelog', getChangelogHandler);
@@ -451,9 +451,20 @@ if (IS_DEV) {
     if ((req.path || '').startsWith('/firefox-wasm')) {
       return res.status(404).type('text/plain').send('Firefox WASM asset not found');
     }
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    const ua = req.headers['user-agent'] || '';
+    const crawler =
+      req.pzVerifiedBot ||
+      /discordbot|facebookexternalhit|facebot|twitterbot|slackbot|telegrambot|whatsapp|linkedinbot|googlebot|bingbot/i.test(
+        ua
+      );
+    if (crawler) {
+      // Discord/etc. need a stable 200 with OG tags — allow short caching for embeds.
+      res.setHeader('Cache-Control', 'public, max-age=300');
+    } else {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
     const raw = readIndexHtml();
     if (!raw) return res.sendFile(indexPath);
     res.type('html').send(applySeoToHtml(raw, req.headers.host || req.hostname));

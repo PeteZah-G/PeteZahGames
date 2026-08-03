@@ -787,7 +787,17 @@ export default function AIPage({
             method: "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: convoId, messages: textMsgs, title: preview }),
+            body: JSON.stringify({
+              id:
+                convoId &&
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+                  convoId,
+                )
+                  ? convoId
+                  : undefined,
+              messages: textMsgs,
+              title: preview,
+            }),
           });
           if (r.ok) {
             const d = await r.json();

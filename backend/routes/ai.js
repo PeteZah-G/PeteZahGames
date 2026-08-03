@@ -195,7 +195,7 @@ router.post('/', async (req, res) => {
   try {
     const turnCount = Array.isArray(safeMessages) ? safeMessages.filter((m) => m.role === 'user').length : 1;
     if (turnCount <= 1 && typeof prompt === 'string' && prompt.trim()) {
-      logAnonymousFirstPrompt(prompt);
+      logAnonymousFirstPrompt(prompt, ip);
     }
   } catch {}
 

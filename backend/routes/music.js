@@ -49,6 +49,8 @@ function mapTrack(t) {
     t.artwork_url ||
     t.user?.avatar_url ||
     null;
+  const followers = Number(t.user?.followers_count || 0);
+  const verified = !!(t.user?.verified || t.user?.badges?.verified || t.user?.badges?.pro_unlimited || t.user?.badges?.pro);
   return {
     id: String(t.id),
     title: t.title || 'Untitled',
@@ -58,7 +60,134 @@ function mapTrack(t) {
     permalink_url: t.permalink_url || null,
     genre: t.genre || null,
     streamable: !!t.streamable || t.policy === 'ALLOW' || t.access === 'playable',
+    followers,
+    verified,
+    playbackCount: Number(t.playback_count || 0),
   };
+}
+
+const JUNK_TITLE =
+  /\b(playlist|mashup|mix|1\s*hour|one\s*hour|kumpulan|lagu|cover|nightcore|sped\s*up|slowed|reverb|bootleg|compilation|mega\s*mix|year\s*mix|tiktok\s*viral|best\s+of|top\s+\d+|mp3|\.mp3|full\s+album)\b/i;
+const NON_LATIN_HEAVY = /[\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/;
+
+function isQualityTrack(t, { strict = true } = {}) {
+  if (!t || !t.id || !t.title) return false;
+  if (!t.artwork) return false;
+  if (JUNK_TITLE.test(t.title)) return false;
+  if (t.title.length > 80) return false;
+  if (NON_LATIN_HEAVY.test(t.title) || NON_LATIN_HEAVY.test(t.artist || '')) return false;
+  // Prefer real songs: 45s–7.5min
+  const dur = Number(t.duration || 0);
+  if (dur > 0 && (dur < 45_000 || dur > 450_000)) return false;
+  if (strict) {
+    if (t.verified) return true;
+    if ((t.followers || 0) >= 50_000) return true;
+    if ((t.playbackCount || 0) >= 100_000 && (t.followers || 0) >= 5_000) return true;
+    return false;
+  }
+  return (t.followers || 0) >= 2_000 || (t.playbackCount || 0) >= 20_000;
+}
+
+function stripMeta(t) {
+  if (!t) return null;
+  return {
+    id: t.id,
+    title: t.title,
+    artist: t.artist,
+    artwork: t.artwork,
+    duration: t.duration,
+    permalink_url: t.permalink_url,
+    genre: t.genre,
+    streamable: t.streamable,
+  };
+}
+
+async function fetchSearchRaw(clientId, q, limit = 24) {
+  try {
+    const url = `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(q)}&client_id=${clientId}&limit=${limit}&offset=0`;
+    const r = await fetch(url, {
+      headers: { 'User-Agent': UA, Accept: 'application/json' },
+    });
+    if (!r.ok) return [];
+    const data = await r.json();
+    return (data.collection || []).map(mapTrack).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+async function fetchUserTracks(clientId, userId, limit = 8) {
+  try {
+    const url = `https://api-v2.soundcloud.com/users/${userId}/tracks?client_id=${clientId}&limit=${limit}&offset=0`;
+    const r = await fetch(url, {
+      headers: { 'User-Agent': UA, Accept: 'application/json' },
+    });
+    if (!r.ok) return [];
+    const data = await r.json();
+    const list = Array.isArray(data) ? data : data.collection || [];
+    return list.map(mapTrack).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+async function resolveArtistUserId(clientId, name) {
+  try {
+    const url = `https://api-v2.soundcloud.com/search/users?q=${encodeURIComponent(name)}&client_id=${clientId}&limit=5&offset=0`;
+    const r = await fetch(url, {
+      headers: { 'User-Agent': UA, Accept: 'application/json' },
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    const users = data.collection || [];
+    const want = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    let best = null;
+    for (const u of users) {
+      const uname = String(u.username || u.full_name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const followers = Number(u.followers_count || 0);
+      const verified = !!(u.verified || u.badges?.verified || u.badges?.pro_unlimited);
+      const exact = uname === want || uname.includes(want) || want.includes(uname);
+      if (!exact && followers < 100_000) continue;
+      const score = (exact ? 1_000_000 : 0) + (verified ? 500_000 : 0) + followers;
+      if (!best || score > best.score) best = { id: u.id, score };
+    }
+    return best?.id ? String(best.id) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function tracksFromArtists(clientId, artists, perArtist = 3, limit = 14) {
+  const out = [];
+  const seen = new Set();
+  for (const name of artists) {
+    const uid = await resolveArtistUserId(clientId, name);
+    let tracks = [];
+    if (uid) tracks = await fetchUserTracks(clientId, uid, perArtist + 2);
+    if (!tracks.length) {
+      // fallback: search "artist -" style and filter
+      tracks = await fetchSearchRaw(clientId, `${name}`, 10);
+      tracks = tracks.filter(
+        (t) =>
+          String(t.artist || '')
+            .toLowerCase()
+            .includes(name.toLowerCase().split(' ')[0]) || t.verified
+      );
+    }
+    for (const t of tracks) {
+      if (!isQualityTrack(t, { strict: false })) continue;
+      if (seen.has(t.id)) continue;
+      // Prefer tracks that look like they belong to this artist
+      const artistMatch = String(t.artist || '')
+        .toLowerCase()
+        .includes(name.toLowerCase().split(' ')[0].toLowerCase());
+      if (!artistMatch && !t.verified && (t.followers || 0) < 80_000) continue;
+      seen.add(t.id);
+      out.push(t);
+      if (out.length >= limit) return out.map(stripMeta);
+    }
+  }
+  return out.map(stripMeta);
 }
 
 async function fetchStreamUrl(trackId, clientId) {
@@ -101,7 +230,11 @@ router.get('/search', async (req, res) => {
     });
     if (!r.ok) return res.status(502).json({ error: 'Search failed' });
     const data = await r.json();
-    const tracks = (data.collection || []).map(mapTrack).filter(Boolean);
+    const tracks = (data.collection || [])
+      .map(mapTrack)
+      .filter(Boolean)
+      .filter((t) => !JUNK_TITLE.test(t.title) && t.title.length <= 100)
+      .map(stripMeta);
     res.json({ tracks });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -148,45 +281,60 @@ async function fetchChart(clientId, genre, limit = 16) {
     const data = await r.json();
     return (data.collection || [])
       .map((c) => mapTrack(c.track || c))
-      .filter(Boolean);
+      .filter(Boolean)
+      .filter((t) => isQualityTrack(t, { strict: false }))
+      .map(stripMeta);
   } catch {
     return [];
   }
 }
 
-async function fetchSearchTracks(clientId, q, limit = 14) {
-  try {
-    const url = `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(q)}&client_id=${clientId}&limit=${limit}&offset=0`;
-    const r = await fetch(url, {
-      headers: { 'User-Agent': UA, Accept: 'application/json' },
-    });
-    if (!r.ok) return [];
-    const data = await r.json();
-    return (data.collection || []).map(mapTrack).filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-
-async function fetchSectionTracks(clientId, { genre, genreAlts = [], search }, limit = 14) {
-  const genres = [genre, ...genreAlts].filter(Boolean);
-  for (const g of genres) {
-    const tracks = await fetchChart(clientId, g, limit);
-    if (tracks.length) return tracks;
-  }
-  if (search) {
-    const tracks = await fetchSearchTracks(clientId, search, limit);
-    if (tracks.length) return tracks;
-  }
-  return [];
-}
+const BROWSE_SHELVES = [
+  {
+    id: 'top',
+    title: 'Top Tracks',
+    icon: 'flame',
+    artists: ['Drake', 'The Weeknd', 'Taylor Swift', 'Billie Eilish', 'Post Malone', 'Ariana Grande', 'Ed Sheeran', 'Dua Lipa'],
+  },
+  {
+    id: 'pop',
+    title: 'Pop Hits',
+    icon: 'sparkles',
+    artists: ['Olivia Rodrigo', 'Sabrina Carpenter', 'Dua Lipa', 'Harry Styles', 'Charlie Puth', 'Shawn Mendes', 'Doja Cat', 'Lady Gaga'],
+  },
+  {
+    id: 'hiphop',
+    title: 'Rap & Hip-Hop',
+    icon: 'zap',
+    artists: ['Kendrick Lamar', 'Travis Scott', 'J. Cole', 'Eminem', 'Future', 'Lil Baby', 'Nicki Minaj', 'Ice Spice'],
+  },
+  {
+    id: 'chill',
+    title: 'Chill & Soft',
+    icon: 'radio',
+    artists: ['Lauv', 'Joji', 'Clairo', 'Rex Orange County', 'Girl in Red', 'Steve Lacy', 'Tame Impala', 'Khalid'],
+  },
+  {
+    id: 'rnb',
+    title: 'R&B Favorites',
+    icon: 'heart',
+    artists: ['SZA', 'Frank Ocean', 'The Weeknd', 'Brent Faiyaz', 'Summer Walker', 'H.E.R.', 'Daniel Caesar', 'Giveon'],
+  },
+];
 
 router.get('/trending', async (_req, res) => {
   try {
     const clientId = await resolveClientId();
-    let tracks = await fetchChart(clientId, 'all-music', 24);
-    if (!tracks.length) tracks = await fetchSearchTracks(clientId, 'viral hits english 2025', 24);
-    if (!tracks.length) tracks = await fetchSearchTracks(clientId, 'trending pop songs', 24);
+    let tracks = await tracksFromArtists(
+      clientId,
+      BROWSE_SHELVES[0].artists,
+      3,
+      20
+    );
+    if (!tracks.length) {
+      const raw = await fetchSearchRaw(clientId, 'Drake', 30);
+      tracks = raw.filter((t) => isQualityTrack(t, { strict: true })).slice(0, 16).map(stripMeta);
+    }
     res.json({ tracks });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -196,26 +344,24 @@ router.get('/trending', async (_req, res) => {
 router.get('/browse', async (_req, res) => {
   try {
     const clientId = await resolveClientId();
-    const sections = [
-      { id: 'top', title: 'Trending Now', genre: 'all-music', genreAlts: ['allmusic'], search: 'viral english hits 2025', icon: 'flame' },
-      { id: 'pop', title: 'Fresh Pop', genre: 'pop', search: 'new pop hits english', icon: 'sparkles' },
-      { id: 'hiphop', title: 'Rap & Hip-Hop', genre: 'hiphoprap', genreAlts: ['hip-hop-rap', 'hiphop'], search: 'english rap hits 2025', icon: 'zap' },
-      { id: 'chill', title: 'Chill Vibes', genre: 'ambient', genreAlts: ['deephouse'], search: 'chill pop english playlist', icon: 'radio' },
-      { id: 'rnb', title: 'R&B Favorites', genre: 'rbsoul', genreAlts: ['r-b-soul', 'soul'], search: 'rnb english hits', icon: 'heart' },
-    ];
     const results = await Promise.all(
-      sections.map(async (s) => ({
+      BROWSE_SHELVES.map(async (s) => ({
         id: s.id,
         title: s.title,
         icon: s.icon,
-        tracks: await fetchSectionTracks(clientId, s, 16),
+        tracks: await tracksFromArtists(clientId, s.artists, 3, 14),
       }))
     );
     let out = results.filter((s) => s.tracks.length > 0);
     if (!out.length) {
-      const fallback = await fetchSearchTracks(clientId, 'english pop songs', 20);
+      const fallback = await tracksFromArtists(
+        clientId,
+        ['Drake', 'The Weeknd', 'Taylor Swift', 'Billie Eilish', 'SZA'],
+        4,
+        16
+      );
       if (fallback.length) {
-        out = [{ id: 'top', title: 'Trending Now', icon: 'flame', tracks: fallback }];
+        out = [{ id: 'top', title: 'Top Tracks', icon: 'flame', tracks: fallback }];
       }
     }
     res.json({ sections: out });
@@ -224,78 +370,9 @@ router.get('/browse', async (_req, res) => {
   }
 });
 
-function mapArtist(u) {
-  if (!u || !u.id) return null;
-  const avatar = u.avatar_url || null;
-  return {
-    id: String(u.id),
-    name: u.username || u.full_name || 'Artist',
-    avatar: avatar ? String(avatar).replace('-large', '-t500x500') : null,
-    followers: Number(u.followers_count || 0),
-    permalink_url: u.permalink_url || null,
-  };
-}
-
 router.get('/home', async (_req, res) => {
-  try {
-    const clientId = await resolveClientId();
-    let tracks = await fetchChart(clientId, 'all-music', 18);
-    if (!tracks.length) tracks = await fetchSearchTracks(clientId, 'viral english hits 2025', 18);
-    if (!tracks.length) tracks = await fetchSearchTracks(clientId, 'trending pop songs', 18);
-
-    let artists = [];
-    const artistMap = new Map();
-    // Prefer chart users when available; otherwise derive from track search results.
-    const chartUrl = `https://api-v2.soundcloud.com/charts?kind=top&genre=${encodeURIComponent('soundcloud:genres:all-music')}&client_id=${clientId}&limit=24&offset=0`;
-    try {
-      const chartRes = await fetch(chartUrl, {
-        headers: { 'User-Agent': UA, Accept: 'application/json' },
-      });
-      if (chartRes.ok) {
-        const data = await chartRes.json();
-        for (const c of data.collection || []) {
-          const track = c.track || c;
-          const a = mapArtist(track?.user);
-          if (a && !artistMap.has(a.id)) artistMap.set(a.id, a);
-        }
-      }
-    } catch {}
-
-    if (!artistMap.size) {
-      // Pull a few popular artist queries for avatars/names
-      const artistQueries = ['drake', 'taylor swift', 'the weeknd', 'billie eilish', 'travis scott', 'sza', 'bad bunny', 'doja cat'];
-      for (const q of artistQueries) {
-        try {
-          const url = `https://api-v2.soundcloud.com/search/users?q=${encodeURIComponent(q)}&client_id=${clientId}&limit=1&offset=0`;
-          const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
-          if (!r.ok) continue;
-          const data = await r.json();
-          const a = mapArtist((data.collection || [])[0]);
-          if (a && !artistMap.has(a.id)) artistMap.set(a.id, a);
-        } catch {}
-      }
-    }
-
-    artists = [...artistMap.values()].slice(0, 12);
-    if (!artists.length) {
-      const seen = new Set();
-      for (const t of tracks) {
-        if (!t.artist || seen.has(t.artist)) continue;
-        seen.add(t.artist);
-        artists.push({
-          id: `name-${seen.size}`,
-          name: t.artist,
-          avatar: t.artwork,
-          followers: 0,
-          permalink_url: null,
-        });
-        if (artists.length >= 10) break;
-      }
-    }
-    res.json({ tracks: tracks.slice(0, 12), artists });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  // Kept for compatibility; homepage no longer surfaces music.
+  res.json({ tracks: [], artists: [] });
 });
 
 export default router;

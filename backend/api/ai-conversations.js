@@ -7,10 +7,34 @@ const MAX_CONTENT = 4000;
 const MAX_TITLE = 80;
 const MAX_PREVIEW = 180;
 const MAX_ANON = 400;
+const MAX_PAYLOAD_CHARS = 160_000;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const anonLogBuckets = new Map();
+
+function cleanText(raw, max) {
+  return String(raw || '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max);
+}
 
 function requireUser(req, res) {
   if (!req.session?.user?.id) {
     res.status(401).json({ error: 'Sign in to save chats' });
+    return null;
+  }
+  const row = db
+    .prepare('SELECT id, banned FROM users WHERE id = ?')
+    .get(req.session.user.id);
+  if (!row) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return null;
+  }
+  if (row.banned) {
+    res.status(403).json({ error: 'Account restricted' });
     return null;
   }
   return req.session.user;
@@ -21,8 +45,8 @@ function requireAdmin(req, res) {
     res.status(401).json({ error: 'Unauthorized' });
     return null;
   }
-  const row = db.prepare('SELECT is_admin, email FROM users WHERE id = ?').get(req.session.user.id);
-  if (!row) {
+  const row = db.prepare('SELECT is_admin, email, banned FROM users WHERE id = ?').get(req.session.user.id);
+  if (!row || row.banned) {
     res.status(401).json({ error: 'Unauthorized' });
     return null;
   }
@@ -37,12 +61,13 @@ function requireAdmin(req, res) {
 
 function sanitizeMessages(raw) {
   if (!Array.isArray(raw)) return [];
+  if (raw.length > MAX_MESSAGES + 10) return [];
   const out = [];
   for (const m of raw.slice(-MAX_MESSAGES)) {
     if (!m || typeof m !== 'object') continue;
     const role = m.role === 'assistant' || m.role === 'ai' ? 'assistant' : m.role === 'user' ? 'user' : null;
     if (!role) continue;
-    const content = String(m.content || '').slice(0, MAX_CONTENT).trim();
+    const content = cleanText(m.content, MAX_CONTENT);
     if (!content) continue;
     out.push({ role, content });
   }
@@ -52,7 +77,7 @@ function sanitizeMessages(raw) {
 function firstUserPreview(messages) {
   const first = messages.find((m) => m.role === 'user');
   if (!first) return 'New chat';
-  return first.content.replace(/\s+/g, ' ').trim().slice(0, MAX_PREVIEW) || 'New chat';
+  return cleanText(first.content, MAX_PREVIEW) || 'New chat';
 }
 
 function pruneUserConvos(userId) {
@@ -79,10 +104,25 @@ function pruneAnon() {
   ).run(excess);
 }
 
-export function logAnonymousFirstPrompt(prompt) {
+function allowAnonLog(key) {
+  const now = Date.now();
+  const bucket = anonLogBuckets.get(key) || { count: 0, reset: now + 60_000 };
+  if (now > bucket.reset) {
+    bucket.count = 0;
+    bucket.reset = now + 60_000;
+  }
+  bucket.count += 1;
+  anonLogBuckets.set(key, bucket);
+  return bucket.count <= 8;
+}
+
+export function logAnonymousFirstPrompt(prompt, ipKey = 'unknown') {
   try {
-    const text = String(prompt || '').replace(/\s+/g, ' ').trim().slice(0, MAX_PREVIEW);
+    if (!allowAnonLog(String(ipKey || 'unknown').slice(0, 64))) return;
+    const text = cleanText(prompt, MAX_PREVIEW);
     if (!text || text.length < 3) return;
+    // Skip obvious junk / injection attempts from analytics store
+    if (/[<>`]{2,}|javascript:|data:/i.test(text)) return;
     const id = crypto.randomUUID();
     db.prepare(
       'INSERT INTO ai_prompt_samples (id, preview, created_at) VALUES (?, ?, ?)'
@@ -104,8 +144,8 @@ export function listConversationsHandler(req, res) {
   res.json({
     conversations: rows.map((r) => ({
       id: r.id,
-      title: r.title,
-      preview: r.preview,
+      title: cleanText(r.title, MAX_TITLE),
+      preview: cleanText(r.preview, MAX_PREVIEW),
       updatedAt: r.updated_at,
       createdAt: r.created_at,
     })),
@@ -116,21 +156,23 @@ export function getConversationHandler(req, res) {
   const user = requireUser(req, res);
   if (!user) return;
   const id = String(req.params.id || '');
+  if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid id' });
   const row = db
     .prepare('SELECT id, title, preview, messages_json, updated_at, created_at FROM ai_conversations WHERE id = ? AND user_id = ?')
     .get(id, user.id);
   if (!row) return res.status(404).json({ error: 'Not found' });
   let messages = [];
   try {
-    messages = JSON.parse(row.messages_json || '[]');
+    const parsed = JSON.parse(row.messages_json || '[]');
+    messages = sanitizeMessages(parsed);
   } catch {
     messages = [];
   }
   res.json({
     conversation: {
       id: row.id,
-      title: row.title,
-      preview: row.preview,
+      title: cleanText(row.title, MAX_TITLE),
+      preview: cleanText(row.preview, MAX_PREVIEW),
       messages,
       updatedAt: row.updated_at,
       createdAt: row.created_at,
@@ -142,17 +184,38 @@ export function upsertConversationHandler(req, res) {
   const user = requireUser(req, res);
   if (!user) return;
   const body = req.body || {};
+  try {
+    const approx = JSON.stringify(body.messages || []).length;
+    if (approx > MAX_PAYLOAD_CHARS) {
+      return res.status(413).json({ error: 'Conversation too large' });
+    }
+  } catch {
+    return res.status(400).json({ error: 'Invalid payload' });
+  }
+
   const messages = sanitizeMessages(body.messages);
   if (!messages.length) return res.status(400).json({ error: 'Empty conversation' });
+  if (!messages.some((m) => m.role === 'user')) {
+    return res.status(400).json({ error: 'Missing user message' });
+  }
 
   const preview = firstUserPreview(messages);
-  const title = String(body.title || preview).replace(/\s+/g, ' ').trim().slice(0, MAX_TITLE) || 'New chat';
+  const title = cleanText(body.title || preview, MAX_TITLE) || 'New chat';
   const now = Date.now();
-  let id = typeof body.id === 'string' && body.id.length <= 64 ? body.id : null;
+  let id = typeof body.id === 'string' ? body.id.trim() : null;
+  if (id && !UUID_RE.test(id)) {
+    return res.status(400).json({ error: 'Invalid id' });
+  }
 
   const existing = id
     ? db.prepare('SELECT id FROM ai_conversations WHERE id = ? AND user_id = ?').get(id, user.id)
     : null;
+
+  // Never allow writing another user's conversation id
+  if (id && !existing) {
+    const ownedByOther = db.prepare('SELECT id FROM ai_conversations WHERE id = ?').get(id);
+    if (ownedByOther) return res.status(403).json({ error: 'Forbidden' });
+  }
 
   if (existing) {
     db.prepare(
@@ -178,7 +241,8 @@ export function renameConversationHandler(req, res) {
   const user = requireUser(req, res);
   if (!user) return;
   const id = String(req.params.id || '');
-  const title = String(req.body?.title || '').replace(/\s+/g, ' ').trim().slice(0, MAX_TITLE);
+  if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid id' });
+  const title = cleanText(req.body?.title, MAX_TITLE);
   if (!title) return res.status(400).json({ error: 'Title required' });
   const result = db
     .prepare('UPDATE ai_conversations SET title = ?, updated_at = ? WHERE id = ? AND user_id = ?')
@@ -191,6 +255,7 @@ export function deleteConversationHandler(req, res) {
   const user = requireUser(req, res);
   if (!user) return;
   const id = String(req.params.id || '');
+  if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid id' });
   const result = db
     .prepare('DELETE FROM ai_conversations WHERE id = ? AND user_id = ?')
     .run(id, user.id);
@@ -211,7 +276,7 @@ export function adminAiPromptsHandler(req, res) {
   res.json({
     prompts: rows.map((r) => ({
       id: r.id,
-      preview: r.preview,
+      preview: cleanText(r.preview, MAX_PREVIEW),
       createdAt: r.created_at,
     })),
   });
