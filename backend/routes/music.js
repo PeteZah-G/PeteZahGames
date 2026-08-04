@@ -51,6 +51,17 @@ function mapTrack(t) {
     null;
   const followers = Number(t.user?.followers_count || 0);
   const verified = !!(t.user?.verified || t.user?.badges?.verified || t.user?.badges?.pro_unlimited || t.user?.badges?.pro);
+  const transcodings = t.media?.transcodings || [];
+  const hasProgressive = transcodings.some((x) => x?.format?.protocol === 'progressive' && x?.url);
+  const hasHls = transcodings.some((x) => x?.format?.protocol === 'hls' && x?.url);
+  const policy = t.policy || null;
+  // Monetized major-label tracks are encrypted-HLS only and cannot play in <audio>.
+  const streamable =
+    policy === 'BLOCK'
+      ? false
+      : hasProgressive
+        ? true
+        : !!(t.streamable && hasHls && policy !== 'MONETIZE');
   return {
     id: String(t.id),
     title: t.title || 'Untitled',
@@ -59,7 +70,10 @@ function mapTrack(t) {
     duration: t.duration || 0,
     permalink_url: t.permalink_url || null,
     genre: t.genre || null,
-    streamable: !!t.streamable || t.policy === 'ALLOW' || t.access === 'playable',
+    streamable,
+    policy,
+    hasProgressive,
+    hasHls,
     followers,
     verified,
     playbackCount: Number(t.playback_count || 0),
@@ -98,8 +112,19 @@ function stripMeta(t) {
     duration: t.duration,
     permalink_url: t.permalink_url,
     genre: t.genre,
-    streamable: t.streamable,
+    streamable: !!t.streamable,
   };
+}
+
+function withClientId(url, clientId) {
+  try {
+    const u = new URL(url);
+    u.searchParams.set('client_id', clientId);
+    return u.toString();
+  } catch {
+    const sep = String(url).includes('?') ? '&' : '?';
+    return `${url}${sep}client_id=${encodeURIComponent(clientId)}`;
+  }
 }
 
 async function fetchSearchRaw(clientId, q, limit = 24) {
@@ -157,64 +182,113 @@ async function resolveArtistUserId(clientId, name) {
   }
 }
 
-async function tracksFromArtists(clientId, artists, perArtist = 3, limit = 14) {
+async function tracksFromArtists(clientId, artists, perArtist = 3, limit = 14, fallbackQueries = []) {
   const out = [];
   const seen = new Set();
-  for (const name of artists) {
-    const uid = await resolveArtistUserId(clientId, name);
-    let tracks = [];
-    if (uid) tracks = await fetchUserTracks(clientId, uid, perArtist + 2);
-    if (!tracks.length) {
-      // fallback: search "artist -" style and filter
-      tracks = await fetchSearchRaw(clientId, `${name}`, 10);
-      tracks = tracks.filter(
-        (t) =>
-          String(t.artist || '')
-            .toLowerCase()
-            .includes(name.toLowerCase().split(' ')[0]) || t.verified
-      );
-    }
+
+  const consider = (tracks) => {
     for (const t of tracks) {
+      if (!t?.hasProgressive || !t.streamable || t.policy === 'BLOCK') continue;
       if (!isQualityTrack(t, { strict: false })) continue;
       if (seen.has(t.id)) continue;
-      // Prefer tracks that look like they belong to this artist
+      seen.add(t.id);
+      out.push(t);
+      if (out.length >= limit) return true;
+    }
+    return false;
+  };
+
+  for (const name of artists) {
+    let tracks = await fetchSearchRaw(clientId, name, 30);
+    tracks = tracks.filter((t) => {
+      if (!t.hasProgressive || !t.streamable) return false;
       const artistMatch = String(t.artist || '')
         .toLowerCase()
         .includes(name.toLowerCase().split(' ')[0].toLowerCase());
-      if (!artistMatch && !t.verified && (t.followers || 0) < 80_000) continue;
-      seen.add(t.id);
-      out.push(t);
-      if (out.length >= limit) return out.map(stripMeta);
+      return artistMatch || t.verified || (t.followers || 0) >= 40_000 || (t.playbackCount || 0) >= 50_000;
+    });
+    if (consider(tracks)) return out.map(stripMeta);
+
+    const uid = await resolveArtistUserId(clientId, name);
+    if (uid) {
+      const owned = await fetchUserTracks(clientId, uid, perArtist + 8);
+      if (consider(owned)) return out.map(stripMeta);
     }
   }
+
+  for (const q of fallbackQueries) {
+    const more = await fetchSearchRaw(clientId, q, 24);
+    if (consider(more)) return out.map(stripMeta);
+  }
+
   return out.map(stripMeta);
 }
 
 async function fetchStreamUrl(trackId, clientId) {
   const trackRes = await fetch(`https://api-v2.soundcloud.com/tracks/${trackId}?client_id=${clientId}`, {
-    headers: { 'User-Agent': UA, Accept: 'application/json' },
+    headers: {
+      'User-Agent': UA,
+      Accept: 'application/json',
+      Origin: 'https://soundcloud.com',
+      Referer: 'https://soundcloud.com/',
+    },
   });
   if (!trackRes.ok) throw new Error('Track not found');
   const track = await trackRes.json();
 
-  const transcodings = track?.media?.transcodings || [];
-  const progressive = transcodings.find((x) => x.format?.protocol === 'progressive');
-  const hls = transcodings.find((x) => x.format?.protocol === 'hls');
-  const chosen = progressive || hls;
-  if (!chosen?.url) throw new Error('No stream available');
+  if (track?.policy === 'BLOCK') throw new Error('This track is blocked from streaming');
 
-  const streamMeta = await fetch(`${chosen.url}?client_id=${clientId}`, {
-    headers: { 'User-Agent': UA, Accept: 'application/json' },
-  });
-  if (!streamMeta.ok) throw new Error('Stream resolve failed');
-  const meta = await streamMeta.json();
-  if (!meta?.url) throw new Error('No stream url');
+  const transcodings = Array.isArray(track?.media?.transcodings) ? track.media.transcodings : [];
+  const progressive = transcodings.filter((x) => x?.format?.protocol === 'progressive' && x?.url);
+  const plainHls = transcodings.filter((x) => x?.format?.protocol === 'hls' && x?.url);
+  const ordered = [...progressive, ...plainHls];
 
-  return {
-    streamUrl: meta.url,
-    protocol: chosen.format?.protocol || 'progressive',
-    track: mapTrack(track),
-  };
+  if (!ordered.length) {
+    const encrypted = transcodings.some((x) => String(x?.format?.protocol || '').includes('encrypted'));
+    if (encrypted || track?.policy === 'MONETIZE') {
+      throw new Error('This track is DRM-protected and cannot be streamed here');
+    }
+    throw new Error('No stream available');
+  }
+
+  let lastError = 'Stream resolve failed';
+  for (const chosen of ordered) {
+    try {
+      const streamMeta = await fetch(withClientId(chosen.url, clientId), {
+        headers: {
+          'User-Agent': UA,
+          Accept: 'application/json',
+          Origin: 'https://soundcloud.com',
+          Referer: 'https://soundcloud.com/',
+        },
+      });
+      if (!streamMeta.ok) {
+        lastError = `Stream resolve failed (${streamMeta.status})`;
+        continue;
+      }
+      const meta = await streamMeta.json().catch(() => null);
+      if (!meta?.url) {
+        lastError = 'No stream url';
+        continue;
+      }
+      if (chosen.format?.protocol === 'hls' && /\.m3u8(\?|$)/i.test(meta.url)) {
+        lastError = 'HLS-only track is not playable here';
+        continue;
+      }
+      return {
+        streamUrl: meta.url,
+        protocol: chosen.format?.protocol || 'progressive',
+        track: mapTrack(track),
+      };
+    } catch (e) {
+      lastError = e?.message || 'Stream resolve failed';
+    }
+  }
+  const encrypted = transcodings.some((x) => String(x?.format?.protocol || '').includes('encrypted'));
+  if (encrypted || track?.policy === 'MONETIZE') {
+    throw new Error('This track is DRM-protected and cannot be streamed here');
+  }
+  throw new Error(lastError);
 }
 
 router.get('/search', async (req, res) => {
@@ -234,6 +308,7 @@ router.get('/search', async (req, res) => {
       .map(mapTrack)
       .filter(Boolean)
       .filter((t) => !JUNK_TITLE.test(t.title) && t.title.length <= 100)
+      .filter((t) => t.hasProgressive || t.streamable)
       .map(stripMeta);
     res.json({ tracks });
   } catch (e) {
@@ -261,10 +336,24 @@ router.get('/stream/:id', async (req, res) => {
   const id = String(req.params.id || '').replace(/[^\d]/g, '');
   if (!id) return res.status(400).json({ error: 'Invalid id' });
   try {
-    const clientId = await resolveClientId();
-    const data = await fetchStreamUrl(id, clientId);
-    try { bumpUsage('music', 1); } catch {}
-    res.json(data);
+    let clientId = await resolveClientId();
+    try {
+      const data = await fetchStreamUrl(id, clientId);
+      try { bumpUsage('music', 1); } catch {}
+      return res.json(data);
+    } catch (firstErr) {
+      const msg = String(firstErr?.message || '');
+      if (/DRM-protected|blocked from streaming|No stream available|Track not found/i.test(msg)) {
+        throw firstErr;
+      }
+      // Stale client_id is a common cause of resolve failures — refresh once.
+      cachedClientId = null;
+      clientIdFetchedAt = 0;
+      clientId = await resolveClientId();
+      const data = await fetchStreamUrl(id, clientId);
+      try { bumpUsage('music', 1); } catch {}
+      return res.json(data);
+    }
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -295,30 +384,35 @@ const BROWSE_SHELVES = [
     title: 'Top Tracks',
     icon: 'flame',
     artists: ['Drake', 'The Weeknd', 'Taylor Swift', 'Billie Eilish', 'Post Malone', 'Ariana Grande', 'Ed Sheeran', 'Dua Lipa'],
+    fallbackQueries: ['popular indie pop', 'viral hits 2024', 'chart songs free'],
   },
   {
     id: 'pop',
     title: 'Pop Hits',
     icon: 'sparkles',
     artists: ['Olivia Rodrigo', 'Sabrina Carpenter', 'Dua Lipa', 'Harry Styles', 'Charlie Puth', 'Shawn Mendes', 'Doja Cat', 'Lady Gaga'],
+    fallbackQueries: ['pop hits', 'upbeat pop song', 'dance pop'],
   },
   {
     id: 'hiphop',
     title: 'Rap & Hip-Hop',
     icon: 'zap',
     artists: ['Kendrick Lamar', 'Travis Scott', 'J. Cole', 'Eminem', 'Future', 'Lil Baby', 'Nicki Minaj', 'Ice Spice'],
+    fallbackQueries: ['hip hop beats', 'rap freestyle', 'trap music'],
   },
   {
     id: 'chill',
     title: 'Chill & Soft',
     icon: 'radio',
     artists: ['Lauv', 'Joji', 'Clairo', 'Rex Orange County', 'Girl in Red', 'Steve Lacy', 'Tame Impala', 'Khalid'],
+    fallbackQueries: ['chill lo-fi', 'soft indie', 'acoustic chill'],
   },
   {
     id: 'rnb',
     title: 'R&B Favorites',
     icon: 'heart',
     artists: ['SZA', 'Frank Ocean', 'The Weeknd', 'Brent Faiyaz', 'Summer Walker', 'H.E.R.', 'Daniel Caesar', 'Giveon'],
+    fallbackQueries: ['rnb soul', 'smooth rnb', 'quiet storm'],
   },
 ];
 
@@ -329,11 +423,15 @@ router.get('/trending', async (_req, res) => {
       clientId,
       BROWSE_SHELVES[0].artists,
       3,
-      20
+      20,
+      BROWSE_SHELVES[0].fallbackQueries || []
     );
     if (!tracks.length) {
-      const raw = await fetchSearchRaw(clientId, 'Drake', 30);
-      tracks = raw.filter((t) => isQualityTrack(t, { strict: true })).slice(0, 16).map(stripMeta);
+      const raw = await fetchSearchRaw(clientId, 'popular songs', 40);
+      tracks = raw
+        .filter((t) => t.hasProgressive && isQualityTrack(t, { strict: false }))
+        .slice(0, 16)
+        .map(stripMeta);
     }
     res.json({ tracks });
   } catch (e) {
@@ -349,7 +447,7 @@ router.get('/browse', async (_req, res) => {
         id: s.id,
         title: s.title,
         icon: s.icon,
-        tracks: await tracksFromArtists(clientId, s.artists, 3, 14),
+        tracks: await tracksFromArtists(clientId, s.artists, 3, 14, s.fallbackQueries || []),
       }))
     );
     let out = results.filter((s) => s.tracks.length > 0);
@@ -358,7 +456,8 @@ router.get('/browse', async (_req, res) => {
         clientId,
         ['Drake', 'The Weeknd', 'Taylor Swift', 'Billie Eilish', 'SZA'],
         4,
-        16
+        16,
+        ['popular indie pop', 'viral hits', 'chill lo-fi']
       );
       if (fallback.length) {
         out = [{ id: 'top', title: 'Top Tracks', icon: 'flame', tracks: fallback }];
