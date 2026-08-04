@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { requestAdGate, playApplixirAd } from "@/lib/applixir";
-import { AdBanner320, playAdsterraLoadingAd } from "@/components/ads/Adsterra";
+import { AdBanner320, playAdsterraLoadingAd, scrubAdsterraLoadingArtifacts } from "@/components/ads/Adsterra";
 
 type Context = "game" | "app" | "vm";
 
@@ -61,6 +61,11 @@ export function useInterstitialUnlock(context: Context, enabled = true) {
         }
       }
 
+      // Always tear down Social Bar leftovers once the gate finishes.
+      try {
+        scrubAdsterraLoadingArtifacts();
+      } catch {}
+
       if (!cancelled) {
         setUnlocked(true);
         setPhase("ready");
@@ -70,6 +75,9 @@ export function useInterstitialUnlock(context: Context, enabled = true) {
 
     return () => {
       cancelled = true;
+      try {
+        scrubAdsterraLoadingArtifacts();
+      } catch {}
     };
   }, [context, enabled]);
 

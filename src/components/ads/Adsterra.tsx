@@ -144,27 +144,130 @@ export function AdNativeBar() {
   );
 }
 
+const LOADING_HOST_ID = "pz-adsterra-loading-host";
+const AD_BLEED_SRC_RE =
+  /effectivecpmnetwork\.com|highperformanceformat\.com|profitablegatecpm\.com|adsterra\.com|senty\.com\.au/i;
+
+/** Remove leftover Social Bar / notification widgets from the top document. */
+export function scrubAdsterraLoadingArtifacts() {
+  try {
+    document.getElementById(LOADING_HOST_ID)?.remove();
+  } catch {}
+
+  try {
+    document
+      .querySelectorAll('script[data-pz-loading-ad="1"]')
+      .forEach((el) => {
+        try {
+          el.remove();
+        } catch {}
+      });
+  } catch {}
+
+  // Social Bar injects fixed iframes/widgets as direct body children.
+  try {
+    for (const el of Array.from(document.body.children)) {
+      if (el.id === "root" || el.id === "app" || el.id === "pz-applixir-root") continue;
+      if (el.id === LOADING_HOST_ID) {
+        try {
+          el.remove();
+        } catch {}
+        continue;
+      }
+      const tag = el.tagName;
+      if (tag === "SCRIPT") {
+        const src = (el as HTMLScriptElement).src || "";
+        if (AD_BLEED_SRC_RE.test(src) && !src.includes(NATIVE_ID)) {
+          try {
+            el.remove();
+          } catch {}
+        }
+        continue;
+      }
+      if (tag !== "IFRAME" && tag !== "DIV" && tag !== "INS" && tag !== "SECTION") continue;
+      const html = (el as HTMLElement).outerHTML?.slice(0, 2500) || "";
+      const src = tag === "IFRAME" ? (el as HTMLIFrameElement).src || "" : "";
+      if (!AD_BLEED_SRC_RE.test(html) && !AD_BLEED_SRC_RE.test(src)) continue;
+      // Keep intentional in-page banner/native slots.
+      if ((el as HTMLElement).closest?.("[data-ad-slot]")) continue;
+      try {
+        const style = window.getComputedStyle(el);
+        const fixed =
+          style.position === "fixed" ||
+          style.position === "sticky" ||
+          el.parentElement === document.body;
+        if (fixed) el.remove();
+      } catch {
+        try {
+          el.remove();
+        } catch {}
+      }
+    }
+  } catch {}
+}
+
+/**
+ * Temporary Social Bar / notification unit for the game/app loader.
+ * Runs inside an opaque-origin sandbox so it cannot keep injecting into the
+ * top page after the interstitial ends.
+ */
 export function playAdsterraLoadingAd(ms = 2800): Promise<"shown" | "skipped"> {
   return new Promise((resolve) => {
     let settled = false;
+    const preserved = new Set<Element>(Array.from(document.body.children));
+
+    scrubAdsterraLoadingArtifacts();
+
+    const host = document.createElement("div");
+    host.id = LOADING_HOST_ID;
+    host.setAttribute("data-pz-loading-host", "1");
+    host.style.cssText =
+      "position:fixed;inset:0;z-index:2147483645;pointer-events:none;overflow:hidden;background:transparent;";
+
+    const frame = document.createElement("iframe");
+    frame.title = "Advertisement";
+    // No allow-same-origin: script cannot reach window.top / parent.document,
+    // which is what leaves notification widgets stuck on the site.
+    frame.setAttribute(
+      "sandbox",
+      "allow-scripts allow-popups allow-popups-to-escape-sandbox"
+    );
+    frame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+    frame.style.cssText =
+      "position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:auto;background:transparent;";
+    frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden}</style></head><body><script src="${LOADING_SRC}"><\/script></body></html>`;
+
     const finish = (r: "shown" | "skipped") => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       try {
-        script.remove();
+        frame.srcdoc = "<!DOCTYPE html><html><body></body></html>";
+        frame.src = "about:blank";
       } catch {}
+      try {
+        host.remove();
+      } catch {}
+      // Anything the network still managed to attach on top — remove it.
+      try {
+        for (const el of Array.from(document.body.children)) {
+          if (preserved.has(el)) continue;
+          if (el.id === "root" || el.id === "app" || el.id === "pz-applixir-root") continue;
+          try {
+            el.remove();
+          } catch {}
+        }
+      } catch {}
+      scrubAdsterraLoadingArtifacts();
       resolve(r);
     };
-    const timer = window.setTimeout(() => finish("shown"), ms);
-    const script = document.createElement("script");
-    script.src = LOADING_SRC;
-    script.async = true;
-    script.dataset.cfasync = "false";
-    script.dataset.pzLoadingAd = "1";
-    script.onerror = () => finish("skipped");
+
+    const timer = window.setTimeout(() => finish("shown"), Math.max(1200, ms));
+    frame.onerror = () => finish("skipped");
+
     try {
-      document.body.appendChild(script);
+      host.appendChild(frame);
+      document.body.appendChild(host);
     } catch {
       finish("skipped");
     }

@@ -1,4 +1,4 @@
-import { playAdsterraLoadingAd } from "@/components/ads/Adsterra";
+import { playAdsterraLoadingAd, scrubAdsterraLoadingArtifacts } from "@/components/ads/Adsterra";
 
 const SDK_SRC = "https://cdn.applixir.com/applixir.app.v6.1.0.js";
 const CONTAINER_ID = "pz-applixir-root";
@@ -32,6 +32,9 @@ function clearContainer() {
     el.innerHTML = "";
     el.style.pointerEvents = "none";
   }
+  try {
+    scrubAdsterraLoadingArtifacts();
+  } catch {}
 }
 
 function loadSdk(): Promise<void> {
