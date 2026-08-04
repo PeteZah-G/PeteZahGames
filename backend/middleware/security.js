@@ -314,6 +314,7 @@ export function isKillSwitchExempt(req) {
   if (pathOnly.startsWith('/cap')) return true;
   if (pathOnly === '/verify' || pathOnly === '/verify.html') return true;
   if (pathOnly === '/1k123.js') return true;
+  if (pathOnly === '/storage/ag' || pathOnly.startsWith('/storage/ag/')) return true;
   if (/\.(css|woff2?|ttf|png|jpg|jpeg|gif|webp|svg|ico)$/i.test(pathOnly)) return true;
   return false;
 }

@@ -48,10 +48,12 @@ const OPEN_EXACT = new Set([
   '/copyright',
 ]);
 
-const OPEN_PREFIX = ['/cap/', '/api/verify-email', '/api/legal', '/vendor/', '/fonts/'];
+const OPEN_PREFIX = ['/cap/', '/api/verify-email', '/api/legal', '/vendor/', '/fonts/', '/storage/ag/'];
 
 function isOpenPath(p) {
   if (OPEN_EXACT.has(p)) return true;
+  // Game asset folders (with or without trailing slash)
+  if (p === '/storage/ag' || p.startsWith('/storage/ag/')) return true;
   for (const pre of OPEN_PREFIX) {
     if (p === pre.slice(0, -1) || p.startsWith(pre)) return true;
   }

@@ -420,6 +420,7 @@ if (IS_DEV) {
 } else {
   const distPath = path.join(__dirname, '../dist');
   const indexPath = path.join(distPath, 'index.html');
+  const storageAgPath = path.join(distPath, 'storage', 'ag');
   let indexCache = { mtime: 0, html: '' };
   function readIndexHtml() {
     try {
@@ -432,6 +433,23 @@ if (IS_DEV) {
       return '';
     }
   }
+  // Game folders under /storage/ag/* should resolve to their index.html
+  app.use(
+    '/storage/ag',
+    express.static(storageAgPath, {
+      index: 'index.html',
+      redirect: true,
+      fallthrough: true,
+      setHeaders(res, filePath) {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'public, max-age=300');
+        } else {
+          res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+          res.setHeader('Accept-Ranges', 'bytes');
+        }
+      },
+    })
+  );
   app.use(express.static(distPath, {
     index: false,
     setHeaders(res, filePath) {
@@ -450,6 +468,10 @@ if (IS_DEV) {
   app.get('*', (req, res) => {
     if ((req.path || '').startsWith('/firefox-wasm')) {
       return res.status(404).type('text/plain').send('Firefox WASM asset not found');
+    }
+    // Don't SPA-fallback game asset URLs — missing files should 404
+    if ((req.path || '').startsWith('/storage/ag/') || req.path === '/storage/ag') {
+      return res.status(404).type('text/plain').send('Not found');
     }
     const ua = req.headers['user-agent'] || '';
     const crawler =
