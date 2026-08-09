@@ -1,9 +1,10 @@
 import db from '../db.js';
 import { isOwnerEmail } from '../utils/auth-roles.js';
-import { getAdminUserAchievements } from './achievements.js';
+import { getAdminUserAchievements, ACHIEVEMENTS } from './achievements.js';
 
 const PAGE_SIZE = 25;
 const SEARCH_LIMIT = 100;
+const RARITY_WEIGHT = { common: 1, rare: 4, epic: 12, legendary: 40, special: 100 };
 
 function requireAdmin(req, res) {
   if (!req.session?.user) {
@@ -143,4 +144,70 @@ export function getAdminStaffHandler(req, res) {
     staff,
     is_owner: isOwnerEmail(me?.email),
   });
+}
+
+export function getBadgeRarityLeaderboardHandler(req, res) {
+  if (!requireAdmin(req, res)) return;
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 50));
+  const byId = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));
+  const rows = db.prepare(`
+    SELECT ua.user_id, ua.achievement_id, u.username, u.email, u.avatar_url
+    FROM user_achievements ua
+    JOIN users u ON u.id = ua.user_id
+  `).all();
+
+  const map = new Map();
+  for (const row of rows) {
+    const ach = byId.get(row.achievement_id);
+    if (!ach) continue;
+    let entry = map.get(row.user_id);
+    if (!entry) {
+      entry = {
+        userId: row.user_id,
+        username: row.username,
+        email: row.email,
+        avatar_url: row.avatar_url,
+        score: 0,
+        badgeCount: 0,
+        topRarityRank: -1,
+        topRarity: 'common',
+        badges: [],
+      };
+      map.set(row.user_id, entry);
+    }
+    const weight = RARITY_WEIGHT[ach.rarity] || 1;
+    entry.score += weight;
+    entry.badgeCount += 1;
+    entry.badges.push({
+      id: ach.id,
+      name: ach.name,
+      rarity: ach.rarity,
+      color: ach.color,
+      icon: ach.icon,
+    });
+    const rank = RARITY_WEIGHT[ach.rarity] || 0;
+    if (rank > entry.topRarityRank) {
+      entry.topRarityRank = rank;
+      entry.topRarity = ach.rarity;
+    }
+  }
+
+  const leaderboard = [...map.values()]
+    .sort((a, b) => b.score - a.score || b.badgeCount - a.badgeCount)
+    .slice(0, limit)
+    .map((e, i) => ({
+      rank: i + 1,
+      userId: e.userId,
+      username: e.username,
+      email: e.email,
+      avatar_url: e.avatar_url,
+      score: e.score,
+      badgeCount: e.badgeCount,
+      topRarity: e.topRarity,
+      badges: e.badges
+        .sort((a, b) => (RARITY_WEIGHT[b.rarity] || 0) - (RARITY_WEIGHT[a.rarity] || 0))
+        .slice(0, 6),
+    }));
+
+  res.json({ leaderboard });
 }

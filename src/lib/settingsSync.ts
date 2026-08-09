@@ -29,6 +29,7 @@ const SYNC_KEYS = [
   'petezah-bookmarks',
   'petezah-extensions',
   'petezah-presets',
+  'petezah-shortcuts-v2',
   'customGames',
   'favoriteGames',
   'hiddenGames',

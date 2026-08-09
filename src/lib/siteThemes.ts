@@ -96,6 +96,30 @@ export const SITE_THEMES: SiteTheme[] = [
     accent: "#c8c8c8",
     fog: { highlight: 0x404040, mid: 0x1c1c1c, low: 0x0a0a0a, base: 0x050505, net: 0x585858 },
   },
+  {
+    id: "technonyte",
+    label: "Technonyte",
+    bg: "#0c0b02",
+    text: "#fff8d6",
+    accent: "#ffe014",
+    fog: { highlight: 0xe8c820, mid: 0x7a6810, low: 0x1c1804, base: 0x0c0b02, net: 0xffe033 },
+  },
+  {
+    id: "john",
+    label: "John",
+    bg: "#1a1c1e",
+    text: "#eef0f2",
+    accent: "#c4c9ce",
+    fog: { highlight: 0x8a9098, mid: 0x3a4048, low: 0x1a1c20, base: 0x1a1c1e, net: 0xa8b0b8 },
+  },
+  {
+    id: "sakura-pulse",
+    label: "Sakura Pulse",
+    bg: "#12080e",
+    text: "#ffe8f2",
+    accent: "#ff7ab8",
+    fog: { highlight: 0xd05090, mid: 0x6a2848, low: 0x1a0810, base: 0x12080e, net: 0xf070a8 },
+  },
 ];
 
 export function themeById(id?: string | null): SiteTheme {

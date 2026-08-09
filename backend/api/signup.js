@@ -5,6 +5,7 @@ import { getClientIP } from '../utils/client-ip.js';
 import { isOwnerEmail } from '../utils/auth-roles.js';
 import { isIpBanned } from '../middleware/ip-ban.js';
 import { sendUserVerificationEmail } from './verify-email.js';
+import { sanitizeUsername, validateUsername } from '../utils/sanitize.js';
 
 const requestTimestamps = new Map();
 const suspiciousIPs = new Map();
@@ -56,6 +57,7 @@ function validateRequest(req, body) {
 export async function signupHandler(req, res) {
   const email = normalizeEmail(req.body?.email);
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  const rawUsername = typeof req.body?.username === 'string' ? req.body.username : '';
   const { school, age, website } = req.body || {};
   const acceptedLegal = req.body?.acceptedLegal === true
     || req.body?.acceptedLegal === 'true'
@@ -77,6 +79,10 @@ export async function signupHandler(req, res) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) return res.status(400).json({ error: 'Invalid email address.' });
 
+  const usernameErr = validateUsername(rawUsername);
+  if (usernameErr) return res.status(400).json({ error: usernameErr });
+  const username = sanitizeUsername(rawUsername);
+
   const pwErr = validatePassword(password);
   if (pwErr) return res.status(400).json({ error: pwErr });
 
@@ -88,6 +94,9 @@ export async function signupHandler(req, res) {
     const existingUser = db.prepare('SELECT id FROM users WHERE lower(email) = ?').get(email);
     if (existingUser) return res.status(400).json({ error: 'An account with this email already exists.' });
 
+    const taken = db.prepare('SELECT id FROM users WHERE lower(username) = lower(?)').get(username);
+    if (taken) return res.status(400).json({ error: 'That username is already taken.' });
+
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const userId = randomUUID();
     const now = Date.now();
@@ -97,9 +106,9 @@ export async function signupHandler(req, res) {
     const isAdmin = isFirstUser || isOwnerEmail(email);
 
     db.prepare(`
-      INSERT INTO users (id, email, password_hash, created_at, updated_at, is_admin, email_verified, school, age, ip)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(userId, email, passwordHash, now, now, isAdmin ? 1 : 0, 0, school || null, age || null, ip);
+      INSERT INTO users (id, email, password_hash, username, created_at, updated_at, is_admin, email_verified, school, age, ip)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(userId, email, passwordHash, username, now, now, isAdmin ? 1 : 0, 0, school || null, age || null, ip);
 
     let emailSent = true;
     try {

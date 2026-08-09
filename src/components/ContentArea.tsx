@@ -53,6 +53,7 @@ import ChangelogPage from "./ChangelogPage";
 import FeedbackPage from "./FeedbackPage";
 import AccountPage from "./AccountPage";
 import HistoryPage from "./HistoryPage";
+import ToolsPage from "./ToolsPage";
 import ExtensionsPage from "./ExtensionsPage";
 import BookmarksPage from "./BookmarksPage";
 import ProfilePage from "./ProfilePage";
@@ -799,7 +800,13 @@ function NewTabBookmarks({ onNavigate }: { onNavigate: (url: string) => void }) 
   );
 
   return (
-    <div className="absolute top-3 left-3 z-[20]" ref={folderRef}>
+    <motion.div
+      className="absolute top-3 left-3 z-[20]"
+      ref={folderRef}
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.55, ease: [0.22, 1, 0.36, 1] }}
+    >
       <div
         className="flex items-center gap-3 flex-wrap max-w-[46vw] px-3 py-1.5 rounded-xl"
         style={{
@@ -886,7 +893,7 @@ function NewTabBookmarks({ onNavigate }: { onNavigate: (url: string) => void }) 
         </span>
       </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -906,7 +913,7 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden bg-transparent">
       <NewTabBookmarks onNavigate={onNavigate} />
-      <div className="absolute top-3 right-3 z-[20] flex flex-col items-end gap-1.5 newtab-side-actions">
+      <div className="absolute top-3 right-3 z-[10] flex flex-col items-end gap-1.5 newtab-side-actions">
         <motion.a
           href="https://discord.gg/cYjHFDguxS"
           target="_blank"
@@ -1402,6 +1409,16 @@ function TabPane({
         style={{ display: isVisible ? "block" : "none" }}
       >
         <BookmarksPage onNavigate={onNavigate} />
+      </div>
+    );
+  }
+  if (tab.url === "petezah://tools" || tab.url.startsWith("petezah://tools?")) {
+    return (
+      <div
+        className="absolute inset-0"
+        style={{ display: isVisible ? "block" : "none" }}
+      >
+        <ToolsPage onNavigate={onNavigate} />
       </div>
     );
   }

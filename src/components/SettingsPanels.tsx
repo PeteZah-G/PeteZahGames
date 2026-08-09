@@ -1,4 +1,4 @@
-import { useMemo, useState, type RefObject } from "react";
+import { useMemo, useState, useEffect, useRef, type RefObject } from "react";
 import {
   Check,
   ChevronDown,
@@ -16,6 +16,14 @@ import {
   resolveUserAgent,
 } from "@/lib/siteThemes";
 import { applyVpnRegion } from "@/lib/vpn";
+import {
+  SHORTCUT_META,
+  DEFAULT_SHORTCUTS,
+  loadShortcuts,
+  saveShortcuts,
+  formatShortcut,
+  type ShortcutId,
+} from "@/lib/shortcuts";
 
 type C = {
   bg: string;
@@ -499,7 +507,7 @@ export function BehaviorSettings(props: Props) {
           <ToggleRow
             C={C}
             label="Horizontal tabs"
-            desc="Move tabs above the toolbar; sidebar keeps shortcuts"
+            desc="Chrome-style tabs above the toolbar"
             checked={s.horizontalTabs === "true"}
             onChange={() => {
               const next = s.horizontalTabs === "true" ? "false" : "true";
@@ -584,6 +592,112 @@ export function BehaviorSettings(props: Props) {
         Open in about:blank
       </button>
       <ApplyBtn C={C} saved={settingsSaved} onClick={applySettings} />
+    </div>
+  );
+}
+
+export function ShortcutsSettings({ C }: { C: C }) {
+  const [map, setMap] = useState(() => loadShortcuts());
+  const [listening, setListening] = useState<ShortcutId | null>(null);
+  const tabArmedRef = useRef(false);
+
+  useEffect(() => {
+    if (!listening) return;
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === "Tab") {
+        tabArmedRef.current = true;
+        return;
+      }
+      if (["Control", "Meta", "Alt", "Shift"].includes(e.key)) return;
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key.toLowerCase();
+      const next = {
+        ...map,
+        [listening]: {
+          key: key === "+" ? "=" : key.slice(0, 1) || key,
+          tab: tabArmedRef.current || !(e.metaKey || e.ctrlKey),
+          ctrl: e.metaKey || e.ctrlKey,
+          shift: e.shiftKey,
+          alt: e.altKey,
+        },
+      };
+      tabArmedRef.current = false;
+      setMap(next);
+      saveShortcuts(next);
+      setListening(null);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [listening, map]);
+
+  return (
+    <div style={{ maxWidth: 480 }}>
+      <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text, margin: "0 0 4px" }}>Shortcuts</h2>
+      <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 16px" }}>
+        Defaults use Tab chords (press Tab, then a key) so they do not fight the browser. Click a row, press Tab, then the key.
+      </p>
+      <div style={{ borderRadius: 18, border: `1px solid ${C.border}`, background: "hsla(220, 28%, 12%, 0.28)", overflow: "hidden", backdropFilter: "blur(12px)" }}>
+        {SHORTCUT_META.map((row, i) => (
+          <button
+            key={row.id}
+            type="button"
+            onClick={() => { tabArmedRef.current = false; setListening(row.id); }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              width: "100%",
+              padding: "12px 14px",
+              background: listening === row.id ? "hsla(210, 50%, 50%, 0.1)" : "transparent",
+              border: "none",
+              borderBottom: i < SHORTCUT_META.length - 1 ? `1px solid ${C.border}` : "none",
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: C.text }}>{row.label}</p>
+              <p style={{ margin: "2px 0 0", fontSize: 10, color: C.textMuted }}>{row.desc}</p>
+            </div>
+            <kbd
+              style={{
+                fontSize: 10,
+                fontFamily: "ui-monospace, monospace",
+                padding: "4px 8px",
+                borderRadius: 7,
+                border: `1px solid ${listening === row.id ? C.borderFocus : C.border}`,
+                background: C.elevated,
+                color: listening === row.id ? C.accent : C.textSub,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {listening === row.id ? "Tab then key…" : formatShortcut(map[row.id])}
+            </kbd>
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          const next = { ...DEFAULT_SHORTCUTS };
+          setMap(next);
+          saveShortcuts(next);
+          setListening(null);
+        }}
+        style={{
+          marginTop: 14,
+          padding: "8px 14px",
+          borderRadius: 999,
+          border: `1px solid ${C.border}`,
+          background: "transparent",
+          color: C.textSub,
+          fontSize: 11,
+          cursor: "pointer",
+        }}
+      >
+        Reset to defaults
+      </button>
     </div>
   );
 }

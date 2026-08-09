@@ -12,6 +12,8 @@ import VantaBackground from "@/components/VantaBackground";
 import DebugHud from "@/components/DebugHud";
 import HorizontalTabBar from "@/components/HorizontalTabBar";
 import GlobalAnnouncement from "@/components/GlobalAnnouncement";
+import InspectOverlay from "@/components/InspectOverlay";
+import { findMatchingShortcut, armTabChord, clearTabChord } from "@/lib/shortcuts";
 import {
   classifyOpenUrl,
   installParentOpenTrap,
@@ -64,6 +66,7 @@ export default function ArcBrowser() {
     gameFocus && !!state.focusedTab?.url?.startsWith("petezah://gameviewer");
   const contentRef = useRef<HTMLDivElement>(null);
   const [openToast, setOpenToast] = useState<string | null>(null);
+  const [inspectOpen, setInspectOpen] = useState(false);
   const openToastTimer = useRef<number | null>(null);
 
   const zoomIn = useCallback(() => setZoomLevel((z) => Math.min(z + 10, 200)), []);
@@ -220,65 +223,47 @@ export default function ArcBrowser() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey;
-      const key = e.key.toLowerCase();
-
       if (e.key === "F11") {
         e.preventDefault();
         toggleContentFullscreen();
         return;
       }
 
-      if (!mod) return;
-      if (isTypingTarget(e.target) && !["t", "w", "l"].includes(key)) return;
+      if (e.key === "Tab" && !e.ctrlKey && !e.metaKey && !e.altKey && !isTypingTarget(e.target)) {
+        e.preventDefault();
+        armTabChord(1100);
+        return;
+      }
 
-      if (key === "t") {
-        e.preventDefault();
-        state.addTab();
-        return;
-      }
-      if (key === "w") {
-        e.preventDefault();
+      const action = findMatchingShortcut(e);
+      if (!action) return;
+
+      if (isTypingTarget(e.target)) return;
+
+      e.preventDefault();
+      clearTabChord();
+      if (action === "newTab") state.addTab();
+      else if (action === "closeTab") {
         if (state.focusedTab) state.closeTab(state.focusedTab.id);
-        return;
-      }
-      if (key === "l") {
-        e.preventDefault();
-        state.setIsUrlFocused(true);
-        return;
-      }
-      if (key === "h") {
-        e.preventDefault();
-        state.navigateToUrl("petezah://history");
-        return;
-      }
-      if (key === "e") {
-        e.preventDefault();
-        state.navigateToUrl("petezah://extensions");
-        return;
-      }
-      if (key === "d") {
-        e.preventDefault();
-        state.navigateToUrl("petezah://bookmarks");
-        return;
-      }
-      if (key === "=" || key === "+") {
-        e.preventDefault();
-        zoomIn();
-        return;
-      }
-      if (key === "-") {
-        e.preventDefault();
-        zoomOut();
-        return;
-      }
-      if (key === "0") {
-        e.preventDefault();
-        resetZoom();
-      }
+      } else if (action === "focusUrl") state.setIsUrlFocused(true);
+      else if (action === "history") state.navigateToUrl("petezah://history");
+      else if (action === "extensions") state.navigateToUrl("petezah://extensions");
+      else if (action === "bookmarks") state.navigateToUrl("petezah://bookmarks");
+      else if (action === "games") state.navigateToUrl("petezah://games");
+      else if (action === "ai") state.navigateToUrl("petezah://ai");
+      else if (action === "tools") state.navigateToUrl("petezah://tools");
+      else if (action === "inspect") setInspectOpen(true);
+      else if (action === "zoomIn") zoomIn();
+      else if (action === "zoomOut") zoomOut();
+      else if (action === "zoomReset") resetZoom();
     };
+    const onInspect = () => setInspectOpen(true);
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener("petezah-inspect", onInspect);
+    return () => {
+      window.removeEventListener("keydown", handler);
+      window.removeEventListener("petezah-inspect", onInspect);
+    };
   }, [
     state.addTab,
     state.closeTab,
@@ -347,7 +332,7 @@ export default function ArcBrowser() {
               onAddTab={() => state.addTab()}
             />
           )}
-          <div style={{ opacity: dimChrome ? 0.4 : 1, transition: "opacity 0.25s ease" }}>
+          <div style={{ opacity: dimChrome ? 0.4 : 1, transition: "opacity 0.25s ease", position: "relative", zIndex: 80 }}>
             <Toolbar
               activeTab={state.focusedTab}
               urlInput={state.urlInput}
@@ -364,6 +349,7 @@ export default function ArcBrowser() {
               onZoomOut={zoomOut}
               onResetZoom={resetZoom}
               onFullscreen={toggleContentFullscreen}
+              onInspect={() => setInspectOpen(true)}
             />
           </div>
           <ContentArea
@@ -385,6 +371,12 @@ export default function ArcBrowser() {
       </div>
       <DiscordPopup />
       <GlobalAnnouncement />
+      <InspectOverlay
+        open={inspectOpen}
+        onClose={() => setInspectOpen(false)}
+        url={state.focusedTab?.url || state.activeTab?.url}
+        title={state.focusedTab?.title || state.activeTab?.title}
+      />
       <AnimatePresence>
         {openToast && (
           <motion.div

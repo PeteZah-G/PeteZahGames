@@ -15,6 +15,7 @@ import {
   AppWindow,
   MessageCircle,
   Monitor,
+  Wrench,
 } from "lucide-react";
 import { TabList } from "@/components/TabItem";
 import ObfuscatedText from "@/components/ObfuscatedText";
@@ -56,6 +57,7 @@ const SIDEBAR_FEATURES = [
   { icon: Film, label: "Movies", url: "petezah://movies" },
   { icon: Monitor, label: "VM", url: "petezah://vm" },
   { icon: MessageCircle, label: "Chat", url: "petezah://chat" },
+  { icon: Wrench, label: "Tools", url: "petezah://tools" },
 ];
 
 export default function Sidebar({
@@ -182,21 +184,6 @@ export default function Sidebar({
                 }
               />
             )}
-            {hideTabs && (
-              <div className="flex flex-col items-center gap-0.5 py-1">
-                {SIDEBAR_FEATURES.map(({ icon: Icon, label, url }) => (
-                  <button
-                    key={label}
-                    onClick={() => onNavigate(url)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 transition-all"
-                    style={{ color: "hsla(0,0%,100%,0.78)" }}
-                    title={label}
-                  >
-                    <Icon size={13} />
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           <div
@@ -272,13 +259,6 @@ export default function Sidebar({
                   onTabReorder?.([...pinnedTabs.map((t) => t.id), ...ids])
                 }
               />
-            )}
-            {hideTabs && (
-              <div className="px-2 pt-2">
-                <p className="px-2 py-1.5 text-[10px] font-mono uppercase tracking-[0.15em] text-foreground/40">
-                  Shortcuts
-                </p>
-              </div>
             )}
           </div>
 

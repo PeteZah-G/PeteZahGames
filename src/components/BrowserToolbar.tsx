@@ -26,6 +26,10 @@ import {
   History,
   Maximize,
   Puzzle,
+  ChevronDown,
+  ChevronUp,
+  Wrench,
+  Code2,
 } from "lucide-react";
 import { Tab } from "@/hooks/useBrowserState";
 import {
@@ -33,6 +37,7 @@ import {
   loadFontMaps,
   shouldObfuscateDisplay,
 } from "@/lib/fontObfuscation";
+import { formatShortcut, loadShortcuts } from "@/lib/shortcuts";
 
 interface ToolbarProps {
   activeTab: Tab | undefined;
@@ -53,6 +58,7 @@ interface ToolbarProps {
   onShowHistory?: () => void;
   onShowBookmarks?: () => void;
   onShowDownloads?: () => void;
+  onInspect?: () => void;
 }
 
 export default function Toolbar({
@@ -74,11 +80,29 @@ export default function Toolbar({
   onShowHistory,
   onShowBookmarks,
   onShowDownloads,
+  onInspect,
 }: ToolbarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuScrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollUp, setCanScrollUp] = useState(false);
+  const [canScrollDown, setCanScrollDown] = useState(false);
+  const sc = loadShortcuts();
   const suggestWrapRef = useRef<HTMLDivElement>(null);
+
+  const syncMenuScroll = () => {
+    const el = menuScrollRef.current;
+    if (!el) return;
+    setCanScrollUp(el.scrollTop > 4);
+    setCanScrollDown(el.scrollTop + el.clientHeight < el.scrollHeight - 4);
+  };
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const t = requestAnimationFrame(syncMenuScroll);
+    return () => cancelAnimationFrame(t);
+  }, [menuOpen]);
   const [suggestions, setSuggestions] = useState<
     { type: string; label: string; url: string; tag?: string; action?: string; imageUrl?: string }[]
   >([]);
@@ -530,208 +554,142 @@ export default function Toolbar({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: -4 }}
                 transition={{ duration: 0.15 }}
-                className="absolute top-full right-0 mt-1.5 w-64 bg-card border border-border rounded-xl shadow-2xl py-1 z-50 overflow-hidden"
+                className="absolute top-full right-0 mt-1.5 w-64 bg-card border border-border rounded-xl shadow-2xl z-[120] overflow-hidden flex flex-col"
+                style={{ maxHeight: "min(72vh, 460px)" }}
               >
-                <button
-                  onClick={() => {
-                    onNewTab?.();
-                    setMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
+                {canScrollUp && (
+                  <button
+                    type="button"
+                    onClick={() => menuScrollRef.current?.scrollBy({ top: -80, behavior: "smooth" })}
+                    className="flex-shrink-0 w-full flex items-center justify-center py-1 border-0 cursor-pointer"
+                    style={{ background: "hsla(220, 28%, 12%, 0.9)", color: "hsla(0,0%,100%,0.55)" }}
+                  >
+                    <ChevronUp size={14} />
+                  </button>
+                )}
+                <div
+                  ref={menuScrollRef}
+                  onScroll={syncMenuScroll}
+                  className="overflow-y-auto py-1 flex-1 min-h-0"
+                  style={{ scrollbarWidth: "none" }}
                 >
-                  <Plus size={13} className="text-foreground/40" />
-                  <span className="flex-1 text-left">New Tab</span>
-                  <kbd className="text-[10px] text-muted-foreground font-mono">
-                    Ctrl+T
-                  </kbd>
-                </button>
-                <button
-                  onClick={() => {
-                    onCloseTab?.();
-                    setMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
-                >
-                  <X size={13} className="text-foreground/40" />
-                  <span className="flex-1 text-left">Close Tab</span>
-                  <kbd className="text-[10px] text-muted-foreground font-mono">
-                    Ctrl+W
-                  </kbd>
-                </button>
-                <button
-                  onClick={() => {
-                    onCloseAllTabs?.();
-                    setMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
-                >
-                  <X size={13} className="text-foreground/40" />
-                  <span className="flex-1 text-left">Close All Tabs</span>
-                </button>
+                  {([
+                    { label: "New Tab", icon: Plus, kbd: sc.newTab, run: () => onNewTab?.() },
+                    { label: "Close Tab", icon: X, kbd: sc.closeTab, run: () => onCloseTab?.() },
+                    { label: "Close All Tabs", icon: X, run: () => onCloseAllTabs?.() },
+                  ] as const).map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => { item.run(); setMenuOpen(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
+                    >
+                      <item.icon size={13} className="text-foreground/40" />
+                      <span className="flex-1 text-left">{item.label}</span>
+                      {"kbd" in item && item.kbd ? (
+                        <kbd className="text-[10px] text-muted-foreground font-mono">{formatShortcut(item.kbd)}</kbd>
+                      ) : null}
+                    </button>
+                  ))}
 
-                <div className="h-px bg-border my-1 mx-3" />
+                  <div className="h-px bg-border my-1 mx-3" />
 
-                <div className="flex items-center gap-1 px-4 py-1.5">
-                  <span className="text-[12px] text-foreground/60 mr-auto">
-                    Zoom
-                  </span>
+                  <div className="flex items-center gap-1 px-4 py-1.5">
+                    <span className="text-[12px] text-foreground/60 mr-auto">Zoom</span>
+                    <button type="button" onClick={() => onZoomOut?.()} className="p-1 rounded hover:bg-accent text-foreground/60 hover:text-foreground transition-colors">
+                      <ZoomOut size={13} />
+                    </button>
+                    <button type="button" onClick={() => onResetZoom?.()} className="px-2 py-0.5 rounded hover:bg-accent text-[11px] font-mono text-foreground/70 min-w-[40px] text-center">
+                      {zoomLevel}%
+                    </button>
+                    <button type="button" onClick={() => onZoomIn?.()} className="p-1 rounded hover:bg-accent text-foreground/60 hover:text-foreground transition-colors">
+                      <ZoomIn size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { onFullscreen?.(); setMenuOpen(false); }}
+                      className="p-1 rounded hover:bg-accent text-foreground/60 hover:text-foreground transition-colors ml-1"
+                      title="Fullscreen"
+                    >
+                      <Maximize size={13} />
+                    </button>
+                  </div>
+
+                  <div className="h-px bg-border my-1 mx-3" />
+
+                  {([
+                    { label: "History", icon: History, url: "petezah://history", kbd: sc.history },
+                    { label: "Extensions", icon: Puzzle, url: "petezah://extensions", kbd: sc.extensions },
+                    { label: "Bookmarks", icon: Bookmark, url: "petezah://bookmarks", kbd: sc.bookmarks },
+                    { label: "Inspect", icon: Code2, kbd: sc.inspect, inspect: true },
+                  ] as const).map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => {
+                        if ("inspect" in item && item.inspect) {
+                          onInspect?.();
+                          window.dispatchEvent(new CustomEvent("petezah-inspect"));
+                        } else if ("url" in item && item.url) {
+                          onNavigate(item.url);
+                        }
+                        setMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
+                    >
+                      <item.icon size={13} className="text-foreground/40" />
+                      <span className="flex-1 text-left">{item.label}</span>
+                      <kbd className="text-[10px] text-muted-foreground font-mono">{formatShortcut(item.kbd)}</kbd>
+                    </button>
+                  ))}
+
+                  <div className="h-px bg-border my-1 mx-3" />
+
+                  {([
+                    { label: "Games", icon: Gamepad2, url: "petezah://games", kbd: sc.games },
+                    { label: "Apps", icon: AppWindow, url: "petezah://apps" },
+                    { label: "AI", icon: Bot, url: "petezah://ai", kbd: sc.ai },
+                    { label: "Music", icon: Music, url: "petezah://music" },
+                    { label: "Movies", icon: Film, url: "petezah://movies" },
+                    { label: "VM", icon: Monitor, url: "petezah://vm" },
+                    { label: "Chat", icon: MessageCircle, url: "petezah://chat" },
+                    { label: "Tools", icon: Wrench, url: "petezah://tools", kbd: sc.tools },
+                  ] as const).map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => { onNavigate(item.url); setMenuOpen(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
+                    >
+                      <item.icon size={13} className="text-foreground/40" />
+                      <span className="flex-1 text-left">{item.label}</span>
+                      {"kbd" in item && item.kbd ? (
+                        <kbd className="text-[10px] text-muted-foreground font-mono">{formatShortcut(item.kbd)}</kbd>
+                      ) : null}
+                    </button>
+                  ))}
+
+                  <div className="h-px bg-border my-1 mx-3" />
+
                   <button
-                    onClick={() => onZoomOut?.()}
-                    className="p-1 rounded hover:bg-accent text-foreground/60 hover:text-foreground transition-colors"
+                    type="button"
+                    onClick={() => { handleShare(); setMenuOpen(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
                   >
-                    <ZoomOut size={13} />
-                  </button>
-                  <button
-                    onClick={() => onResetZoom?.()}
-                    className="px-2 py-0.5 rounded hover:bg-accent text-[11px] font-mono text-foreground/70 min-w-[40px] text-center"
-                  >
-                    {zoomLevel}%
-                  </button>
-                  <button
-                    onClick={() => onZoomIn?.()}
-                    className="p-1 rounded hover:bg-accent text-foreground/60 hover:text-foreground transition-colors"
-                  >
-                    <ZoomIn size={13} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      onFullscreen?.();
-                      setMenuOpen(false);
-                    }}
-                    className="p-1 rounded hover:bg-accent text-foreground/60 hover:text-foreground transition-colors ml-1"
-                    title="Fullscreen"
-                  >
-                    <Maximize size={13} />
+                    <Share size={13} className="text-foreground/40" />
+                    <span className="flex-1 text-left">Copy URL</span>
                   </button>
                 </div>
-
-                <div className="h-px bg-border my-1 mx-3" />
-
-                <button
-                  onClick={() => {
-                    onNavigate("petezah://history");
-                    setMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
-                >
-                  <History size={13} className="text-foreground/40" />
-                  <span className="flex-1 text-left">History</span>
-                  <kbd className="text-[10px] text-muted-foreground font-mono">
-                    Ctrl+H
-                  </kbd>
-                </button>
-                <button
-                  onClick={() => {
-                    onNavigate("petezah://extensions");
-                    setMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
-                >
-                  <Puzzle size={13} className="text-foreground/40" />
-                  <span className="flex-1 text-left">Extensions</span>
-                  <kbd className="text-[10px] text-muted-foreground font-mono">
-                    Ctrl+E
-                  </kbd>
-                </button>
-                <button
-                  onClick={() => {
-                    onNavigate("petezah://bookmarks");
-                    setMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
-                >
-                  <Bookmark size={13} className="text-foreground/40" />
-                  <span className="flex-1 text-left">Bookmarks</span>
-                  <kbd className="text-[10px] text-muted-foreground font-mono">
-                    Ctrl+D
-                  </kbd>
-                </button>
-
-                <div className="h-px bg-border my-1 mx-3" />
-
-                <button
-                  onClick={() => {
-                    onNavigate("petezah://games");
-                    setMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
-                >
-                  <Gamepad2 size={13} className="text-foreground/40" />
-                  <span className="flex-1 text-left">Games</span>
-                </button>
-                <button
-                  onClick={() => {
-                    onNavigate("petezah://ai");
-                    setMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
-                >
-                  <Bot size={13} className="text-foreground/40" />
-                  <span className="flex-1 text-left">AI</span>
-                </button>
-                <button
-                  onClick={() => {
-                    onNavigate("petezah://music");
-                    setMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
-                >
-                  <Music size={13} className="text-foreground/40" />
-                  <span className="flex-1 text-left">Music</span>
-                </button>
-                <button
-                  onClick={() => {
-                    onNavigate("petezah://movies");
-                    setMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
-                >
-                  <Film size={13} className="text-foreground/40" />
-                  <span className="flex-1 text-left">Movies</span>
-                </button>
-                <button
-                  onClick={() => {
-                    onNavigate("petezah://vm");
-                    setMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
-                >
-                  <Monitor size={13} className="text-foreground/40" />
-                  <span className="flex-1 text-left">VM</span>
-                </button>
-                <button
-                  onClick={() => {
-                    onNavigate("petezah://chat");
-                    setMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
-                >
-                  <MessageCircle size={13} className="text-foreground/40" />
-                  <span className="flex-1 text-left">Chat</span>
-                </button>
-                <button
-                  onClick={() => {
-                    onNavigate("petezah://apps");
-                    setMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
-                >
-                  <AppWindow size={13} className="text-foreground/40" />
-                  <span className="flex-1 text-left">Apps</span>
-                </button>
-
-                <div className="h-px bg-border my-1 mx-3" />
-
-                <button
-                  onClick={() => {
-                    handleShare();
-                    setMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
-                >
-                  <Share size={13} className="text-foreground/40" />
-                  <span className="flex-1 text-left">Copy URL</span>
-                </button>
+                {canScrollDown && (
+                  <button
+                    type="button"
+                    onClick={() => menuScrollRef.current?.scrollBy({ top: 80, behavior: "smooth" })}
+                    className="flex-shrink-0 w-full flex items-center justify-center py-1 border-0 cursor-pointer"
+                    style={{ background: "hsla(220, 28%, 12%, 0.9)", color: "hsla(0,0%,100%,0.55)" }}
+                  >
+                    <ChevronDown size={14} />
+                  </button>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

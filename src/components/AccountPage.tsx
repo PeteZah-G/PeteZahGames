@@ -6,7 +6,7 @@ import {
   Megaphone, MessageSquare, Palette, Shield, Sliders, Camera,
   UserCog, Users, Ban, UserMinus, ShieldCheck, ShieldOff, Plus, ExternalLink, Image,
   Music2, MapPin, Link2, Heart, Globe2, Radio, Monitor, BarChart3, Copy, Trophy, Gamepad2, Pencil,
-  LayoutDashboard, Cpu, Database, Activity, Power, ShieldAlert, Server, Network,
+  LayoutDashboard, Cpu, Database, Activity, Power, ShieldAlert, Server, Network, Info, X as XIcon, Keyboard,
 } from "lucide-react";
 import { BadgeChip, BadgeRow, type BadgeInfo } from "./BadgeChip";
 import {
@@ -19,7 +19,8 @@ import { notifyAuthChanged } from "@/hooks/useAuth";
 import { consumePendingAuth } from "@/lib/authPending";
 import { applyVpnRegion } from "@/lib/vpn";
 import { themeById, applyBrowserIdentity } from "@/lib/siteThemes";
-import { AppearanceSettings, BehaviorSettings, ProxySettings } from "./SettingsPanels";
+import { AppearanceSettings, BehaviorSettings, ProxySettings, ShortcutsSettings } from "./SettingsPanels";
+import { createPortal } from "react-dom";
 
 interface AuthUser {
   id: string; email: string; username?: string; bio?: string;
@@ -53,7 +54,7 @@ const SITE_PRESETS = [
   { id: "petezah",   label: "PeteZah",           favicon: "/logo.png" },
 ];
 
-type Section = "profile" | "proxy" | "get-links" | "achievements" | "appearance" | "cloaking" | "behavior" | "data" | "admin" | "users" | "live" | "firefox-vm" | "game-stats" | "link-stats" | "updates" | "ai-prompts";
+type Section = "profile" | "proxy" | "get-links" | "achievements" | "appearance" | "cloaking" | "behavior" | "shortcuts" | "data" | "admin" | "users" | "live" | "firefox-vm" | "game-stats" | "link-stats" | "updates" | "ai-prompts";
 
 function applySettingsNow(s: Record<string, string>) {
   if (s.theme) {
@@ -354,6 +355,7 @@ const NAV: { id: Section; label: string; icon: any; adminOnly?: boolean }[] = [
   { id: "appearance", label: "Appearance",  icon: Palette },
   { id: "cloaking",   label: "Cloaking",    icon: Shield },
   { id: "behavior",   label: "Behavior",    icon: Sliders },
+  { id: "shortcuts",  label: "Shortcuts",   icon: Keyboard },
   { id: "data",       label: "Data",        icon: Download },
   { id: "admin",      label: "Admin",       icon: LayoutDashboard, adminOnly: true },
   { id: "users",      label: "Users",       icon: UserCog, adminOnly: true },
@@ -371,8 +373,21 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   const [section, setSection] = useState<Section>("profile");
 
   const [authMode, setAuthMode]   = useState<"signin" | "signup">("signin");
-  const [email, setEmail]         = useState("");
+  const [email, setEmail] = useState(() => {
+    try {
+      if (localStorage.getItem("pz-remember-email") === "1") {
+        return localStorage.getItem("pz-remembered-email") || "";
+      }
+    } catch {}
+    return "";
+  });
+  const [signupUsername, setSignupUsername] = useState("");
   const [acceptedLegal, setAcceptedLegal] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => {
+    try { return localStorage.getItem("pz-remember-email") === "1"; } catch { return false; }
+  });
+  const [showAuthPassword, setShowAuthPassword] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [password, setPassword]   = useState("");
   const [authErr, setAuthErr]     = useState("");
   const [authOk, setAuthOk]       = useState("");
@@ -438,7 +453,19 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   const [adminSearchActive, setAdminSearchActive] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [adminTab, setAdminTab] = useState<"users" | "staff">("users");
+  const [adminTab, setAdminTab] = useState<"users" | "staff" | "rarity">("users");
+  const [rarityBoard, setRarityBoard] = useState<{
+    rank: number;
+    userId: string;
+    username?: string;
+    email?: string;
+    avatar_url?: string | null;
+    score: number;
+    badgeCount: number;
+    topRarity: string;
+    badges: { id: string; name: string; rarity: string; color?: string; icon?: string }[];
+  }[]>([]);
+  const [rarityLoading, setRarityLoading] = useState(false);
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [staffLoading, setStaffLoading] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
@@ -676,12 +703,28 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       .finally(() => setStaffLoading(false));
   }, []);
 
+  const loadRarityBoard = useCallback(() => {
+    setRarityLoading(true);
+    return fetch("/api/admin/badge-rarity?limit=50", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        setRarityBoard(d.leaderboard || []);
+      })
+      .finally(() => setRarityLoading(false));
+  }, []);
+
   useEffect(() => {
     if (section === "users" && user && (user.is_admin ?? 0) >= 1) {
       loadAdminUsers(1);
       loadStaff();
     }
   }, [section, user, loadAdminUsers, loadStaff]);
+
+  useEffect(() => {
+    if (section === "users" && adminTab === "rarity" && user && (user.is_admin ?? 0) >= 1) {
+      loadRarityBoard();
+    }
+  }, [section, adminTab, user, loadRarityBoard]);
 
   useEffect(() => {
     if (section !== "admin" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
@@ -1088,17 +1131,46 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       setAuthErr("Agree to the Terms, Privacy Policy, and DMCA Policy to create an account.");
       return;
     }
+    if (authMode === "signup") {
+      const u = signupUsername.trim();
+      if (u.length < 3) {
+        setAuthErr("Choose a username with at least 3 characters.");
+        return;
+      }
+      if (!/^[a-zA-Z0-9_]+$/.test(u)) {
+        setAuthErr("Username can only use letters, numbers, and underscores.");
+        return;
+      }
+    }
     setAuthLoading(true);
     try {
       const payload: Record<string, unknown> = { email, password };
-      if (authMode === "signup") payload.acceptedLegal = true;
+      if (authMode === "signup") {
+        payload.acceptedLegal = true;
+        payload.username = signupUsername.trim();
+      }
+      try {
+        if (rememberMe && email) {
+          localStorage.setItem("pz-remember-email", "1");
+          localStorage.setItem("pz-remembered-email", email);
+        } else {
+          localStorage.removeItem("pz-remember-email");
+          localStorage.removeItem("pz-remembered-email");
+        }
+      } catch {}
       const r = await fetch(`/api/${authMode}`, {
         method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(payload), credentials: "include",
       });
       const d = await r.json();
       if (!r.ok) setAuthErr(d.error || "Something went wrong");
-      else if (authMode === "signup") { setAuthOk(d.message || "Account created! You can sign in now."); setAuthMode("signin"); setPassword(""); setAcceptedLegal(false); }
+      else if (authMode === "signup") {
+        setAuthOk(d.message || "Account created! You can sign in now.");
+        setAuthMode("signin");
+        setPassword("");
+        setSignupUsername("");
+        setAcceptedLegal(false);
+      }
       else if (d.requires2fa) {
         setLogin2fa({ email: d.email });
         setLogin2faCode("");
@@ -1747,106 +1819,213 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   }
 
   if (!user) return (
-    <div style={{ height: "100%", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", overflow: "hidden" }}>
-
+    <div
+      className="no-obfuscate"
+      data-no-obfuscate="true"
+      style={{
+      height: "100%", position: "relative", display: "flex", alignItems: "center", justifyContent: "center",
+      background: "transparent", overflow: "hidden", padding: "28px 22px",
+      fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
+    }}>
       <motion.div
-        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-        style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "320px", padding: "0 20px" }}
+        initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="no-obfuscate"
+        data-no-obfuscate="true"
+        style={{
+          position: "relative", zIndex: 10, width: "100%", maxWidth: 320,
+          padding: "28px 26px 24px",
+          borderRadius: 18,
+          background: "hsla(220, 28%, 8%, 0.42)",
+          border: "1px solid hsla(210, 40%, 80%, 0.12)",
+          backdropFilter: "blur(18px)",
+          boxShadow: "0 18px 48px rgba(0,0,0,0.26)",
+        }}
       >
-        <div style={{
-          background: "hsla(216, 32%, 7%, 0.75)", backdropFilter: "blur(20px)",
-          border: `1px solid ${C.border}`, borderRadius: "14px", padding: "28px 24px",
-          boxShadow: "0 24px 48px hsla(216, 50%, 4%, 0.5)",
-        }}>
-          <div style={{ textAlign: "center", marginBottom: "24px" }}>
-            <div style={{
-              width: "40px", height: "40px", borderRadius: "10px", margin: "0 auto 12px",
-              background: C.accentDim, border: `1px solid ${C.borderFocus}`,
-              display: "flex", alignItems: "center", justifyContent: "center",
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.06, duration: 0.35 }}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 16 }}
+        >
+          <img src="/logo.png" alt="" style={{ width: 22, height: 22, objectFit: "contain", borderRadius: 6 }} />
+          <span style={{ fontSize: 13, fontWeight: 650, color: C.text, letterSpacing: "-0.02em" }}>PeteZah</span>
+        </motion.div>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={authMode}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.22 }}
+          >
+            <h2 style={{
+              margin: "0 0 4px", textAlign: "center", fontSize: 22, fontWeight: 750,
+              color: C.text, letterSpacing: "-0.03em", lineHeight: 1.15,
             }}>
-              <User size={18} color={C.accent} />
-            </div>
-            <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: "0 0 3px" }}>
-              {authMode === "signin" ? "Welcome back" : "Create account"}
+              {authMode === "signin" ? "Welcome back!" : "Create account"}
             </h2>
-            <p style={{ fontSize: "11px", color: C.textSub, margin: 0 }}>
-              {authMode === "signin" ? "Sign in to sync your settings" : "Get started with PeteZah"}
+            <p style={{ margin: "0 0 18px", textAlign: "center", fontSize: 12, color: C.textSub }}>
+              {authMode === "signin" ? "Sign in to PeteZah below" : "Pick a username to get started"}
             </p>
-          </div>
+          </motion.div>
+        </AnimatePresence>
 
-          <AnimatePresence mode="wait">
-            {authErr && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-                style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", borderRadius: "7px", marginBottom: "14px",
-                  background: "hsl(0 60% 50% / 0.08)", border: "1px solid hsl(0 60% 50% / 0.2)", color: "hsl(0 60% 68%)", fontSize: "11px" }}>
-                <AlertCircle size={11} style={{ flexShrink: 0 }} />{authErr}
-              </motion.div>
-            )}
-            {authOk && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-                style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", borderRadius: "7px", marginBottom: "14px",
-                  background: "hsl(145 50% 42% / 0.1)", border: "1px solid hsl(145 50% 42% / 0.25)", color: "hsl(145 50% 60%)", fontSize: "11px" }}>
-                <Check size={11} style={{ flexShrink: 0 }} />{authOk}
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <AnimatePresence mode="wait">
+          {authErr && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 9, marginBottom: 12,
+                background: "hsl(0 60% 50% / 0.1)", border: "1px solid hsl(0 60% 50% / 0.22)", color: "hsl(0 60% 70%)", fontSize: 11 }}>
+              <AlertCircle size={11} style={{ flexShrink: 0 }} />{authErr}
+            </motion.div>
+          )}
+          {authOk && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 9, marginBottom: 12,
+                background: "hsl(145 50% 42% / 0.1)", border: "1px solid hsl(145 50% 42% / 0.25)", color: "hsl(145 50% 60%)", fontSize: 11 }}>
+              <Check size={11} style={{ flexShrink: 0 }} />{authOk}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-          <form onSubmit={handleAuth} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            <Field type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} placeholder="Email address" icon={Mail} />
-            <Field type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} placeholder="Password" icon={KeyRound} />
-            {authMode === "signup" && (
-              <label style={{
-                display: "flex", alignItems: "flex-start", gap: 8, marginTop: 2, cursor: "pointer",
-                fontSize: 11, lineHeight: 1.45, color: C.textSub,
-              }}>
-                <input
-                  type="checkbox"
-                  checked={acceptedLegal}
-                  onChange={(e) => setAcceptedLegal(e.target.checked)}
-                  style={{ marginTop: 2, accentColor: C.accent, flexShrink: 0 }}
-                />
-                <span>
-                  I agree to the{" "}
-                  <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: C.accent }} onClick={(e) => e.stopPropagation()}>Terms</a>,{" "}
-                  <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{ color: C.accent }} onClick={(e) => e.stopPropagation()}>Privacy Policy</a>, and{" "}
-                  <a href="/dmca" target="_blank" rel="noopener noreferrer" style={{ color: C.accent }} onClick={(e) => e.stopPropagation()}>DMCA Policy</a>.
-                </span>
-              </label>
-            )}
-            <button type="submit" disabled={authLoading || (authMode === "signup" && !acceptedLegal)} style={{
-              marginTop: "4px", width: "100%", padding: "10px", borderRadius: "8px", border: `1px solid ${C.borderFocus}`,
-              background: C.accentDim, color: C.text, fontSize: "13px", fontWeight: 600,
-              display: "flex", alignItems: "center", justifyContent: "center", gap: "7px",
-              cursor: authLoading || (authMode === "signup" && !acceptedLegal) ? "not-allowed" : "pointer",
-              opacity: authLoading || (authMode === "signup" && !acceptedLegal) ? 0.7 : 1, transition: "opacity 0.2s",
-            }}>
-              {authLoading && <Loader2 size={13} className="animate-spin" />}
-              {authMode === "signin" ? "Sign In" : "Create Account"}
-            </button>
-          </form>
-
-          <button
-            onClick={() => { setAuthMode(m => m === "signin" ? "signup" : "signin"); setAuthErr(""); setAuthOk(""); setAcceptedLegal(false); }}
-            style={{ width: "100%", marginTop: "14px", background: "none", border: "none", cursor: "pointer",
-              fontSize: "11px", color: C.textSub, textAlign: "center", transition: "color 0.15s" }}
-            onMouseEnter={e => (e.currentTarget.style.color = C.text)}
-            onMouseLeave={e => (e.currentTarget.style.color = C.textSub)}>
-            {authMode === "signin" ? "No account? Create one" : "Already have an account? Sign in"}
-          </button>
-          {authMode === "signin" && (
+        <form onSubmit={handleAuth} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {authMode === "signup" && (
+            <label style={{ display: "block" }}>
+              <input
+                type="text"
+                value={signupUsername}
+                onChange={(e) => setSignupUsername(e.target.value)}
+                placeholder="Username"
+                maxLength={32}
+                autoComplete="username"
+                data-no-obfuscate="true"
+                style={{
+                  width: "100%", background: "transparent", border: "none", outline: "none",
+                  borderBottom: "1px solid hsla(210, 30%, 70%, 0.28)",
+                  padding: "8px 2px", color: C.text, fontSize: 13, fontFamily: "inherit",
+                }}
+              />
+            </label>
+          )}
+          <label style={{ display: "block" }}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email address"
+              autoComplete="email"
+              data-no-obfuscate="true"
+              style={{
+                width: "100%", background: "transparent", border: "none", outline: "none",
+                borderBottom: "1px solid hsla(210, 30%, 70%, 0.28)",
+                padding: "8px 2px", color: C.text, fontSize: 13, fontFamily: "inherit",
+              }}
+            />
+          </label>
+          <label style={{ display: "block", position: "relative" }}>
+            <input
+              type={showAuthPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              autoComplete={authMode === "signin" ? "current-password" : "new-password"}
+              data-no-obfuscate="true"
+              style={{
+                width: "100%", background: "transparent", border: "none", outline: "none",
+                borderBottom: "1px solid hsla(210, 30%, 70%, 0.28)",
+                padding: "8px 28px 8px 2px", color: C.text, fontSize: 13, fontFamily: "inherit",
+              }}
+            />
             <button
               type="button"
-              onClick={resendVerification}
-              disabled={resendBusy}
+              onClick={() => setShowAuthPassword((v) => !v)}
+              tabIndex={-1}
               style={{
-                width: "100%", marginTop: 8, background: "none", border: "none", cursor: resendBusy ? "not-allowed" : "pointer",
-                fontSize: 11, color: C.accent, textAlign: "center", opacity: resendBusy ? 0.6 : 1,
+                position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)",
+                background: "none", border: "none", cursor: "pointer", padding: 4,
+                color: C.textMuted, display: "flex", alignItems: "center",
               }}
+              aria-label={showAuthPassword ? "Hide password" : "Show password"}
             >
-              {resendBusy ? "Sending…" : "Resend verification email"}
+              {showAuthPassword ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
+          </label>
+
+          {authMode === "signin" ? (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: -2 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", fontSize: 11, color: C.textSub }}>
+                <span
+                  onClick={() => setRememberMe((v) => !v)}
+                  style={{
+                    width: 14, height: 14, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    background: rememberMe ? "hsla(0,0%,96%,0.92)" : "transparent",
+                    border: rememberMe ? "none" : "1px solid hsla(210, 30%, 70%, 0.35)",
+                    color: "#0a0c10",
+                  }}
+                >
+                  {rememberMe ? <Check size={9} strokeWidth={3} /> : null}
+                </span>
+                Remember me
+              </label>
+              <button
+                type="button"
+                onClick={() => resendVerification(email)}
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: C.textMuted, padding: 0 }}
+              >
+                Resend verification
+              </button>
+            </div>
+          ) : (
+            <label style={{
+              display: "flex", alignItems: "flex-start", gap: 7, cursor: "pointer",
+              fontSize: 10, lineHeight: 1.4, color: C.textSub,
+            }}>
+              <input
+                type="checkbox"
+                checked={acceptedLegal}
+                onChange={(e) => setAcceptedLegal(e.target.checked)}
+                style={{ marginTop: 2, accentColor: C.accent, flexShrink: 0 }}
+              />
+              <span>
+                I agree to the{" "}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: C.text }} onClick={(e) => e.stopPropagation()}>Terms</a>,{" "}
+                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{ color: C.text }} onClick={(e) => e.stopPropagation()}>Privacy</a>, and{" "}
+                <a href="/dmca" target="_blank" rel="noopener noreferrer" style={{ color: C.text }} onClick={(e) => e.stopPropagation()}>DMCA</a>.
+              </span>
+            </label>
           )}
-        </div>
+
+          <motion.button
+            type="submit"
+            disabled={authLoading || (authMode === "signup" && !acceptedLegal)}
+            whileHover={{ scale: authLoading ? 1 : 1.01 }}
+            whileTap={{ scale: authLoading ? 1 : 0.985 }}
+            style={{
+              marginTop: 2, width: "100%", padding: "10px 14px", borderRadius: 999, border: "none",
+              background: "hsla(0, 0%, 92%, 0.92)", color: "#0b0e14",
+              fontSize: 13, fontWeight: 700, letterSpacing: "-0.01em",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+              cursor: authLoading || (authMode === "signup" && !acceptedLegal) ? "not-allowed" : "pointer",
+              opacity: authLoading || (authMode === "signup" && !acceptedLegal) ? 0.65 : 1,
+            }}
+          >
+            {authLoading && <Loader2 size={13} className="animate-spin" />}
+            {authMode === "signin" ? "Sign In" : "Create Account"}
+          </motion.button>
+        </form>
+
+        <p style={{ margin: "14px 0 0", textAlign: "center", fontSize: 12, color: C.textSub }}>
+          {authMode === "signin" ? "Don't have an account? " : "Already have an account? "}
+          <button
+            type="button"
+            onClick={() => { setAuthMode((m) => (m === "signin" ? "signup" : "signin")); setAuthErr(""); setAuthOk(""); setAcceptedLegal(false); }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: C.text, fontWeight: 700, fontSize: 12, padding: 0 }}
+          >
+            {authMode === "signin" ? "Sign up" : "Sign in"}
+          </button>
+        </p>
       </motion.div>
     </div>
   );
@@ -1989,10 +2168,26 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
 
             {section === "profile" && (
               <div style={{ maxWidth: "520px" }}>
-                <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: "0 0 3px" }}>Profile</h2>
-                <p style={{ fontSize: "11px", color: C.textSub, margin: "0 0 16px" }}>
-                  {user.created_at ? `Member since ${new Date(user.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })}` : "Manage your profile"}
-                </p>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 3 }}>
+                  <div>
+                    <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: "0 0 3px" }}>Profile</h2>
+                    <p style={{ fontSize: "11px", color: C.textSub, margin: 0 }}>
+                      {user.created_at ? `Member since ${new Date(user.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })}` : "Manage your profile"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    title="About PeteZah"
+                    onClick={() => setAboutOpen(true)}
+                    style={{
+                      width: 32, height: 32, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+                      background: C.elevated, border: `1px solid ${C.border}`, color: C.textSub, cursor: "pointer", flexShrink: 0,
+                    }}
+                  >
+                    <Info size={14} />
+                  </button>
+                </div>
+                <div style={{ height: 16 }} />
 
                 {(user.email_verified === false || user.email_verified === 0) ? (
                   <div style={{
@@ -2634,6 +2829,8 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
 
             {section === "behavior" && <BehaviorSettings {...panelProps} />}
 
+            {section === "shortcuts" && <ShortcutsSettings C={C} />}
+
             {section === "data" && (
               <div style={{ maxWidth: "400px" }}>
                 <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: "0 0 3px" }}>Data</h2>
@@ -3023,25 +3220,67 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "3px" }}>
                   <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: 0 }}>Users</h2>
                   <span style={{ fontSize: "10px", fontWeight: 600, padding: "3px 8px", borderRadius: "6px", background: `${C.accentDim}40`, border: `1px solid ${C.borderFocus}`, color: C.accent }}>
-                    {adminTab === "staff" ? `${staffList.length} team` : adminSearchActive ? `${adminUsers.length} results` : `${adminTotal} users`}
+                    {adminTab === "staff" ? `${staffList.length} team` : adminTab === "rarity" ? `Top ${rarityBoard.length}` : adminSearchActive ? `${adminUsers.length} results` : `${adminTotal} users`}
                   </span>
                 </div>
                 <p style={{ fontSize: "11px", color: C.textSub, margin: "0 0 10px" }}>
                   {isOwner ? "Owner — manage team roles and users" : "Manage users and moderate content"}
                 </p>
                 <div style={{ display: "flex", gap: "6px", marginBottom: "14px" }}>
-                  {(["users", "staff"] as const).map(tab => (
+                  {(["users", "staff", "rarity"] as const).map(tab => (
                     <button key={tab} onClick={() => setAdminTab(tab)} style={{
                       padding: "6px 12px", borderRadius: "7px", fontSize: "11px", fontWeight: 600, cursor: "pointer",
                       border: `1px solid ${adminTab === tab ? C.borderFocus : C.border}`,
                       background: adminTab === tab ? C.accentDim : C.surface,
                       color: adminTab === tab ? C.text : C.textMuted,
                     }}>
-                      {tab === "users" ? "Users" : "Staff"}
+                      {tab === "users" ? "Users" : tab === "staff" ? "Staff" : "Rarest"}
                     </button>
                   ))}
                 </div>
-                {adminTab === "staff" ? (
+                {adminTab === "rarity" ? (
+                  rarityLoading ? (
+                    <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
+                      <Loader2 size={18} className="animate-spin" style={{ color: C.accent }} />
+                    </div>
+                  ) : rarityBoard.length === 0 ? (
+                    <p style={{ fontSize: "11px", color: C.textMuted, textAlign: "center", padding: "24px" }}>No badge unlocks yet</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {rarityBoard.map((row) => (
+                        <button
+                          key={row.userId}
+                          type="button"
+                          onClick={() => openUserDetail(row.userId)}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10,
+                            background: C.surface, border: `1px solid ${C.border}`, cursor: "pointer", textAlign: "left",
+                          }}
+                        >
+                          <span style={{
+                            width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: 11, fontWeight: 700, background: C.accentDim, color: C.accent, flexShrink: 0,
+                          }}>
+                            #{row.rank}
+                          </span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ margin: 0, fontSize: 12, fontWeight: 650, color: C.text }}>
+                              {row.username || row.email || "User"}
+                            </p>
+                            <p style={{ margin: "2px 0 0", fontSize: 10, color: C.textMuted }}>
+                              score {row.score} · {row.badgeCount} badges · top {row.topRarity}
+                            </p>
+                          </div>
+                          <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                            {row.badges.slice(0, 3).map((b) => (
+                              <BadgeChip key={b.id} badge={{ ...b, unlocked: true }} size={20} />
+                            ))}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )
+                ) : adminTab === "staff" ? (
                   staffLoading ? (
                     <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
                       <Loader2 size={18} className="animate-spin" style={{ color: C.accent }} />
@@ -3204,105 +3443,162 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                 )}
                 </>
                 )}
-                <AnimatePresence>
-                  {(selectedUser || detailLoading) && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      onClick={() => { if (!detailLoading) { setSelectedUser(null); setBadgeManageOpen(false); } }}
-                      style={{ position: "fixed", inset: 0, background: "hsla(216, 50%, 4%, 0.7)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-                      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-                        onClick={e => e.stopPropagation()}
-                        style={{ width: "100%", maxWidth: badgeManageOpen ? "440px" : "380px", maxHeight: "90vh", overflowY: "auto", background: C.surface, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" }}>
-                        {detailLoading ? (
-                          <div style={{ display: "flex", justifyContent: "center", padding: "24px" }}>
-                            <Loader2 size={20} className="animate-spin" style={{ color: C.accent }} />
-                          </div>
-                        ) : selectedUser && (
-                          <>
-                            <h3 style={{ fontSize: "14px", fontWeight: 700, color: C.text, margin: "0 0 14px" }}>User Details</h3>
-                            <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "11px" }}>
-                              {[
-                                ["Email", selectedUser.email],
-                                ["Username", selectedUser.username || "—"],
-                                ["Role", roleLabel(selectedUser.is_admin ?? 0, selectedUser.is_owner)],
-                                ["Verified", selectedUser.email_verified ? "Yes" : "No"],
-                                ["Banned", selectedUser.banned ? "Yes" : "No"],
-                                ["IP", selectedUser.ip || "—"],
-                                ["School", selectedUser.school || "—"],
-                                ["Age", selectedUser.age != null ? String(selectedUser.age) : "—"],
-                                ["Bio", selectedUser.bio || "—"],
-                                ["Joined", selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleString() : "—"],
-                                ["ID", selectedUser.id],
-                              ].map(([label, val]) => (
-                                <div key={label} style={{ display: "flex", gap: "8px" }}>
-                                  <span style={{ color: C.textMuted, minWidth: "64px", flexShrink: 0 }}>{label}</span>
-                                  <span style={{ color: C.text, wordBreak: "break-all" }}>{val}</span>
-                                </div>
-                              ))}
+                {typeof document !== "undefined" && createPortal(
+                  <AnimatePresence>
+                    {(selectedUser || detailLoading) && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => { if (!detailLoading) { setSelectedUser(null); setBadgeManageOpen(false); } }}
+                        style={{
+                          position: "fixed", inset: 0, zIndex: 10000,
+                          background: "hsla(216, 45%, 4%, 0.72)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          padding: "max(16px, 4vh) 16px",
+                          backdropFilter: "blur(6px)",
+                        }}
+                      >
+                        <motion.div
+                          initial={{ scale: 0.96, opacity: 0, y: 10 }}
+                          animate={{ scale: 1, opacity: 1, y: 0 }}
+                          exit={{ scale: 0.97, opacity: 0, y: 6 }}
+                          transition={{ duration: 0.2 }}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            width: "100%",
+                            maxWidth: badgeManageOpen ? 480 : 420,
+                            maxHeight: "min(86vh, 720px)",
+                            overflowY: "auto",
+                            background: "linear-gradient(165deg, hsla(216, 28%, 11%, 0.98), hsla(220, 30%, 7%, 0.98))",
+                            border: `1px solid ${C.border}`,
+                            borderRadius: 18,
+                            padding: 22,
+                            boxShadow: "0 28px 80px rgba(0,0,0,0.55)",
+                          }}
+                        >
+                          {detailLoading ? (
+                            <div style={{ display: "flex", justifyContent: "center", padding: 28 }}>
+                              <Loader2 size={20} className="animate-spin" style={{ color: C.accent }} />
                             </div>
-                            {!!selectedUser.achievements?.length && (
-                              <div style={{ marginTop: 14 }}>
-                                <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted }}>
-                                  Badges
-                                </p>
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, maxHeight: 140, overflowY: "auto" }}>
-                                  {selectedUser.achievements.map((b) => (
-                                    <BadgeChip key={b.id} badge={b} size={26} showName />
-                                  ))}
+                          ) : selectedUser && (
+                            <>
+                              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
+                                <div>
+                                  <h3 style={{ fontSize: 16, fontWeight: 720, color: C.text, margin: "0 0 4px", letterSpacing: "-0.02em" }}>
+                                    {selectedUser.username || "User"}
+                                  </h3>
+                                  <p style={{ margin: 0, fontSize: 11, color: C.textMuted }}>{selectedUser.email}</p>
                                 </div>
+                                <button
+                                  type="button"
+                                  onClick={() => { setSelectedUser(null); setBadgeManageOpen(false); }}
+                                  style={{
+                                    width: 30, height: 30, borderRadius: 9, border: `1px solid ${C.border}`,
+                                    background: C.elevated, color: C.textSub, cursor: "pointer",
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                  }}
+                                >
+                                  <XIcon size={14} />
+                                </button>
                               </div>
-                            )}
-                            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-                              <button onClick={openBadgeManager}
-                                style={{ flex: 1, padding: "8px", borderRadius: "8px", border: `1px solid ${C.borderFocus}`, background: C.accentDim, color: C.accent, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
-                                Manage badges
-                              </button>
-                              <button onClick={() => { setSelectedUser(null); setBadgeManageOpen(false); }}
-                                style={{ flex: 1, padding: "8px", borderRadius: "8px", border: `1px solid ${C.border}`, background: C.elevated, color: C.text, fontSize: "12px", cursor: "pointer" }}>
-                                Close
-                              </button>
-                            </div>
-                            {badgeManageOpen && (
-                              <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
-                                <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted }}>
-                                  Grant / revoke
-                                </p>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 220, overflowY: "auto" }}>
-                                  {(badgeCatalog.length ? badgeCatalog : selectedUser.achievements || []).map((b) => {
-                                    const owned = !!selectedUser.achievements?.some((x) => x.id === b.id);
-                                    return (
-                                      <div key={b.id} style={{
-                                        display: "flex", alignItems: "center", gap: 8, padding: "7px 8px", borderRadius: 8,
-                                        background: C.elevated, border: `1px solid ${C.border}`,
-                                      }}>
-                                        <BadgeChip badge={{ ...b, unlocked: owned }} size={22} locked={!owned} />
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                          <p style={{ margin: 0, fontSize: 11, fontWeight: 650, color: C.text }}>{b.name}</p>
-                                          <p style={{ margin: 0, fontSize: 9, color: C.textMuted, textTransform: "capitalize" }}>{b.rarity}{b.manual ? " · manual" : ""}</p>
+                              <div style={{
+                                display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14,
+                              }}>
+                                {[
+                                  ["Role", roleLabel(selectedUser.is_admin ?? 0, selectedUser.is_owner)],
+                                  ["Verified", selectedUser.email_verified ? "Yes" : "No"],
+                                  ["Banned", selectedUser.banned ? "Yes" : "No"],
+                                  ["Joined", selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString() : "—"],
+                                ].map(([label, val]) => (
+                                  <div key={label} style={{
+                                    padding: "10px 11px", borderRadius: 11, background: C.elevated, border: `1px solid ${C.border}`,
+                                  }}>
+                                    <p style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: C.textMuted }}>{label}</p>
+                                    <p style={{ margin: "4px 0 0", fontSize: 12, fontWeight: 600, color: C.text }}>{val}</p>
+                                  </div>
+                                ))}
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 11 }}>
+                                {[
+                                  ["IP", selectedUser.ip || "—"],
+                                  ["School", selectedUser.school || "—"],
+                                  ["Age", selectedUser.age != null ? String(selectedUser.age) : "—"],
+                                  ["Bio", selectedUser.bio || "—"],
+                                  ["ID", selectedUser.id],
+                                ].map(([label, val]) => (
+                                  <div key={label} style={{ display: "flex", gap: 8 }}>
+                                    <span style={{ color: C.textMuted, minWidth: 52, flexShrink: 0 }}>{label}</span>
+                                    <span style={{ color: C.text, wordBreak: "break-all" }}>{val}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              {!!selectedUser.achievements?.length && (
+                                <div style={{ marginTop: 16 }}>
+                                  <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted }}>
+                                    Badges
+                                  </p>
+                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, maxHeight: 140, overflowY: "auto" }}>
+                                    {selectedUser.achievements.map((b) => (
+                                      <BadgeChip key={b.id} badge={b} size={26} showName />
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+                                <button onClick={openBadgeManager}
+                                  style={{ flex: 1, padding: "9px", borderRadius: 10, border: `1px solid ${C.borderFocus}`, background: C.accentDim, color: C.accent, fontSize: 12, fontWeight: 650, cursor: "pointer" }}>
+                                  Manage badges
+                                </button>
+                                <button onClick={() => { setSelectedUser(null); setBadgeManageOpen(false); }}
+                                  style={{ flex: 1, padding: "9px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.elevated, color: C.text, fontSize: 12, cursor: "pointer" }}>
+                                  Close
+                                </button>
+                              </div>
+                              {badgeManageOpen && (
+                                <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+                                  <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted }}>
+                                    Grant / revoke
+                                  </p>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 220, overflowY: "auto" }}>
+                                    {(badgeCatalog.length ? badgeCatalog : selectedUser.achievements || []).map((b) => {
+                                      const owned = !!selectedUser.achievements?.some((x) => x.id === b.id);
+                                      return (
+                                        <div key={b.id} style={{
+                                          display: "flex", alignItems: "center", gap: 8, padding: "7px 8px", borderRadius: 8,
+                                          background: C.elevated, border: `1px solid ${C.border}`,
+                                        }}>
+                                          <BadgeChip badge={{ ...b, unlocked: owned }} size={22} locked={!owned} />
+                                          <div style={{ flex: 1, minWidth: 0 }}>
+                                            <p style={{ margin: 0, fontSize: 11, fontWeight: 650, color: C.text }}>{b.name}</p>
+                                            <p style={{ margin: 0, fontSize: 9, color: C.textMuted, textTransform: "capitalize" }}>{b.rarity}{b.manual ? " · manual" : ""}</p>
+                                          </div>
+                                          <button
+                                            disabled={badgeBusy}
+                                            onClick={() => toggleUserBadge(b.id, !owned)}
+                                            style={{
+                                              padding: "4px 8px", borderRadius: 6, fontSize: 10, fontWeight: 650, cursor: "pointer",
+                                              border: `1px solid ${owned ? "hsl(0 60% 50% / 0.35)" : C.borderFocus}`,
+                                              background: owned ? "hsl(0 60% 50% / 0.12)" : C.accentDim,
+                                              color: owned ? C.danger : C.accent,
+                                            }}
+                                          >
+                                            {owned ? "Revoke" : "Grant"}
+                                          </button>
                                         </div>
-                                        <button
-                                          disabled={badgeBusy}
-                                          onClick={() => toggleUserBadge(b.id, !owned)}
-                                          style={{
-                                            padding: "4px 8px", borderRadius: 6, fontSize: 10, fontWeight: 650, cursor: "pointer",
-                                            border: `1px solid ${owned ? "hsl(0 60% 50% / 0.35)" : C.borderFocus}`,
-                                            background: owned ? "hsl(0 60% 50% / 0.12)" : C.accentDim,
-                                            color: owned ? C.danger : C.accent,
-                                          }}
-                                        >
-                                          {owned ? "Revoke" : "Grant"}
-                                        </button>
-                                      </div>
-                                    );
-                                  })}
+                                      );
+                                    })}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
-                          </>
-                        )}
+                              )}
+                            </>
+                          )}
+                        </motion.div>
                       </motion.div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                    )}
+                  </AnimatePresence>,
+                  document.body
+                )}
               </div>
             )}
 
@@ -3845,6 +4141,102 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {typeof document !== "undefined" && createPortal(
+        <AnimatePresence>
+          {aboutOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setAboutOpen(false)}
+              className="no-obfuscate"
+              data-no-obfuscate="true"
+              style={{
+                position: "fixed", inset: 0, zIndex: 10000,
+                background: "hsla(216, 45%, 4%, 0.7)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                padding: 20, backdropFilter: "blur(8px)",
+                fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.96, y: 10, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.97, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="no-obfuscate"
+                data-no-obfuscate="true"
+                style={{
+                  width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto",
+                  borderRadius: 20, padding: 24,
+                  background: "linear-gradient(165deg, hsla(216, 28%, 11%, 0.98), hsla(220, 30%, 7%, 0.98))",
+                  border: `1px solid ${C.border}`,
+                  boxShadow: "0 28px 80px rgba(0,0,0,0.5)",
+                  fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                  <div style={{ minWidth: 0, paddingRight: 8 }}>
+                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 720, color: C.text, overflowWrap: "anywhere" }}>About PeteZah</h3>
+                    <p style={{ margin: "4px 0 0", fontSize: 11, color: C.textSub }}>Credits & legal</p>
+                  </div>
+                  <button type="button" onClick={() => setAboutOpen(false)} style={{
+                    width: 30, height: 30, borderRadius: 9, border: `1px solid ${C.border}`, background: C.elevated,
+                    color: C.textSub, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  }}>
+                    <XIcon size={14} />
+                  </button>
+                </div>
+                <p style={{ margin: "0 0 14px", fontSize: 12, color: C.textSub, lineHeight: 1.55, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                  PeteZah is a glass browser built for school-friendly browsing, games, music, and more.
+                  Huge thanks to the open projects that make the stack possible.
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                  {[
+                    ["Mercury Workshop", "Scramjet — web proxy engine"],
+                    ["Waves Proxy / Mochi", "Proxy transport & networking"],
+                    ["Puter", "Firefox WASM virtual machine"],
+                    ["Selenite", "Large games catalog contributions"],
+                    ["CrazyGames & partners", "Embedded / catalog game providers"],
+                    ["Lucide", "Icon system"],
+                    ["Vanta / Three.js", "Atmospheric backgrounds"],
+                  ].map(([title, desc]) => (
+                    <div key={title} style={{
+                      padding: "10px 12px", borderRadius: 12, background: C.elevated, border: `1px solid ${C.border}`,
+                    }}>
+                      <p style={{ margin: 0, fontSize: 12, fontWeight: 650, color: C.text, overflowWrap: "anywhere" }}>{title}</p>
+                      <p style={{ margin: "3px 0 0", fontSize: 11, color: C.textMuted, overflowWrap: "anywhere", wordBreak: "break-word" }}>{desc}</p>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: C.textMuted }}>Legal</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {[
+                    ["/terms", "Terms of Service"],
+                    ["/privacy-policy", "Privacy Policy"],
+                    ["/dmca", "DMCA"],
+                  ].map(([href, label]) => (
+                    <a
+                      key={href}
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        padding: "7px 11px", borderRadius: 999, fontSize: 11, fontWeight: 600, textDecoration: "none",
+                        background: C.accentDim, border: `1px solid ${C.borderFocus}`, color: C.accent,
+                      }}
+                    >
+                      {label}
+                    </a>
+                  ))}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 }

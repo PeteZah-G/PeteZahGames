@@ -18,6 +18,19 @@ export function sanitizeUsername(username) {
     .slice(0, 32);
 }
 
+export function validateUsername(username) {
+  if (typeof username !== 'string') return 'Username is required.';
+  const cleaned = sanitizeUsername(username);
+  if (!cleaned) return 'Username is required.';
+  if (cleaned.length < 3) return 'Username must be at least 3 characters.';
+  if (cleaned.length > 32) return 'Username is too long.';
+  if (!/^[a-zA-Z0-9_]+$/.test(cleaned)) {
+    return 'Username can only use letters, numbers, and underscores.';
+  }
+  if (/^[0-9]+$/.test(cleaned)) return 'Username cannot be only numbers.';
+  return null;
+}
+
 export function safeAvatarUrl(url) {
   if (typeof url !== 'string' || !url) return null;
   if (url.startsWith('/uploads/avatars/')) return url;
