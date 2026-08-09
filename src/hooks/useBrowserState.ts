@@ -56,14 +56,41 @@ function getFavicon(url: string): string {
 }
 
 function formatUrl(raw: string): string {
-  const trimmed = raw.trim();
+  let trimmed = raw.trim();
   if (!trimmed) return "petezah://newtab";
   if (trimmed.startsWith("petezah://")) return trimmed;
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://"))
+  try {
+    if (localStorage.getItem("preferHttps") === "true" && trimmed.startsWith("http://")) {
+      trimmed = "https://" + trimmed.slice(7);
+    }
+  } catch {}
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    try {
+      if (localStorage.getItem("stripTrackers") === "true") {
+        const u = new URL(trimmed);
+        [...u.searchParams.keys()].forEach((k) => {
+          if (/^(utm_|fbclid|gclid|mc_eid|igshid)/i.test(k)) u.searchParams.delete(k);
+        });
+        return u.toString();
+      }
+    } catch {}
     return trimmed;
+  }
   if (trimmed.includes(".") && !trimmed.includes(" "))
     return `https://${trimmed}`;
-  return `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
+  try {
+    const eng = localStorage.getItem("searchEngine") || "ddg";
+    const map: Record<string, string> = {
+      ddg: "https://duckduckgo.com/?q=",
+      bing: "https://www.bing.com/search?q=",
+      google: "https://www.google.com/search?q=",
+      startpage: "https://www.startpage.com/sp/search?query=",
+      brave: "https://search.brave.com/search?q=",
+    };
+    return `${map[eng] || map.ddg}${encodeURIComponent(trimmed)}`;
+  } catch {
+    return `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
+  }
 }
 
 function makeProxyFrame(url: string): ProxyFrame | undefined {
@@ -249,6 +276,27 @@ export function useBrowserState() {
     );
   }, []);
 
+  /** Reorder tabs within the active space. `orderedIds` is the full space tab order. */
+  const reorderTabs = useCallback((orderedIds: string[]) => {
+    if (!orderedIds.length) return;
+    setTabs((prev) => {
+      const byId = new Map(prev.map((t) => [t.id, t]));
+      const first = byId.get(orderedIds[0]);
+      if (!first) return prev;
+      const spaceId = first.spaceId;
+      const reordered = orderedIds
+        .map((id) => byId.get(id))
+        .filter((t): t is Tab => !!t && t.spaceId === spaceId);
+      if (reordered.length === 0) return prev;
+      // Keep pin grouping: pinned first, then unpinned — order preserved within each group.
+      const pinned = reordered.filter((t) => t.pinned);
+      const unpinned = reordered.filter((t) => !t.pinned);
+      const spaceOrdered = [...pinned, ...unpinned];
+      const others = prev.filter((t) => t.spaceId !== spaceId);
+      return [...others, ...spaceOrdered];
+    });
+  }, []);
+
   const openSplit = useCallback((tabId?: string) => {
     if (tabId) {
       if (splitTabId === tabId) {
@@ -429,6 +477,7 @@ export function useBrowserState() {
     closeTab,
     closeAllTabs,
     togglePin,
+    reorderTabs,
     openSplit,
     closeSplit,
     setSplitTabId,

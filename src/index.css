@@ -58,6 +58,8 @@
 }
 .chromeos .glass,
 .chromeos .glass-heavy,
+.chromeos .glass-search,
+.chromeos .nt-search,
 .chromeos .category-card {
   border: none !important;
   outline: none !important;
@@ -87,10 +89,31 @@
     border: 1px solid hsl(var(--glass-border));
   }
   .glass-heavy {
-    background: hsl(210 40% 90% / 0.08);
-    backdrop-filter: blur(40px) saturate(1.6);
-    -webkit-backdrop-filter: blur(40px) saturate(1.6);
-    border: 1px solid hsl(210 40% 90% / 0.2);
+    background: hsl(210 40% 90% / 0.07);
+    backdrop-filter: blur(48px) saturate(1.55);
+    -webkit-backdrop-filter: blur(48px) saturate(1.55);
+    border: 1px solid hsl(210 40% 95% / 0.1);
+    box-shadow:
+      0 8px 28px rgba(0, 0, 0, 0.18),
+      inset 0 1px 0 hsl(0 0% 100% / 0.08);
+  }
+  .nt-search {
+    background: hsl(210 40% 90% / 0.06);
+    backdrop-filter: blur(40px) saturate(1.5);
+    -webkit-backdrop-filter: blur(40px) saturate(1.5);
+    border: 1px solid hsl(0 0% 100% / 0.06);
+    box-shadow:
+      0 8px 24px rgba(0, 0, 0, 0.16),
+      inset 0 1px 0 hsl(0 0% 100% / 0.06);
+  }
+  .glass-search {
+    background: hsl(210 45% 94% / 0.09);
+    backdrop-filter: blur(36px) saturate(1.65);
+    -webkit-backdrop-filter: blur(36px) saturate(1.65);
+    border: 1px solid hsl(210 55% 95% / 0.32);
+    box-shadow:
+      0 14px 40px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 hsl(0 0% 100% / 0.2);
   }
   .glass-subtle {
     background: hsla(220, 35%, 5%, 0.88);

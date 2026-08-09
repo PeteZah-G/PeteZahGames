@@ -31,10 +31,13 @@ export default function StatusBar({ tabCount }: StatusBarProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="flex items-center justify-between px-4 py-1.5 flex-shrink-0 chrome-bar"
-      style={{ borderTop: "1px solid hsla(210, 40%, 80%, 0.08)" }}
+      style={{
+        borderTop: "1px solid hsla(210, 40%, 80%, 0.08)",
+        fontFamily: "plusjakartasans-obf, ui-sans-serif, system-ui, sans-serif",
+      }}
     >
       <div className="flex items-center gap-3">
-        <span className="text-[9px] font-mono tracking-wider" style={{ color: "hsla(0,0%,100%,0.45)" }}>
+        <span className="text-[9px] tracking-wider" style={{ color: "hsla(0,0%,100%,0.45)", fontFamily: "plusjakartasans-obf, ui-sans-serif, system-ui, sans-serif" }}>
           {tabCount} tab{tabCount === 1 ? "" : "s"}
         </span>
         <div className="w-px h-2.5" style={{ background: "hsla(210, 40%, 80%, 0.12)" }} />
@@ -43,12 +46,12 @@ export default function StatusBar({ tabCount }: StatusBarProps) {
           title="Discord"
           onClick={() => openNativeWindow(DISCORD_INVITE)}
           className="flex items-center gap-1.5 bg-transparent border-none p-0 cursor-pointer transition-colors"
-          style={{ color: "hsla(0,0%,100%,0.4)" }}
+          style={{ color: "hsla(0,0%,100%,0.4)", fontFamily: "plusjakartasans-obf, ui-sans-serif, system-ui, sans-serif" }}
           onMouseEnter={(e) => { e.currentTarget.style.color = "hsla(235, 86%, 72%, 0.95)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = "hsla(0,0%,100%,0.4)"; }}
         >
           <DiscordIcon size={11} />
-          <span className="text-[9px] font-mono">Discord</span>
+          <span className="text-[9px]">Discord</span>
         </button>
         <div className="w-px h-2.5" style={{ background: "hsla(210, 40%, 80%, 0.12)" }} />
         <div className="flex items-center gap-2.5">
@@ -58,8 +61,8 @@ export default function StatusBar({ tabCount }: StatusBarProps) {
               href={item.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[9px] font-mono transition-colors capitalize"
-              style={{ color: "hsla(0,0%,100%,0.32)", textDecoration: "none" }}
+              className="text-[9px] transition-colors capitalize"
+              style={{ color: "hsla(0,0%,100%,0.32)", textDecoration: "none", fontFamily: "plusjakartasans-obf, ui-sans-serif, system-ui, sans-serif" }}
               onMouseEnter={(e) => { e.currentTarget.style.color = "hsla(0,0%,100%,0.7)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.color = "hsla(0,0%,100%,0.32)"; }}
             >
@@ -69,16 +72,16 @@ export default function StatusBar({ tabCount }: StatusBarProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3" style={{ fontFamily: "plusjakartasans-obf, ui-sans-serif, system-ui, sans-serif" }}>
         <div className="flex items-center gap-1.5">
           <Shield size={9} style={{ color: "hsla(210, 90%, 70%, 0.75)" }} />
-          <span className="text-[9px] font-mono tracking-wider" style={{ color: "hsla(0,0%,100%,0.45)" }}>Secure</span>
+          <span className="text-[9px] tracking-wider" style={{ color: "hsla(0,0%,100%,0.45)" }}>Secure</span>
         </div>
         <div className="w-px h-2.5" style={{ background: "hsla(210, 40%, 80%, 0.12)" }} />
         <div className="flex items-center gap-2" style={{ color: "hsla(0,0%,100%,0.4)" }}>
           <Wifi size={9} />
           <Battery size={10} />
-          <span className="text-[9px] font-mono tracking-wider" style={{ color: "hsla(0,0%,100%,0.45)" }}>{time}</span>
+          <span className="text-[9px] tracking-wider" style={{ color: "hsla(0,0%,100%,0.45)" }}>{time}</span>
         </div>
       </div>
     </motion.div>

@@ -2,18 +2,12 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import * as THREE from "three";
 import FOG from "vanta/dist/vanta.fog.min";
 import NET from "vanta/dist/vanta.net.min";
+import { themeById } from "@/lib/siteThemes";
 
 const DEFAULT_BG = "#020810";
 
-const SPACE_THEME = {
-  highlightColor: 0x2f5a8a,
-  midtoneColor: 0x14304f,
-  lowlightColor: 0x071022,
-  baseColor: 0x020810,
-};
-
 function parseColor(input?: string | null): number {
-  if (!input) return SPACE_THEME.baseColor;
+  if (!input) return 0x020810;
   const raw = input.trim();
   if (raw.startsWith("#") && (raw.length === 7 || raw.length === 4)) {
     if (raw.length === 4) {
@@ -24,35 +18,7 @@ function parseColor(input?: string | null): number {
     }
     return parseInt(raw.slice(1), 16);
   }
-  const hsl = raw.match(/hsl\(\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%\s*\)/i);
-  if (hsl) {
-    const h = parseFloat(hsl[1]) / 360;
-    const s = parseFloat(hsl[2]) / 100;
-    const l = parseFloat(hsl[3]) / 100;
-    const hue2rgb = (p: number, q: number, t: number) => {
-      let tt = t;
-      if (tt < 0) tt += 1;
-      if (tt > 1) tt -= 1;
-      if (tt < 1 / 6) return p + (q - p) * 6 * tt;
-      if (tt < 1 / 2) return q;
-      if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6;
-      return p;
-    };
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    const p = 2 * l - q;
-    const r = Math.round(hue2rgb(p, q, h + 1 / 3) * 255);
-    const g = Math.round(hue2rgb(p, q, h) * 255);
-    const b = Math.round(hue2rgb(p, q, h - 1 / 3) * 255);
-    return (r << 16) + (g << 8) + b;
-  }
-  return SPACE_THEME.baseColor;
-}
-
-function shade(hex: number, factor: number) {
-  const r = Math.min(255, Math.max(0, Math.round(((hex >> 16) & 0xff) * factor)));
-  const g = Math.min(255, Math.max(0, Math.round(((hex >> 8) & 0xff) * factor)));
-  const b = Math.min(255, Math.max(0, Math.round((hex & 0xff) * factor)));
-  return (r << 16) + (g << 8) + b;
+  return 0x020810;
 }
 
 function readBg() {
@@ -61,6 +27,14 @@ function readBg() {
 
 function readNetwork() {
   return localStorage.getItem("bgNetwork") === "true";
+}
+
+function readBgImage() {
+  return localStorage.getItem("backgroundImage") || "";
+}
+
+function readThemeId() {
+  return localStorage.getItem("theme") || "aurora";
 }
 
 function viewportSize() {
@@ -126,11 +100,15 @@ export default function VantaBackground() {
   const netEffect = useRef<any>(null);
   const [bg, setBg] = useState(readBg);
   const [network, setNetwork] = useState(readNetwork);
+  const [bgImage, setBgImage] = useState(readBgImage);
+  const [themeId, setThemeId] = useState(readThemeId);
 
   useEffect(() => {
     const sync = () => {
       setBg(readBg());
       setNetwork(readNetwork());
+      setBgImage(readBgImage());
+      setThemeId(readThemeId());
     };
     window.addEventListener("petezah-settings-updated", sync);
     window.addEventListener("storage", sync);
@@ -141,13 +119,21 @@ export default function VantaBackground() {
   }, []);
 
   useEffect(() => {
+    if (bgImage) {
+      try {
+        fogEffect.current?.destroy?.();
+      } catch {}
+      fogEffect.current = null;
+      return;
+    }
     if (!fogRef.current) return;
-    const base = parseColor(bg);
+    const site = themeById(themeId);
+    const base = parseColor(bg) || site.fog.base;
     const theme = {
-      baseColor: base || SPACE_THEME.baseColor,
-      lowlightColor: shade(SPACE_THEME.lowlightColor, 1) || SPACE_THEME.lowlightColor,
-      midtoneColor: SPACE_THEME.midtoneColor,
-      highlightColor: SPACE_THEME.highlightColor,
+      baseColor: base,
+      lowlightColor: site.fog.low,
+      midtoneColor: site.fog.mid,
+      highlightColor: site.fog.highlight,
     };
 
     try {
@@ -156,7 +142,7 @@ export default function VantaBackground() {
           ...theme,
           blurFactor: 0.85,
           speed: 1.35,
-          zoom: 1.30,
+          zoom: 1.3,
         });
       } else {
         fogEffect.current = FOG({
@@ -169,7 +155,7 @@ export default function VantaBackground() {
           minWidth: 200,
           blurFactor: 0.85,
           speed: 1.35,
-          zoom: 1.30,
+          zoom: 1.3,
           ...theme,
         });
       }
@@ -210,10 +196,10 @@ export default function VantaBackground() {
         ro?.disconnect();
       } catch {}
     };
-  }, [bg]);
+  }, [bg, themeId, bgImage]);
 
   useEffect(() => {
-    if (!network) {
+    if (!network || bgImage) {
       try {
         netEffect.current?.destroy?.();
       } catch {}
@@ -221,6 +207,7 @@ export default function VantaBackground() {
       return;
     }
     if (!netRef.current) return;
+    const site = themeById(themeId);
     try {
       if (!netEffect.current) {
         netEffect.current = NET({
@@ -233,17 +220,19 @@ export default function VantaBackground() {
           minWidth: 200,
           scale: 1,
           scaleMobile: 1,
-          color: 0x3a6a9a,
+          color: site.fog.net,
           backgroundColor: 0x000000,
           points: 6,
           maxDistance: 14,
           spacing: 26,
           showDots: false,
         });
+      } else {
+        netEffect.current.setOptions?.({ color: site.fog.net });
       }
       fitVantaCanvas(netRef.current, netEffect.current);
     } catch {}
-  }, [network]);
+  }, [network, themeId, bgImage]);
 
   useEffect(() => {
     return () => {
@@ -267,6 +256,22 @@ export default function VantaBackground() {
     overflow: "hidden",
   };
 
+  if (bgImage) {
+    return (
+      <div
+        aria-hidden
+        style={{
+          ...fullBleed,
+          backgroundImage: `url(${bgImage})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          backgroundColor: bg || DEFAULT_BG,
+        }}
+      />
+    );
+  }
+
   return (
     <>
       <div
@@ -278,11 +283,7 @@ export default function VantaBackground() {
           background: bg || DEFAULT_BG,
         }}
       />
-      <div
-        aria-hidden
-        className="space-twinkle"
-        style={fullBleed}
-      />
+      <div aria-hidden className="space-twinkle" style={fullBleed} />
       {network && (
         <div
           ref={netRef}

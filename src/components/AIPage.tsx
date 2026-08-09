@@ -17,8 +17,20 @@ import {
   Plus,
   Trash2,
   Check,
+  Search,
+  Sparkles,
+  Code2,
+  Lightbulb,
+  Atom,
+  PanelLeft,
+  History,
+  Share2,
+  ArrowUp,
+  LogIn,
+  UserRound,
 } from "lucide-react";
 import { AdResponsiveBanner } from "@/components/ads/Adsterra";
+import { setPendingAuth } from "@/lib/authPending";
 
 interface Message {
   id: string;
@@ -118,13 +130,10 @@ function resolveStoredModel() {
 }
 
 const SUGGESTIONS = [
-  "How do I learn to code efficiently?",
-  "Tell me a funny joke!",
-  "Give me a fun fact!",
-  "How do I bake a potato?",
-  "Give me a motivational quote.",
-  "What's a fun hobby to try?",
-  "What's a good book to read?",
+  { icon: Atom, text: "Explain quantum computing in simple terms" },
+  { icon: Code2, text: "Python JSON parser from an API endpoint" },
+  { icon: Lightbulb, text: "Creative startup ideas in the AI space" },
+  { icon: Sparkles, text: "Dark sci-fi story about a rogue AI" },
 ];
 
 const SYSTEM_PROMPT = `You are PeteAI, a helpful and friendly AI assistant developed by PeteZah. Keep responses concise and natural. When answering educational or factual questions, format your response as:
@@ -712,7 +721,11 @@ export default function AIPage({
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [showScreenWidget, setShowScreenWidget] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [chatSearch, setChatSearch] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareNotice, setShareNotice] = useState("");
   const [convos, setConvos] = useState<ConvoMeta[]>([]);
   const [activeConvoId, setActiveConvoId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -722,7 +735,7 @@ export default function AIPage({
     setShowScreenWidget(true);
   };
   const chatBodyRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const activeConvoIdRef = useRef<string | null>(null);
@@ -1196,333 +1209,134 @@ export default function AIPage({
     reader.readAsDataURL(file);
   };
 
+
   const canSend = (input.trim().length > 0 || !!pendingImage) && !isFetching;
+  const isLanding = showSuggestions && messages.length <= 1;
+  const [typedSub, setTypedSub] = useState("");
+  const SUB_LINE = "How can I help you today?";
 
-  return (
-    <div className="absolute inset-0 flex overflow-hidden">
-      {/* Hover-expand conversation rail */}
-      <aside
-        className="ai-convo-rail"
-        onMouseEnter={() => setSidebarOpen(true)}
-        onMouseLeave={() => {
-          if (!renamingId) setSidebarOpen(false);
-        }}
-        style={{
-          width: sidebarOpen ? 200 : 44,
-          flexShrink: 0,
-          borderRight: "1px solid rgba(255,255,255,0.06)",
-          background: "hsla(220, 32%, 7%, 0.35)",
-          backdropFilter: "blur(12px)",
-          transition: "width 0.22s ease",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          zIndex: 20,
-        }}
-      >
-        <div style={{ padding: "10px 8px 6px", display: "flex", flexDirection: "column", gap: 4 }}>
-          <button
-            type="button"
-            title="New chat"
-            onClick={() => {
-              resetToWelcome();
-              setSidebarOpen(false);
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              width: "100%",
-              padding: "7px 8px",
-              borderRadius: 8,
-              border: "1px solid rgba(255,255,255,0.07)",
-              background: "transparent",
-              color: "rgba(255,255,255,0.55)",
-              cursor: "pointer",
-              fontSize: 11,
-            }}
+  useEffect(() => {
+    if (!isLanding) {
+      setTypedSub(SUB_LINE);
+      return;
+    }
+    setTypedSub("");
+    let i = 0;
+    const id = window.setInterval(() => {
+      i += 1;
+      setTypedSub(SUB_LINE.slice(0, i));
+      if (i >= SUB_LINE.length) window.clearInterval(id);
+    }, 28);
+    return () => window.clearInterval(id);
+  }, [isLanding]);
+
+  const filteredConvos = chatSearch.trim()
+    ? convos.filter(
+        (c) =>
+          c.title.toLowerCase().includes(chatSearch.toLowerCase()) ||
+          c.preview.toLowerCase().includes(chatSearch.toLowerCase())
+      )
+    : convos;
+
+  const openLogin = () => {
+    setLoginPromptOpen(false);
+    setPendingAuth({ type: "ai" });
+    onNavigate("petezah://account");
+  };
+
+  const handleShare = async () => {
+    if (!signedIn) {
+      setLoginPromptOpen(true);
+      return;
+    }
+    if (!activeConvoId) {
+      setShareNotice("Send a message first to share this chat.");
+      return;
+    }
+    setShareBusy(true);
+    setShareNotice("");
+    try {
+      const r = await fetch(`/api/ai/conversations/${activeConvoId}/share`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.status === 401) {
+        setLoginPromptOpen(true);
+        return;
+      }
+      if (!r.ok || !d?.token) throw new Error(d?.error || "Share failed");
+      const link = `${window.location.origin}/share/ai/${d.token}`;
+      await navigator.clipboard.writeText(link);
+      setShareNotice("Share link copied");
+    } catch (e: any) {
+      setShareNotice(e?.message || "Could not create share link");
+    } finally {
+      setShareBusy(false);
+      setTimeout(() => setShareNotice(""), 2800);
+    }
+  };
+
+  const composer = (
+    <div
+      className="w-full transition-all"
+      style={{
+        background: isLanding ? "hsla(0,0%,100%,0.04)" : "hsla(0,0%,100%,0.05)",
+        border: "1px solid hsla(0,0%,100%,0.14)",
+        borderRadius: isLanding ? 18 : 16,
+        boxShadow: isLanding ? "0 10px 40px rgba(0,0,0,0.35)" : "none",
+        padding: isLanding ? "14px 14px 12px" : "12px 12px 10px",
+      }}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        const f = e.dataTransfer.files[0];
+        if (f) handleFile(f);
+      }}
+    >
+      <AnimatePresence>
+        {pendingImage && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex items-center pb-2"
           >
-            <Plus size={13} style={{ flexShrink: 0 }} />
-            {sidebarOpen && <span>New chat</span>}
-          </button>
-        </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: "4px 6px 10px", scrollbarWidth: "none" }}>
-          {convos.length === 0 && sidebarOpen && (
-            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.28)", padding: "8px 6px", margin: 0 }}>
-              Past chats appear here{signedIn ? "" : " · sign in to sync"}.
-            </p>
-          )}
-          {convos.map((c) => {
-            const active = activeConvoId === c.id;
-            return (
-              <div
-                key={c.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  marginBottom: 2,
-                  borderRadius: 8,
-                  background: active ? "rgba(255,255,255,0.06)" : "transparent",
-                }}
+            <div className="relative inline-block">
+              <img
+                src={`data:${pendingImage.mime};base64,${pendingImage.base64}`}
+                className="max-h-14 rounded-lg border border-white/10"
+                alt="pending"
+              />
+              <button
+                onClick={() => setPendingImage(null)}
+                className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-destructive flex items-center justify-center border-none cursor-pointer"
               >
-                {renamingId === c.id && sidebarOpen ? (
-                  <form
-                    style={{ flex: 1, display: "flex", gap: 4, padding: 4 }}
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      renameConversation(c.id, renameValue);
-                    }}
-                  >
-                    <input
-                      autoFocus
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        background: "rgba(0,0,0,0.25)",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                        borderRadius: 6,
-                        color: "rgba(255,255,255,0.85)",
-                        fontSize: 10,
-                        padding: "4px 6px",
-                        outline: "none",
-                      }}
-                    />
-                    <button type="submit" style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", padding: 2 }}>
-                      <Check size={11} />
-                    </button>
-                  </form>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      title={c.title}
-                      onClick={() => openConversation(c.id)}
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        padding: "7px 8px",
-                        border: "none",
-                        background: "transparent",
-                        color: active ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.45)",
-                        cursor: "pointer",
-                        fontSize: 11,
-                        textAlign: "left",
-                      }}
-                    >
-                      <MessageSquare size={12} style={{ flexShrink: 0, opacity: 0.7 }} />
-                      {sidebarOpen && (
-                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {c.title}
-                        </span>
-                      )}
-                    </button>
-                    {sidebarOpen && (
-                      <div style={{ display: "flex", gap: 1, paddingRight: 4 }}>
-                        <button
-                          type="button"
-                          title="Rename"
-                          onClick={() => {
-                            setRenamingId(c.id);
-                            setRenameValue(c.title);
-                          }}
-                          style={{ background: "none", border: "none", color: "rgba(255,255,255,0.28)", cursor: "pointer", padding: 3 }}
-                        >
-                          <Pencil size={10} />
-                        </button>
-                        <button
-                          type="button"
-                          title="Delete"
-                          onClick={() => deleteConversation(c.id)}
-                          style={{ background: "none", border: "none", color: "rgba(255,255,255,0.28)", cursor: "pointer", padding: 3 }}
-                        >
-                          <Trash2 size={10} />
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </aside>
-
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-      <div
-        className="flex-shrink-0 relative z-10 px-6 pt-4 pb-3 flex items-center justify-between"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
-      >
-        <div className="flex items-center gap-3">
-          <img
-            src="/storage/images/logo-png-removebg-preview.png"
-            alt="PeteAI"
-            className="w-7 h-7 object-contain opacity-80"
-          />
-          <div>
-            <h1 className="text-sm font-bold text-foreground">PeteAI</h1>
-            <p className="text-[10px] text-muted-foreground">Powered by Groq</p>
-          </div>
-        </div>
-
-        <div className="relative flex items-center gap-2">
-          <button
-            onClick={handleScreenToggle}
-            title="AI Screen Assistant"
-            style={{
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              padding: 4,
-              color: showScreenWidget
-                ? "rgba(150,200,255,0.9)"
-                : "rgba(255,255,255,0.25)",
-              transition: "color 0.2s",
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
-            <Monitor size={14} />
-          </button>
-          <AnimatePresence>
-            {modelOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -4, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -4, scale: 0.97 }}
-                className="absolute top-full right-0 mt-1.5 w-52 bg-card border border-border rounded-xl shadow-2xl py-1 z-50 overflow-hidden"
-              >
-                {MODELS.map((m) => (
-                  <button
-                    key={m.value}
-                    onClick={() => {
-                      setModel(m.value);
-                      localStorage.setItem("selectedModel", m.value);
-                      setModelOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-[12px] hover:bg-accent transition-colors ${
-                      model === m.value
-                        ? "text-foreground"
-                        : "text-foreground/50"
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      <div
-        ref={chatBodyRef}
-        className="flex-1 overflow-y-auto relative z-10"
-        style={{
-          padding: "24px max(10%, 24px)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-          scrollbarWidth: "none",
-        }}
-      >
-        {messages.map((msg) => (
-          <MessageBubble
-            key={msg.id}
-            msg={msg}
-            onCopy={(text) => navigator.clipboard.writeText(text)}
-            onRegen={handleRegen}
-            onEdit={(text) => {
-              setInput(text);
-              inputRef.current?.focus();
-            }}
-            onThumbsUp={() => {}}
-            onThumbsDown={() => {}}
-          />
-        ))}
-
-        {showSuggestions && messages.length <= 1 && (
-          <>
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-wrap gap-2 justify-center mt-auto pt-4"
-            >
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => sendMessage(s)}
-                  className="px-3 py-1.5 rounded-full text-[11px] text-foreground/50 hover:text-foreground transition-all"
-                  style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.07)",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.borderColor =
-                      "rgba(255,255,255,0.18)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.borderColor =
-                      "rgba(255,255,255,0.07)";
-                  }}
-                >
-                  {s}
-                </button>
-              ))}
-            </motion.div>
-            <AdResponsiveBanner />
-          </>
+                <X size={9} className="text-white" />
+              </button>
+            </div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
 
-      <div
-        className="flex-shrink-0 relative z-10"
-        style={{ padding: "0 max(10%, 24px) 20px" }}
-      >
-        <AnimatePresence>
-          {pendingImage && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="flex items-center pb-2"
-            >
-              <div className="relative inline-block">
-                <img
-                  src={`data:${pendingImage.mime};base64,${pendingImage.base64}`}
-                  className="max-h-16 rounded-lg border border-white/10"
-                  alt="pending"
-                />
-                <button
-                  onClick={() => setPendingImage(null)}
-                  className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-destructive flex items-center justify-center border-none cursor-pointer"
-                >
-                  <X size={9} className="text-white" />
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div
-          className="flex items-center gap-2 px-4 py-3 rounded-2xl transition-all"
-          style={{
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            backdropFilter: "blur(12px)",
-          }}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
+      <textarea
+        ref={inputRef}
+        value={input}
+        rows={isLanding ? 2 : 2}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            const f = e.dataTransfer.files[0];
-            if (f) handleFile(f);
-          }}
-        >
+            sendMessage();
+          }
+        }}
+        placeholder="Ask me anything..."
+        className="w-full resize-none bg-transparent text-[14px] leading-relaxed text-white placeholder:text-white/30 outline-none border-none px-0.5 py-0.5"
+        style={{ minHeight: isLanding ? 52 : 40 }}
+      />
+
+      <div className="flex items-center justify-between gap-2 pt-2">
+        <div className="flex items-center gap-1.5 relative">
           <input
             ref={fileRef}
             type="file"
@@ -1535,79 +1349,674 @@ export default function AIPage({
             }}
           />
           <button
-            onClick={() => fileRef.current?.click()}
-            title="Attach image"
-            className="text-foreground/30 hover:text-foreground/70 transition-colors flex-shrink-0 p-1"
+            type="button"
+            onClick={() => setModelOpen((v) => !v)}
+            title="Model"
+            className="relative h-8 px-2.5 rounded-lg text-[11px] flex items-center gap-1"
             style={{
-              background: "transparent",
-              border: "none",
+              background: "hsla(0,0%,100%,0.05)",
+              border: "1px solid hsla(0,0%,100%,0.1)",
+              color: "hsla(0,0%,100%,0.55)",
+              cursor: "pointer",
+            }}
+          >
+            <span className="max-w-[100px] truncate">
+              {MODELS.find((m) => m.value === model)?.label?.split(" ")[0] || "Model"}
+            </span>
+            <ChevronDown size={11} className="opacity-50" />
+            <AnimatePresence>
+              {modelOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  className="absolute bottom-full left-0 mb-2 w-48 rounded-xl py-1 z-50 overflow-hidden"
+                  style={{
+                    background: "hsla(220, 20%, 8%, 0.98)",
+                    border: "1px solid hsla(0,0%,100%,0.12)",
+                    boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {MODELS.map((m) => (
+                    <button
+                      key={m.value}
+                      type="button"
+                      onClick={() => {
+                        setModel(m.value);
+                        localStorage.setItem("selectedModel", m.value);
+                        setModelOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-[12px] hover:bg-white/5"
+                      style={{
+                        color: model === m.value ? "hsla(0,0%,100%,0.95)" : "hsla(0,0%,100%,0.5)",
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </button>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            title="Upload image"
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{
+              background: "hsla(0,0%,100%,0.05)",
+              border: "1px solid hsla(0,0%,100%,0.1)",
+              color: "hsla(0,0%,100%,0.45)",
               cursor: "pointer",
             }}
           >
             <Image size={14} />
           </button>
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-              }
-            }}
-            placeholder="What would you like to talk about?"
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-foreground/30 outline-none border-none"
-          />
           <button
+            type="button"
             onClick={handleScreenToggle}
-            title="Screen capture"
+            title="Share screen"
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
             style={{
-              background: "transparent",
-              border: "none",
+              background: "hsla(0,0%,100%,0.05)",
+              border: "1px solid hsla(0,0%,100%,0.1)",
+              color: showScreenWidget ? "hsla(0,0%,100%,0.85)" : "hsla(0,0%,100%,0.4)",
               cursor: "pointer",
-              padding: 4,
-              flexShrink: 0,
-              color: showScreenWidget
-                ? "rgba(150,200,255,0.9)"
-                : "rgba(255,255,255,0.25)",
-              transition: "color 0.2s",
-              display: "flex",
-              alignItems: "center",
             }}
           >
             <Monitor size={14} />
           </button>
-          <button
-            onClick={() =>
-              isFetching ? abortRef.current?.abort() : sendMessage()
-            }
-            disabled={!canSend && !isFetching}
-            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-30"
+        </div>
+
+        <button
+          type="button"
+          onClick={() => (isFetching ? abortRef.current?.abort() : sendMessage())}
+          disabled={!canSend && !isFetching}
+          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-35"
+          style={{
+            background: canSend || isFetching ? "hsla(0,0%,72%,0.95)" : "hsla(0,0%,100%,0.1)",
+            border: "none",
+            cursor: canSend || isFetching ? "pointer" : "default",
+            color: canSend || isFetching ? "hsla(220, 20%, 8%, 1)" : "hsla(0,0%,100%,0.35)",
+          }}
+        >
+          {isFetching ? <Square size={11} /> : <Send size={13} />}
+        </button>
+      </div>
+    </div>
+  );
+
+  const historyModal = (
+    <AnimatePresence>
+      {historyOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[120] flex items-start justify-center pt-[12vh] px-4"
+          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)" }}
+          onClick={() => setHistoryOpen(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl overflow-hidden"
             style={{
-              background:
-                canSend || isFetching
-                  ? "rgba(255,255,255,0.15)"
-                  : "rgba(255,255,255,0.06)",
-              border: "none",
-              cursor: canSend || isFetching ? "pointer" : "default",
+              background: "hsla(220, 35%, 8%, 0.96)",
+              border: "1px solid hsla(210, 40%, 80%, 0.14)",
+              boxShadow: "0 24px 64px rgba(0,0,0,0.5)",
             }}
           >
-            {isFetching ? (
-              <Square size={11} className="text-foreground" />
-            ) : (
-              <Send size={11} className="text-foreground" />
+            <div className="flex items-center justify-between px-4 pt-4 pb-2">
+              <div>
+                <p className="text-sm font-semibold text-white">Chat history</p>
+                <p className="text-[11px] text-white/40">
+                  {signedIn ? "Synced to your account" : "Local only · sign in to sync"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(false)}
+                className="p-1.5 rounded-lg text-white/40 hover:text-white/80"
+                style={{ background: "transparent", border: "none", cursor: "pointer" }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div className="px-4 pb-3">
+              <div
+                className="flex items-center gap-2 px-3 py-2 rounded-xl"
+                style={{
+                  background: "hsla(210, 40%, 90%, 0.06)",
+                  border: "1px solid hsla(210, 40%, 90%, 0.1)",
+                }}
+              >
+                <Search size={13} className="text-white/35" />
+                <input
+                  autoFocus
+                  value={chatSearch}
+                  onChange={(e) => setChatSearch(e.target.value)}
+                  placeholder="Search chats..."
+                  className="flex-1 bg-transparent text-[13px] text-white placeholder:text-white/35 outline-none border-none"
+                />
+              </div>
+            </div>
+            <div className="max-h-[42vh] overflow-y-auto px-2 pb-3" style={{ scrollbarWidth: "thin" }}>
+              {filteredConvos.length === 0 ? (
+                <p className="text-[12px] text-white/35 px-3 py-6 text-center">No chats yet</p>
+              ) : (
+                filteredConvos.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      openConversation(c.id);
+                      setHistoryOpen(false);
+                      setChatSearch("");
+                    }}
+                    className="w-full text-left px-3 py-2.5 rounded-xl mb-0.5 hover:bg-white/[0.05] transition-colors"
+                    style={{ background: "transparent", border: "none", cursor: "pointer" }}
+                  >
+                    <div className="text-[13px] text-white/85 truncate">{c.title || "Untitled"}</div>
+                    <div className="text-[11px] text-white/35 truncate mt-0.5">{c.preview}</div>
+                  </button>
+                ))
+              )}
+            </div>
+            {!signedIn && (
+              <div
+                className="px-4 py-3 flex items-center justify-between gap-2"
+                style={{ borderTop: "1px solid hsla(210, 40%, 80%, 0.08)" }}
+              >
+                <span className="text-[11px] text-white/40">Want history everywhere?</span>
+                <button
+                  type="button"
+                  onClick={openLogin}
+                  className="text-[11px] px-2.5 py-1.5 rounded-lg"
+                  style={{
+                    background: "hsla(205, 80%, 55%, 0.18)",
+                    border: "1px solid hsla(205, 80%, 60%, 0.28)",
+                    color: "hsla(205, 90%, 78%, 1)",
+                    cursor: "pointer",
+                  }}
+                >
+                  Sign in
+                </button>
+              </div>
             )}
-          </button>
-        </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  const loginModal = (
+    <AnimatePresence>
+      {loginPromptOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[130] flex items-center justify-center px-4"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(10px)" }}
+          onClick={() => setLoginPromptOpen(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-2xl p-5"
+            style={{
+              background: "hsla(220, 35%, 8%, 0.97)",
+              border: "1px solid hsla(210, 40%, 80%, 0.14)",
+              boxShadow: "0 24px 64px rgba(0,0,0,0.55)",
+            }}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{
+                  background: "hsla(205, 80%, 55%, 0.15)",
+                  border: "1px solid hsla(205, 80%, 60%, 0.25)",
+                }}
+              >
+                <LogIn size={16} style={{ color: "hsla(205, 90%, 72%, 1)" }} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">Sign in required</p>
+                <p className="text-[11px] text-white/45">Sharing chats needs an account</p>
+              </div>
+            </div>
+            <p className="text-[12px] text-white/55 leading-relaxed mb-4">
+              Log in to create a private share link for this conversation. Guests can still chat locally.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setLoginPromptOpen(false)}
+                className="flex-1 py-2.5 rounded-xl text-[12px] text-white/60"
+                style={{
+                  background: "hsla(210, 40%, 80%, 0.06)",
+                  border: "1px solid hsla(210, 40%, 80%, 0.1)",
+                  cursor: "pointer",
+                }}
+              >
+                Not now
+              </button>
+              <button
+                type="button"
+                onClick={openLogin}
+                className="flex-1 py-2.5 rounded-xl text-[12px] font-medium"
+                style={{
+                  background: "hsla(205, 85%, 55%, 0.95)",
+                  border: "none",
+                  color: "white",
+                  cursor: "pointer",
+                  boxShadow: "0 0 24px hsla(205, 90%, 55%, 0.3)",
+                }}
+              >
+                Open sign in
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  return (
+    <div className="absolute inset-0 flex overflow-hidden">
+      {!isLanding && (
+        <aside
+          className="ai-convo-rail"
+          style={{
+            width: 196,
+            flexShrink: 0,
+            borderRight: "1px solid hsla(210, 20%, 70%, 0.08)",
+            background: "hsla(220, 28%, 7%, 0.72)",
+            backdropFilter: "blur(16px) saturate(1.15)",
+            WebkitBackdropFilter: "blur(16px) saturate(1.15)",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            zIndex: 20,
+          }}
+        >
+          <div style={{ padding: "12px 10px 8px", display: "flex", flexDirection: "column", gap: 7 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <img
+                src="/storage/images/logo-png-removebg-preview.png"
+                alt=""
+                style={{ width: 18, height: 18, objectFit: "contain", opacity: 0.88 }}
+              />
+              <div style={{ flex: 1, fontSize: 12, fontWeight: 650, color: "hsla(0,0%,96%,0.92)", letterSpacing: "-0.01em" }}>
+                PeteAI
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => resetToWelcome()}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                width: "100%",
+                padding: "8px 10px",
+                borderRadius: 12,
+                border: "1px solid hsla(0,0%,100%,0.1)",
+                background: "hsla(0,0%,100%,0.05)",
+                color: "hsla(0,0%,100%,0.78)",
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 560,
+              }}
+            >
+              <Plus size={14} />
+              <span>New chat</span>
+            </button>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "7px 10px",
+                borderRadius: 999,
+                background: "hsla(210, 40%, 90%, 0.06)",
+                border: "1px solid hsla(210, 40%, 90%, 0.12)",
+              }}
+            >
+              <Search size={12} style={{ color: "hsla(0,0%,100%,0.35)" }} />
+              <input
+                value={chatSearch}
+                onChange={(e) => setChatSearch(e.target.value)}
+                placeholder="Search chats..."
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  background: "transparent",
+                  border: "none",
+                  outline: "none",
+                  color: "hsla(0,0%,100%,0.8)",
+                  fontSize: 11,
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ flex: 1, overflowY: "auto", padding: "4px 8px 12px", scrollbarWidth: "none" }}>
+            <p
+              style={{
+                fontSize: 9,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: "hsla(0,0%,100%,0.28)",
+                padding: "6px 8px 8px",
+                margin: 0,
+              }}
+            >
+              Recent
+            </p>
+            {filteredConvos.length === 0 && (
+              <p style={{ fontSize: 10, color: "rgba(255,255,255,0.28)", padding: "8px 6px", margin: 0 }}>
+                Past chats appear here{signedIn ? "" : " · sign in to sync"}.
+              </p>
+            )}
+            {filteredConvos.map((c) => {
+              const active = activeConvoId === c.id;
+              return (
+                <div
+                  key={c.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    marginBottom: 2,
+                    borderRadius: 10,
+                    background: active ? "hsla(0,0%,100%,0.08)" : "transparent",
+                  }}
+                >
+                  {renamingId === c.id ? (
+                    <form
+                      style={{ flex: 1, display: "flex", gap: 4, padding: 4 }}
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        renameConversation(c.id, renameValue);
+                      }}
+                    >
+                      <input
+                        autoFocus
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          background: "rgba(0,0,0,0.25)",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          borderRadius: 6,
+                          color: "rgba(255,255,255,0.85)",
+                          fontSize: 10,
+                          padding: "4px 6px",
+                          outline: "none",
+                        }}
+                      />
+                      <button
+                        type="submit"
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "rgba(255,255,255,0.5)",
+                          cursor: "pointer",
+                          padding: 2,
+                        }}
+                      >
+                        <Check size={11} />
+                      </button>
+                    </form>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => openConversation(c.id)}
+                        title={c.title}
+                        style={{
+                          flex: 1,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          padding: "8px 8px",
+                          background: "none",
+                          border: "none",
+                          color: active ? "hsla(0,0%,100%,0.95)" : "hsla(0,0%,100%,0.55)",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          minWidth: 0,
+                          fontSize: 11,
+                        }}
+                      >
+                        <MessageSquare size={13} style={{ flexShrink: 0, opacity: 0.7 }} />
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {c.title || "Untitled"}
+                        </span>
+                      </button>
+                      <div style={{ display: "flex", gap: 0, paddingRight: 4 }}>
+                        <button
+                          type="button"
+                          title="Rename"
+                          onClick={() => {
+                            setRenamingId(c.id);
+                            setRenameValue(c.title);
+                          }}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "rgba(255,255,255,0.28)",
+                            cursor: "pointer",
+                            padding: 3,
+                          }}
+                        >
+                          <Pencil size={10} />
+                        </button>
+                        <button
+                          type="button"
+                          title="Delete"
+                          onClick={() => deleteConversation(c.id)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "rgba(255,255,255,0.28)",
+                            cursor: "pointer",
+                            padding: 3,
+                          }}
+                        >
+                          <Trash2 size={10} />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </aside>
+      )}
+
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {isLanding ? (
+          <>
+            <div className="absolute top-3 left-3 z-30 flex items-center gap-1.5">
+              <button
+                type="button"
+                title="History"
+                aria-label="History"
+                onClick={() => setHistoryOpen(true)}
+                className="flex items-center justify-center w-8 h-8 rounded-lg text-white/50 hover:text-white/85 transition-colors"
+                style={{
+                  background: "hsla(0,0%,100%,0.04)",
+                  border: "1px solid hsla(0,0%,100%,0.08)",
+                  cursor: "pointer",
+                }}
+              >
+                <History size={14} />
+              </button>
+              <button
+                type="button"
+                title="Profile"
+                aria-label="Profile"
+                onClick={() => onNavigate("petezah://account")}
+                className="flex items-center justify-center w-8 h-8 rounded-lg text-white/50 hover:text-white/85 transition-colors"
+                style={{
+                  background: "hsla(0,0%,100%,0.04)",
+                  border: "1px solid hsla(0,0%,100%,0.08)",
+                  cursor: "pointer",
+                }}
+              >
+                <UserRound size={14} />
+              </button>
+            </div>
+
+            <div className="flex-1 flex flex-col items-center justify-center px-5 overflow-hidden">
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                className="w-full max-w-lg flex flex-col items-center gap-4"
+              >
+                <div className="text-center space-y-2">
+                  <h2
+                    className="text-[1.65rem] sm:text-[1.85rem] font-bold tracking-tight"
+                    style={{ color: "hsla(0,0%,98%,0.96)", letterSpacing: "-0.03em" }}
+                  >
+                    PeteAI
+                  </h2>
+                  <p className="text-[13px] min-h-[1.25rem]" style={{ color: "hsla(0,0%,100%,0.42)" }}>
+                    {typedSub}
+                    <span
+                      className="inline-block w-[1px] h-[0.95em] ml-0.5 align-[-2px]"
+                      style={{
+                        background: "hsla(0,0%,100%,0.45)",
+                        animation: "pz-caret 1s step-end infinite",
+                      }}
+                    />
+                  </p>
+                </div>
+                <div className="w-full">{composer}</div>
+              </motion.div>
+            </div>
+            <style>{`@keyframes pz-caret { 0%,100%{opacity:1} 50%{opacity:0} }`}</style>
+          </>
+        ) : (
+          <>
+            <div
+              className="flex-shrink-0 relative z-10 px-5 pt-4 pb-3 flex items-center justify-between"
+              style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <h1 className="text-sm font-semibold text-foreground truncate">
+                  {convos.find((c) => c.id === activeConvoId)?.title || "PeteAI"}
+                </h1>
+              </div>
+              <div className="relative flex items-center gap-1.5">
+                {shareNotice ? (
+                  <span className="text-[10px] text-white/45 mr-1">{shareNotice}</span>
+                ) : null}
+                <button
+                  type="button"
+                  title="Share chat"
+                  onClick={handleShare}
+                  disabled={shareBusy}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 6,
+                    color: "rgba(255,255,255,0.45)",
+                    display: "flex",
+                    opacity: shareBusy ? 0.5 : 1,
+                  }}
+                >
+                  <Share2 size={14} />
+                </button>
+                <button
+                  type="button"
+                  title="Delete chat"
+                  onClick={() => activeConvoId && deleteConversation(activeConvoId)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    cursor: activeConvoId ? "pointer" : "default",
+                    padding: 6,
+                    color: "rgba(255,255,255,0.28)",
+                    opacity: activeConvoId ? 1 : 0.35,
+                  }}
+                >
+                  <Trash2 size={14} />
+                </button>
+                <button
+                  onClick={handleScreenToggle}
+                  title="AI Screen Assistant"
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 6,
+                    color: showScreenWidget
+                      ? "rgba(150,200,255,0.9)"
+                      : "rgba(255,255,255,0.25)",
+                    display: "flex",
+                  }}
+                >
+                  <Monitor size={14} />
+                </button>
+              </div>
+            </div>
+
+            <div
+              ref={chatBodyRef}
+              className="flex-1 overflow-y-auto relative z-10"
+              style={{
+                padding: "24px max(8%, 20px)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+                scrollbarWidth: "none",
+              }}
+            >
+              {messages.map((msg) => (
+                <MessageBubble
+                  key={msg.id}
+                  msg={msg}
+                  onCopy={(text) => navigator.clipboard.writeText(text)}
+                  onRegen={handleRegen}
+                  onEdit={(text) => {
+                    setInput(text);
+                    inputRef.current?.focus();
+                  }}
+                  onThumbsUp={() => {}}
+                  onThumbsDown={() => {}}
+                />
+              ))}
+            </div>
+
+            <div className="flex-shrink-0 relative z-10" style={{ padding: "0 max(8%, 20px) 18px" }}>
+              {composer}
+            </div>
+          </>
+        )}
+
+        <AnimatePresence>
+          {showScreenWidget && <ScreenWidget onClose={() => setShowScreenWidget(false)} />}
+        </AnimatePresence>
       </div>
 
-      <AnimatePresence>
-        {showScreenWidget && (
-          <ScreenWidget onClose={() => setShowScreenWidget(false)} />
-        )}
-      </AnimatePresence>
-      </div>
+      {historyModal}
+      {loginModal}
     </div>
   );
 }

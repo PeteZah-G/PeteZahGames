@@ -263,6 +263,78 @@ export function deleteConversationHandler(req, res) {
   res.json({ ok: true });
 }
 
+const SHARE_TOKEN_RE = /^[a-f0-9]{32}$/i;
+
+export function createShareHandler(req, res) {
+  const user = requireUser(req, res);
+  if (!user) return;
+  const id = String(req.params.id || '');
+  if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid id' });
+  const owned = db
+    .prepare('SELECT id FROM ai_conversations WHERE id = ? AND user_id = ?')
+    .get(id, user.id);
+  if (!owned) return res.status(404).json({ error: 'Not found' });
+
+  // Reuse an active share token if one already exists
+  const existing = db
+    .prepare(
+      `SELECT token FROM ai_conversation_shares
+       WHERE conversation_id = ? AND user_id = ? AND revoked = 0
+       ORDER BY created_at DESC LIMIT 1`
+    )
+    .get(id, user.id);
+  if (existing?.token) {
+    return res.json({ token: existing.token, url: `/share/ai/${existing.token}` });
+  }
+
+  const token = crypto.randomBytes(16).toString('hex');
+  db.prepare(
+    `INSERT INTO ai_conversation_shares (token, conversation_id, user_id, created_at, revoked)
+     VALUES (?, ?, ?, ?, 0)`
+  ).run(token, id, user.id, Date.now());
+  res.json({ token, url: `/share/ai/${token}` });
+}
+
+export function revokeShareHandler(req, res) {
+  const user = requireUser(req, res);
+  if (!user) return;
+  const id = String(req.params.id || '');
+  if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid id' });
+  db.prepare(
+    `UPDATE ai_conversation_shares SET revoked = 1
+     WHERE conversation_id = ? AND user_id = ? AND revoked = 0`
+  ).run(id, user.id);
+  res.json({ ok: true });
+}
+
+export function getSharedConversationHandler(req, res) {
+  const token = String(req.params.token || '');
+  if (!SHARE_TOKEN_RE.test(token)) return res.status(400).json({ error: 'Invalid token' });
+  const share = db
+    .prepare(
+      `SELECT s.conversation_id, s.revoked, c.title, c.preview, c.messages_json, c.updated_at
+       FROM ai_conversation_shares s
+       JOIN ai_conversations c ON c.id = s.conversation_id
+       WHERE s.token = ?`
+    )
+    .get(token);
+  if (!share || share.revoked) return res.status(404).json({ error: 'Not found' });
+  let messages = [];
+  try {
+    messages = sanitizeMessages(JSON.parse(share.messages_json || '[]'));
+  } catch {
+    messages = [];
+  }
+  res.json({
+    conversation: {
+      title: cleanText(share.title, MAX_TITLE),
+      preview: cleanText(share.preview, MAX_PREVIEW),
+      messages,
+      updatedAt: share.updated_at,
+    },
+  });
+}
+
 export function adminAiPromptsHandler(req, res) {
   const admin = requireAdmin(req, res);
   if (!admin) return;

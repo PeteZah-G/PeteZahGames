@@ -37,6 +37,7 @@ import challengeRouter from './routes/challenge.js';
 import aiRouter from './routes/ai.js';
 import moviesRouter from './routes/movies.js';
 import musicRouter from './routes/music.js';
+import searchSuggestRouter from './routes/search-suggest.js';
 import mochiRouter from './routes/mochi.js';
 import db from './db.js';
 
@@ -51,6 +52,9 @@ import {
   upsertConversationHandler,
   renameConversationHandler,
   deleteConversationHandler,
+  createShareHandler,
+  revokeShareHandler,
+  getSharedConversationHandler,
   adminAiPromptsHandler,
 } from './api/ai-conversations.js';
 import { addCommentHandler, getCommentsHandler, deleteCommentHandler, cleanupMaliciousCommentsHandler } from './api/comments.js';
@@ -310,6 +314,7 @@ app.use('/api', elevated2faGate);
 app.use('/api/generate', aiLimiter, express.json({ limit: '20mb' }), aiRouter);
 app.use('/api/tmdb', moviesRouter);
 app.use('/api/music', musicRouter);
+app.use('/api/search', searchSuggestRouter);
 
 app.post('/api/signup', signupLimiter, signupHandler);
 app.post('/api/signin', signinHandler);
@@ -345,6 +350,9 @@ app.get('/api/ai/conversations/:id', aiConversationsLimiter, getConversationHand
 app.post('/api/ai/conversations', aiConversationsLimiter, upsertConversationHandler);
 app.patch('/api/ai/conversations/:id', aiConversationsLimiter, renameConversationHandler);
 app.delete('/api/ai/conversations/:id', aiConversationsLimiter, deleteConversationHandler);
+app.post('/api/ai/conversations/:id/share', aiConversationsLimiter, createShareHandler);
+app.delete('/api/ai/conversations/:id/share', aiConversationsLimiter, revokeShareHandler);
+app.get('/api/ai/share/:token', aiConversationsLimiter, getSharedConversationHandler);
 app.get('/api/admin/ai-prompts', adminAiPromptsHandler);
 
 app.get('/api/changelog', getChangelogHandler);

@@ -593,13 +593,19 @@ function MoviePlayer({
   );
 }
 
-export default function MoviesPage({ onNavigate }: { onNavigate?: (url: string) => void }) {
+export default function MoviesPage({
+  onNavigate,
+  initialQuery = "",
+}: {
+  onNavigate?: (url: string) => void;
+  initialQuery?: string;
+}) {
   const [data, setData] = useState(getSavedMovies);
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [trending, setTrending] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [sortBy, setSortBy] = useState<"popular" | "trending">("popular");
   const [playerState, setPlayerState] = useState<PlayerState | null>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);

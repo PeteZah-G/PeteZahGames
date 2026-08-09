@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { X, Pin, SplitSquareHorizontal } from "lucide-react";
 import { Tab } from "@/hooks/useBrowserState";
 
@@ -85,14 +85,14 @@ const TabItem = forwardRef<HTMLDivElement, TabItemProps>(
 
     if (collapsed) {
       return (
-        <div ref={ref} className="flex items-center justify-center">
+        <div ref={ref} className="flex items-center justify-center touch-none">
           <motion.button
             layout
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             onClick={onClick}
-            className={`relative w-8 h-8 rounded-xl flex items-center justify-center text-xs font-medium transition-all duration-150 ${
+            className={`relative w-8 h-8 rounded-xl flex items-center justify-center text-xs font-medium transition-all duration-150 cursor-grab active:cursor-grabbing ${
               isActive
                 ? "bg-white/10 text-white"
                 : "hover:bg-white/5 text-white/75"
@@ -110,13 +110,14 @@ const TabItem = forwardRef<HTMLDivElement, TabItemProps>(
               <img
                 src={faviconSrc}
                 alt=""
-                className="relative z-10 w-4 h-4 rounded-sm"
+                className="relative z-10 w-4 h-4 rounded-sm pointer-events-none"
+                draggable={false}
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = "none";
                 }}
               />
             ) : (
-              <span className="text-[10px] font-medium text-foreground/60">
+              <span className="text-[10px] font-medium text-foreground/60 pointer-events-none">
                 {petezahIcon ?? displayTitle[0]?.toUpperCase()}
               </span>
             )}
@@ -134,7 +135,7 @@ const TabItem = forwardRef<HTMLDivElement, TabItemProps>(
         exit={{ opacity: 0, x: -8, height: 0 }}
         transition={{ duration: 0.15 }}
         onClick={onClick}
-        className={`group relative flex items-center gap-2.5 rounded-xl cursor-pointer transition-all duration-150 px-3 py-2.5 ${
+        className={`group relative flex items-center gap-2.5 rounded-xl cursor-grab active:cursor-grabbing transition-all duration-150 px-3 py-2.5 touch-none ${
           isActive ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"
         }`}
       >
@@ -154,20 +155,21 @@ const TabItem = forwardRef<HTMLDivElement, TabItemProps>(
             <img
               src={faviconSrc}
               alt=""
-              className="relative z-10 w-4 h-4 rounded-sm"
+              className="relative z-10 w-4 h-4 rounded-sm pointer-events-none"
+              draggable={false}
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = "none";
               }}
             />
           ) : (
-            <span className="relative z-10 text-[11px] text-white/80">
+            <span className="relative z-10 text-[11px] text-white/80 pointer-events-none">
               {petezahIcon ?? displayTitle[0]?.toUpperCase()}
             </span>
           )}
         </div>
 
         <span
-          className={`flex-1 truncate text-[13px] ${
+          className={`flex-1 truncate text-[13px] pointer-events-none ${
             isActive ? "text-white font-medium" : "text-white/70"
           }`}
         >
@@ -177,7 +179,7 @@ const TabItem = forwardRef<HTMLDivElement, TabItemProps>(
         {tab.pinned && (
           <Pin
             size={9}
-            className="text-white/35 flex-shrink-0 group-hover:hidden"
+            className="text-white/35 flex-shrink-0 group-hover:hidden pointer-events-none"
           />
         )}
 
@@ -187,6 +189,7 @@ const TabItem = forwardRef<HTMLDivElement, TabItemProps>(
               e.stopPropagation();
               onToggleSplit();
             }}
+            onPointerDown={(e) => e.stopPropagation()}
             className="p-1 rounded-lg hover:bg-white/10 transition-colors"
             title="Split view"
           >
@@ -197,6 +200,7 @@ const TabItem = forwardRef<HTMLDivElement, TabItemProps>(
               e.stopPropagation();
               onTogglePin();
             }}
+            onPointerDown={(e) => e.stopPropagation()}
             className="p-1 rounded-lg hover:bg-accent transition-colors"
             title={tab.pinned ? "Unpin" : "Pin"}
           >
@@ -210,6 +214,7 @@ const TabItem = forwardRef<HTMLDivElement, TabItemProps>(
               e.stopPropagation();
               onClose();
             }}
+            onPointerDown={(e) => e.stopPropagation()}
             className="p-1 rounded-lg hover:bg-destructive/20 transition-colors"
             title="Close"
           >
@@ -234,6 +239,7 @@ interface TabListProps {
   onClose: (id: string) => void;
   onTogglePin: (id: string) => void;
   onToggleSplit: (id: string) => void;
+  onReorder?: (orderedIds: string[]) => void;
 }
 
 export function TabList({
@@ -246,28 +252,49 @@ export function TabList({
   onClose,
   onTogglePin,
   onToggleSplit,
+  onReorder,
 }: TabListProps) {
   if (tabs.length === 0) return null;
 
+  const ids = tabs.map((t) => t.id);
+
+  const handleReorder = (nextIds: string[]) => {
+    if (!onReorder) return;
+    onReorder(nextIds);
+  };
+
   if (collapsed) {
     return (
-      <div className="flex flex-col items-center gap-1">
+      <Reorder.Group
+        as="div"
+        axis="y"
+        values={ids}
+        onReorder={handleReorder}
+        className="flex flex-col items-center gap-1"
+      >
         <AnimatePresence mode="popLayout">
           {tabs.map((tab) => (
-            <TabItem
+            <Reorder.Item
               key={tab.id}
-              tab={tab}
-              isActive={tab.id === activeTabId}
-              isPinned={pinned}
-              collapsed
-              onClick={() => onSelect(tab.id)}
-              onClose={() => onClose(tab.id)}
-              onTogglePin={() => onTogglePin(tab.id)}
-              onToggleSplit={() => onToggleSplit(tab.id)}
-            />
+              value={tab.id}
+              as="div"
+              className="list-none"
+              whileDrag={{ scale: 1.08, zIndex: 40, opacity: 0.95 }}
+            >
+              <TabItem
+                tab={tab}
+                isActive={tab.id === activeTabId}
+                isPinned={pinned}
+                collapsed
+                onClick={() => onSelect(tab.id)}
+                onClose={() => onClose(tab.id)}
+                onTogglePin={() => onTogglePin(tab.id)}
+                onToggleSplit={() => onToggleSplit(tab.id)}
+              />
+            </Reorder.Item>
           ))}
         </AnimatePresence>
-      </div>
+      </Reorder.Group>
     );
   }
 
@@ -278,22 +305,39 @@ export function TabList({
           {label}
         </span>
       </div>
-      <div className="flex flex-col gap-0.5">
+      <Reorder.Group
+        as="div"
+        axis="y"
+        values={ids}
+        onReorder={handleReorder}
+        className="flex flex-col gap-0.5"
+      >
         <AnimatePresence mode="popLayout">
           {tabs.map((tab) => (
-            <TabItem
+            <Reorder.Item
               key={tab.id}
-              tab={tab}
-              isActive={tab.id === activeTabId}
-              isPinned={pinned}
-              onClick={() => onSelect(tab.id)}
-              onClose={() => onClose(tab.id)}
-              onTogglePin={() => onTogglePin(tab.id)}
-              onToggleSplit={() => onToggleSplit(tab.id)}
-            />
+              value={tab.id}
+              as="div"
+              className="list-none"
+              whileDrag={{
+                scale: 1.02,
+                zIndex: 40,
+                boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+              }}
+            >
+              <TabItem
+                tab={tab}
+                isActive={tab.id === activeTabId}
+                isPinned={pinned}
+                onClick={() => onSelect(tab.id)}
+                onClose={() => onClose(tab.id)}
+                onTogglePin={() => onTogglePin(tab.id)}
+                onToggleSplit={() => onToggleSplit(tab.id)}
+              />
+            </Reorder.Item>
           ))}
         </AnimatePresence>
-      </div>
+      </Reorder.Group>
     </div>
   );
 }

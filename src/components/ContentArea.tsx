@@ -25,11 +25,18 @@ import {
   Info,
   Monitor,
   Link2,
+  Folder,
   type LucideIcon,
 } from "lucide-react";
 import { Tab } from "@/hooks/useBrowserState";
-import { applyVpnRegion, isSignedIn, VPN_REGION_DEFS } from "@/lib/vpn";
+import { applyVpnRegion, isSignedIn, getVpnRegions } from "@/lib/vpn";
 import { setPendingAuth } from "@/lib/authPending";
+import { buildSearchUrl } from "@/lib/siteThemes";
+import SearchEdgeGlow from "@/components/EdgeTraceGlow";
+import {
+  getBookmarks,
+  ensureDefaultBookmarks,
+} from "@/components/BookmarksPage";
 import GamesPage from "./GamesPage";
 import GameViewerPage from "./GameViewerPage";
 import AIPage from "./AIPage";
@@ -234,14 +241,23 @@ const VPN_FLAGS: Record<string, ReactNode> = {
   ),
 };
 
-const VPN_REGIONS = VPN_REGION_DEFS.map((r) => ({
-  ...r,
-  flag: VPN_FLAGS[r.id] ?? VPN_FLAGS.default,
-}));
+function listVpnRegions() {
+  return getVpnRegions().map((r) => ({
+    ...r,
+    flag: VPN_FLAGS[r.id] ?? (r.id === "custom" ? "✦" : VPN_FLAGS.default),
+  }));
+}
 
-function VpnSelector({ onNavigate }: { onNavigate: (url: string) => void }) {
+function VpnSelector({
+  onNavigate,
+  compact = false,
+}: {
+  onNavigate: (url: string) => void;
+  compact?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [regions, setRegions] = useState(listVpnRegions);
   const [selected, setSelected] = useState<string>(
     () => localStorage.getItem("selectedVpnRegion") ?? "default",
   );
@@ -261,15 +277,25 @@ function VpnSelector({ onNavigate }: { onNavigate: (url: string) => void }) {
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === "selectedVpnRegion" && e.newValue) setSelected(e.newValue);
+      if (e.key === "proxServer") setRegions(listVpnRegions());
+    };
+    const sync = () => {
+      setRegions(listVpnRegions());
+      const sel = localStorage.getItem("selectedVpnRegion");
+      if (sel) setSelected(sel);
     };
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    window.addEventListener("petezah-settings-updated", sync);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("petezah-settings-updated", sync);
+    };
   }, []);
 
-  const current = VPN_REGIONS.find((r) => r.id === selected) ?? VPN_REGIONS[0];
+  const current = regions.find((r) => r.id === selected) ?? regions[0];
 
   const handleSelect = async (id: string) => {
-    const region = VPN_REGIONS.find((r) => r.id === id);
+    const region = regions.find((r) => r.id === id);
     if (!region) return;
     if (region.requiresAuth) {
       const ok = await isSignedIn();
@@ -287,54 +313,75 @@ function VpnSelector({ onNavigate }: { onNavigate: (url: string) => void }) {
   };
 
   return (
-    <div ref={ref} className="relative mt-2">
+    <div ref={ref} className={`relative ${compact ? "flex-shrink-0 z-[3]" : "mt-2"}`}>
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-full glass-subtle border border-border text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+        title={current?.label || "VPN"}
+        className={
+          compact
+            ? "w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-105"
+            : "flex items-center gap-2 px-3 py-1.5 rounded-full glass-subtle border border-border text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+        }
+        style={
+          compact
+            ? {
+                background: open ? "hsla(210, 40%, 70%, 0.14)" : "hsla(220, 35%, 8%, 0.55)",
+                border: `1px solid ${open ? "hsla(210, 40%, 80%, 0.28)" : "hsla(210, 40%, 80%, 0.14)"}`,
+                color: "hsla(0,0%,100%,0.9)",
+              }
+            : undefined
+        }
       >
-        <ShieldCheck size={11} className="flex-shrink-0" />
-        <span className="flex items-center gap-1.5">
-          {current.flag}
-          {current.label}
-        </span>
-        <span
-          className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-        >
-          ▾
-        </span>
+        {compact ? (
+          <span className="text-[13px] leading-none">{current?.flag || "🌐"}</span>
+        ) : (
+          <>
+            <ShieldCheck size={11} className="flex-shrink-0" />
+            <span className="flex items-center gap-1.5">
+              {current.flag}
+              {current.label}
+            </span>
+            <span className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}>▾</span>
+          </>
+        )}
       </button>
 
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: -6, scale: 0.97 }}
+            initial={{ opacity: 0, y: compact ? 6 : -6, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.97 }}
+            exit={{ opacity: 0, y: compact ? 4 : -4, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 w-56 rounded-2xl glass-heavy border border-border shadow-2xl p-2 flex flex-col gap-1"
+            className={`absolute z-50 w-56 rounded-2xl border shadow-2xl p-2 flex flex-col gap-1 ${
+              compact ? "right-0 top-full mt-2" : "bottom-full mb-2 left-1/2 -translate-x-1/2"
+            }`}
+            style={{
+              background: "hsla(220, 32%, 8%, 0.96)",
+              borderColor: "hsla(210, 40%, 80%, 0.12)",
+              backdropFilter: "blur(16px)",
+            }}
           >
-            <p className="text-[9px] uppercase tracking-widest text-muted-foreground px-2 pb-1">
+            <p className="text-[9px] uppercase tracking-widest px-2 pb-1" style={{ color: "hsla(0,0%,100%,0.4)" }}>
               VPN Region
             </p>
-            {VPN_REGIONS.map((region) => (
+            {regions.map((region) => (
               <div key={region.id} className="relative flex items-center gap-1">
                 <button
+                  type="button"
                   onClick={() => handleSelect(region.id)}
-                  className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-left transition-colors flex-1 min-w-0
-                    ${
-                      selected === region.id
-                        ? "bg-primary/10 text-foreground border border-primary/20"
-                        : "hover:bg-accent text-muted-foreground hover:text-foreground"
-                    }`}
+                  className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-left transition-colors flex-1 min-w-0"
+                  style={{
+                    background: selected === region.id ? "hsla(210, 40%, 70%, 0.12)" : "transparent",
+                    border: `1px solid ${selected === region.id ? "hsla(210, 40%, 70%, 0.22)" : "transparent"}`,
+                    color: selected === region.id ? "hsla(0,0%,100%,0.95)" : "hsla(0,0%,100%,0.62)",
+                  }}
                 >
-                  <span className="flex-shrink-0">{region.flag}</span>
+                  <span className="flex-shrink-0 text-[13px]">{region.flag}</span>
                   <span className="flex flex-col min-w-0">
-                    <span className="text-[11px] font-medium leading-tight">
-                      {region.label}
-                    </span>
-                    <span className="text-[9px] opacity-60 leading-tight">
-                      {region.sublabel}
-                    </span>
+                    <span className="text-[11px] font-medium leading-tight">{region.label}</span>
+                    <span className="text-[9px] opacity-60 leading-tight">{region.sublabel}</span>
                   </span>
                   {selected === region.id && (
                     <span className="ml-auto w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
@@ -348,7 +395,8 @@ function VpnSelector({ onNavigate }: { onNavigate: (url: string) => void }) {
                       e.stopPropagation();
                       setInfoOpen((v) => !v);
                     }}
-                    className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                    className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+                    style={{ color: "hsla(0,0%,100%,0.45)" }}
                   >
                     <Info size={12} />
                   </button>
@@ -363,21 +411,22 @@ function VpnSelector({ onNavigate }: { onNavigate: (url: string) => void }) {
                   exit={{ opacity: 0, height: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="mt-1 mx-1 p-2.5 rounded-xl text-[10px] leading-relaxed text-muted-foreground border border-border bg-background/80 space-y-1.5">
-                    <p className="font-semibold text-foreground text-[11px]">
+                  <div
+                    className="mt-1 mx-1 p-2.5 rounded-xl text-[10px] leading-relaxed space-y-1.5"
+                    style={{
+                      color: "hsla(0,0%,100%,0.55)",
+                      border: "1px solid hsla(210, 40%, 80%, 0.1)",
+                      background: "hsla(220, 30%, 6%, 0.8)",
+                    }}
+                  >
+                    <p className="font-semibold text-[11px]" style={{ color: "hsla(0,0%,100%,0.88)" }}>
                       About Tor
                     </p>
                     <p>
-                      Tor routes your traffic through volunteer onion relays so
-                      the destination site sees a Tor exit IP instead of yours.
-                      It is slower and some sites block Tor exits.
+                      Tor routes your traffic through volunteer onion relays so the destination site sees a Tor exit IP instead of yours. It is slower and some sites block Tor exits.
                     </p>
                     <p>
-                      By selecting Tor you agree to use it only for lawful
-                      browsing on this site, accept reduced speed and
-                      reliability, and understand exit nodes can see unencrypted
-                      traffic to destinations. You must be signed in. Misuse may
-                      result in loss of access.
+                      By selecting Tor you agree to use it only for lawful browsing on this site, accept reduced speed and reliability, and understand exit nodes can see unencrypted traffic to destinations. You must be signed in. Misuse may result in loss of access.
                     </p>
                   </div>
                 </motion.div>
@@ -426,7 +475,20 @@ function NewTabSearchBar({
   onNavigate: (url: string) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [edgeGlow, setEdgeGlow] = useState(
+    () => localStorage.getItem("searchEdgeGlow") !== "false"
+  );
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const sync = () => setEdgeGlow(localStorage.getItem("searchEdgeGlow") !== "false");
+    window.addEventListener("petezah-settings-updated", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("petezah-settings-updated", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -446,19 +508,17 @@ function NewTabSearchBar({
     if (url.startsWith("http") || url.includes(".")) {
       if (!url.startsWith("http")) url = "https://" + url;
     } else {
-      url = "https://duckduckgo.com/?q=" + encodeURIComponent(url);
+      url = buildSearchUrl(url);
     }
     onNavigate(url);
     setQuery("");
   };
 
-  const isMac =
-    typeof navigator !== "undefined" && /Mac/i.test(navigator.userAgent);
-
   return (
     <div className="w-full max-w-lg">
-      <div className="flex items-center gap-3 rounded-2xl glass-heavy px-5 py-3 transition-all duration-200 focus-within:ring-1 focus-within:ring-foreground/20">
-        <Search size={15} className="text-muted-foreground flex-shrink-0" />
+      <div className="relative flex items-center gap-3 rounded-2xl nt-search px-5 py-3 transition-all duration-200 focus-within:border-white/15">
+        <SearchEdgeGlow enabled={edgeGlow} />
+        <Search size={15} className="text-muted-foreground flex-shrink-0 relative z-[1]" />
         <input
           ref={inputRef}
           value={query}
@@ -467,11 +527,11 @@ function NewTabSearchBar({
             if (e.key === "Enter") handleSubmit();
           }}
           placeholder="Search or enter URL..."
-          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none relative z-[1]"
           spellCheck={false}
         />
-        <kbd className="hidden sm:flex items-center gap-0.5 px-2 py-0.5 rounded-lg bg-accent border border-border text-[10px] font-mono text-muted-foreground">
-          {isMac ? "⌘" : "Ctrl"}+K
+        <kbd className="hidden sm:flex items-center gap-0.5 px-2 py-0.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[10px] font-mono text-muted-foreground relative z-[1]">
+          {typeof navigator !== "undefined" && /Mac/i.test(navigator.userAgent) ? "⌘" : "Ctrl"}+K
         </kbd>
       </div>
     </div>
@@ -672,6 +732,164 @@ function PresetCard({
   );
 }
 
+function NewTabBookmarks({ onNavigate }: { onNavigate: (url: string) => void }) {
+  const [data, setData] = useState(() => ensureDefaultBookmarks());
+  const [openFolder, setOpenFolder] = useState<string | null>(null);
+  const folderRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const sync = () => setData(getBookmarks());
+    window.addEventListener("petezah-settings-updated", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("petezah-settings-updated", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!openFolder) return;
+    const onDown = (e: MouseEvent) => {
+      if (folderRef.current && !folderRef.current.contains(e.target as Node)) {
+        setOpenFolder(null);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [openFolder]);
+
+  const ungrouped = data.items.filter((b) => !b.groupId);
+  const groups = data.groups;
+
+  const chip = (
+    key: string,
+    title: string,
+    onClick: () => void,
+    opts?: { icon?: string; folder?: boolean }
+  ) => (
+    <div key={key} className="relative group">
+      <button
+        type="button"
+        title={title}
+        onClick={onClick}
+        className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center transition-all duration-200 hover:scale-110 p-0 border-0 bg-transparent"
+      >
+        {opts?.folder ? (
+          <Folder size={10} style={{ color: "hsla(210, 40%, 85%, 0.78)" }} />
+        ) : (
+          <img
+            src={opts?.icon || ""}
+            alt=""
+            className="w-full h-full object-contain"
+            draggable={false}
+          />
+        )}
+      </button>
+      <span
+        className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1.5 px-2 py-0.5 rounded-md text-[9px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-20"
+        style={{
+          background: "hsla(220, 35%, 5%, 0.95)",
+          border: "1px solid hsla(210, 40%, 80%, 0.14)",
+          color: "hsla(0,0%,100%,0.88)",
+        }}
+      >
+        {title}
+      </span>
+    </div>
+  );
+
+  return (
+    <div className="absolute top-3 left-3 z-[20]" ref={folderRef}>
+      <div
+        className="flex items-center gap-3 flex-wrap max-w-[46vw] px-3 py-1.5 rounded-xl"
+        style={{
+          background: "hsla(220, 35%, 6%, 0.92)",
+          border: "1px solid hsla(210, 40%, 80%, 0.14)",
+          backdropFilter: "blur(10px)",
+        }}
+      >
+      {ungrouped.map((b) =>
+        chip(b.id, b.title, () => onNavigate(b.url), {
+          icon: b.favicon || "/icons/bookmarks/instagram.svg",
+        })
+      )}
+      {groups.map((g) => {
+        const kids = data.items.filter((b) => b.groupId === g.id);
+        return (
+          <div key={g.id} className="relative">
+            {chip(
+              g.id,
+              g.name,
+              () => setOpenFolder((cur) => (cur === g.id ? null : g.id)),
+              { folder: true }
+            )}
+            <AnimatePresence>
+              {openFolder === g.id && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -3, scale: 0.97 }}
+                  className="absolute left-0 top-full mt-2 z-40 min-w-[150px] rounded-xl p-1.5 flex flex-col gap-0.5"
+                  style={{
+                    background: "hsla(220, 32%, 8%, 0.96)",
+                    border: "1px solid hsla(210, 40%, 80%, 0.12)",
+                    backdropFilter: "blur(14px)",
+                    boxShadow: "0 12px 28px rgba(0,0,0,0.4)",
+                  }}
+                >
+                  {kids.length === 0 ? (
+                    <p className="text-[10px] px-2 py-1.5" style={{ color: "hsla(0,0%,100%,0.4)" }}>
+                      Empty folder
+                    </p>
+                  ) : (
+                    kids.map((b) => (
+                      <button
+                        key={b.id}
+                        type="button"
+                        onClick={() => {
+                          setOpenFolder(null);
+                          onNavigate(b.url);
+                        }}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-[11px] transition-colors"
+                        style={{ color: "hsla(0,0%,100%,0.85)" }}
+                      >
+                        <img src={b.favicon || "/icons/bookmarks/instagram.svg"} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                        <span className="truncate">{b.title}</span>
+                      </button>
+                    ))
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        );
+      })}
+      <div className="relative group">
+        <button
+          type="button"
+          title="Bookmarks"
+          onClick={() => onNavigate("petezah://bookmarks")}
+          className="w-4 h-4 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 border-0 bg-transparent"
+          style={{ color: "hsla(0,0%,100%,0.45)" }}
+        >
+          <Plus size={10} />
+        </button>
+        <span
+          className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1.5 px-2 py-0.5 rounded-md text-[9px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-20"
+          style={{
+            background: "hsla(220, 35%, 5%, 0.95)",
+            border: "1px solid hsla(210, 40%, 80%, 0.14)",
+            color: "hsla(0,0%,100%,0.88)",
+          }}
+        >
+          Bookmarks
+        </span>
+      </div>
+      </div>
+    </div>
+  );
+}
+
 function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
   const [presets, setPresets] = useState<Preset[]>(getStoredPresets);
   const [editingPreset, setEditingPreset] = useState<Preset | null | "new">(
@@ -687,6 +905,7 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
 
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden bg-transparent">
+      <NewTabBookmarks onNavigate={onNavigate} />
       <div className="absolute top-3 right-3 z-[20] flex flex-col items-end gap-1.5 newtab-side-actions">
         <motion.a
           href="https://discord.gg/cYjHFDguxS"

@@ -70,6 +70,7 @@ export function urlMatchesPattern(url: string, pattern: string): boolean {
 
 export function runExtensionsOnFrame(iframe: HTMLIFrameElement | null | undefined, pageUrl: string) {
   if (!iframe || !pageUrl || pageUrl.startsWith("petezah://")) return;
+  if (localStorage.getItem("extensionsEnabled") === "false") return;
   const matches = getExtensions().filter((e) => e.enabled && e.code && urlMatchesPattern(pageUrl, e.urlPattern));
   if (!matches.length) return;
   try {

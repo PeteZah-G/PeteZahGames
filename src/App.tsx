@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, useParams } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ProfilePage from "./components/ProfilePage";
+import SharedAiPage from "./components/SharedAiPage";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/user/:username" element={<PublicProfileRoute />} />
+          <Route path="/share/ai/:token" element={<SharedAiPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

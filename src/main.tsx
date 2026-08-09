@@ -2,7 +2,9 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import "./styles/studio-overrides.css";
 import { loadFontMaps } from "./lib/fontObfuscation";
+import { themeById, applyBrowserIdentity } from "./lib/siteThemes";
 
 const fontObf = document.createElement("script");
 fontObf.src = "/font-obfuscation.js";
@@ -41,11 +43,7 @@ function applyStoredSettings() {
   }
 
   const bgImg = get("backgroundImage");
-  const bgColor = get("backgroundColor") || (get("theme") ? ({
-    "default": "#0A1D37", "swampy-green": "#1A3C34", "royal-purple": "#2A1A3C",
-    "blood-red": "#3C0A1A", "midnight-forest": "#1F2A2F", "cyber-neon": "#1A1A2E",
-    "desert-oasis": "#3C2F1A", "glacial-frost": "#2A3C4F"
-  } as Record<string,string>)[get("theme")!] : null);
+  const bgColor = get("backgroundColor") || themeById(get("theme")).bg;
   // Apply to both body AND YES AND html so nothing overrides it
   const applyBg = (prop: string, val: string) => {
     document.body.style.setProperty(prop, val, "important");
@@ -82,14 +80,7 @@ function applyStoredSettings() {
     window.addEventListener("keydown", h);
   }
 
-  if (get("disableParticles") === "true") {
-    const removeParticles = () => {
-      document.querySelectorAll(".particles, .particle").forEach(el => el.parentNode?.removeChild(el));
-    };
-    removeParticles();
-    setTimeout(removeParticles, 500);
-    setTimeout(removeParticles, 1500);
-  }
+  applyBrowserIdentity();
 
   window.addEventListener("storage", (e) => {
     if (e.key === "settingsUpdated") applyStoredSettings();
@@ -101,11 +92,18 @@ if (!localStorage.getItem("theme")) {
   localStorage.setItem("theme", "default");
 }
 if (!localStorage.getItem("backgroundColor")) {
-  localStorage.setItem("backgroundColor", "#020810");
+  localStorage.setItem("backgroundColor", themeById("default").bg);
 }
 if (localStorage.getItem("bgNetwork") === null) {
   localStorage.setItem("bgNetwork", "false");
 }
+if (localStorage.getItem("searchEdgeGlow") === null) {
+  localStorage.setItem("searchEdgeGlow", "true");
+}
+try {
+  const t = themeById(localStorage.getItem("theme"));
+  document.documentElement.style.setProperty("--pz-accent", t.accent);
+} catch {}
 applyStoredSettings();
 
 if (

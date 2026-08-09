@@ -4,9 +4,9 @@ import {
   User, Settings, LogOut, Eye, EyeOff, Check, AlertCircle, Loader2,
   Zap, ChevronRight, Lock, Mail, KeyRound, Download, Upload, Trash2,
   Megaphone, MessageSquare, Palette, Shield, Sliders, Camera,
-  UserCog, Users, Ban, UserMinus, ShieldCheck, ShieldOff, Plus, ExternalLink, Image, Pipette,
+  UserCog, Users, Ban, UserMinus, ShieldCheck, ShieldOff, Plus, ExternalLink, Image,
   Music2, MapPin, Link2, Heart, Globe2, Radio, Monitor, BarChart3, Copy, Trophy, Gamepad2, Pencil,
-  LayoutDashboard, Cpu, Database, Activity, Power, ShieldAlert, Server,
+  LayoutDashboard, Cpu, Database, Activity, Power, ShieldAlert, Server, Network,
 } from "lucide-react";
 import { BadgeChip, BadgeRow, type BadgeInfo } from "./BadgeChip";
 import {
@@ -18,6 +18,8 @@ import {
 import { notifyAuthChanged } from "@/hooks/useAuth";
 import { consumePendingAuth } from "@/lib/authPending";
 import { applyVpnRegion } from "@/lib/vpn";
+import { themeById, applyBrowserIdentity } from "@/lib/siteThemes";
+import { AppearanceSettings, BehaviorSettings, ProxySettings } from "./SettingsPanels";
 
 interface AuthUser {
   id: string; email: string; username?: string; bio?: string;
@@ -44,17 +46,6 @@ interface AdminUserDetail extends AdminUser {
   achievements?: BadgeInfo[];
 }
 
-const THEMES = [
-  { id: "default",         label: "Deep Space", color: "#020810" },
-  { id: "swampy-green",    label: "Forest",     color: "#060d09" },
-  { id: "royal-purple",    label: "Royal",      color: "#08060e" },
-  { id: "blood-red",       label: "Crimson",    color: "#0a0405" },
-  { id: "midnight-forest", label: "Midnight",   color: "#050908" },
-  { id: "cyber-neon",      label: "Cyber",      color: "#05050d" },
-  { id: "desert-oasis",    label: "Desert",     color: "#0a0904" },
-  { id: "glacial-frost",   label: "Frost",      color: "#050810" },
-];
-
 const SITE_PRESETS = [
   { id: "classroom", label: "Google Classroom", favicon: "https://ssl.gstatic.com/classroom/favicon.ico" },
   { id: "schoology",  label: "Schoology",        favicon: "https://asset-cdn.schoology.com/sites/all/themes/schoology_theme/favicon.ico" },
@@ -62,26 +53,15 @@ const SITE_PRESETS = [
   { id: "petezah",   label: "PeteZah",           favicon: "/logo.png" },
 ];
 
-type Section = "profile" | "get-links" | "achievements" | "appearance" | "cloaking" | "behavior" | "data" | "admin" | "users" | "live" | "firefox-vm" | "game-stats" | "link-stats" | "updates" | "ai-prompts";
-
-const THEME_COLORS: Record<string, { bgColor: string; textColor: string }> = {
-  "default":         { bgColor: "#020810", textColor: "#e8f0fa" },
-  "swampy-green":    { bgColor: "#060d09", textColor: "#cde8d0" },
-  "royal-purple":    { bgColor: "#08060e", textColor: "#ddd0f5" },
-  "blood-red":       { bgColor: "#0a0405", textColor: "#f5cdd0" },
-  "midnight-forest": { bgColor: "#050908", textColor: "#c8ddd4" },
-  "cyber-neon":      { bgColor: "#05050d", textColor: "#d0d0ff" },
-  "desert-oasis":    { bgColor: "#0a0904", textColor: "#f0e0c0" },
-  "glacial-frost":   { bgColor: "#050810", textColor: "#c8e0f0" },
-};
+type Section = "profile" | "proxy" | "get-links" | "achievements" | "appearance" | "cloaking" | "behavior" | "data" | "admin" | "users" | "live" | "firefox-vm" | "game-stats" | "link-stats" | "updates" | "ai-prompts";
 
 function applySettingsNow(s: Record<string, string>) {
   if (s.theme) {
     document.body.className = document.body.className.replace(/theme-[\w-]+/g, "").trim();
     document.body.classList.add(`theme-${s.theme}`);
-    const tc = THEME_COLORS[s.theme];
-    if (tc && !s.backgroundColor && !s.backgroundImage) {
-      document.body.style.color = tc.textColor;
+    const tc = themeById(s.theme);
+    if (!s.backgroundColor && !s.backgroundImage) {
+      document.body.style.color = tc.text;
     }
   }
   const bgImg = s.backgroundImage ?? localStorage.getItem("backgroundImage");
@@ -123,17 +103,12 @@ function applySettingsNow(s: Record<string, string>) {
     (window as any).__panicKeyHandler = h;
     window.addEventListener("keydown", h);
   }
-  if (s.disableParticles === "true") {
-    document.querySelectorAll(".particles, .particle, canvas[data-particles]").forEach(el => el.parentNode?.removeChild(el));
-  }
   if (s.theme && !s.backgroundColor && !s.backgroundImage) {
-    const tc = THEME_COLORS[s.theme];
-    if (tc) {
-      localStorage.setItem("backgroundColor", tc.bgColor);
-      document.body.style.backgroundColor = tc.bgColor;
-      document.body.style.backgroundImage = "none";
-      document.body.style.color = tc.textColor;
-    }
+    const tc = themeById(s.theme);
+    localStorage.setItem("backgroundColor", tc.bg);
+    document.body.style.backgroundColor = tc.bg;
+    document.body.style.backgroundImage = "none";
+    document.body.style.color = tc.text;
   }
   if (!s.backgroundImage) {
     localStorage.removeItem("backgroundImage");
@@ -152,8 +127,16 @@ function applySettingsNow(s: Record<string, string>) {
   if (s.bgNetwork !== undefined) {
     localStorage.setItem("bgNetwork", s.bgNetwork === "true" ? "true" : "false");
   }
+  applyBrowserIdentity();
+  try {
+    const t = themeById(s.theme || localStorage.getItem("theme"));
+    document.documentElement.style.setProperty("--pz-accent", t.accent);
+    document.documentElement.style.setProperty("--pz-theme-bg", t.bg);
+    document.documentElement.style.setProperty("--pz-theme-text", t.text);
+  } catch {}
   localStorage.setItem("settingsUpdated", Date.now().toString());
   window.dispatchEvent(new CustomEvent("petezah-settings-updated"));
+  schedulePushSettings(900);
 }
 
 function FluidCanvas({ enabled }: { enabled: boolean }) {
@@ -261,18 +244,18 @@ function FluidCanvas({ enabled }: { enabled: boolean }) {
 }
 
 const C = {
-  bg:       "hsl(216 32% 6%)",
-  surface:  "hsl(216 26% 9%)",
-  elevated: "hsl(216 22% 12%)",
-  border:   "hsl(216 20% 16%)",
-  borderFocus: "hsl(213 60% 40%)",
-  accent:   "hsl(213 70% 58%)",
-  accentDim:"hsl(213 50% 40%)",
-  text:     "hsl(0 0% 96%)",
-  textSub:  "hsl(216 15% 58%)",
-  textMuted:"hsl(216 12% 32%)",
-  danger:   "hsl(0 60% 56%)",
-  success:  "hsl(145 50% 50%)",
+  bg:       "transparent",
+  surface:  "hsla(220, 28%, 12%, 0.38)",
+  elevated: "hsla(220, 24%, 16%, 0.45)",
+  border:   "hsla(210, 30%, 80%, 0.12)",
+  borderFocus: "hsla(210, 40%, 70%, 0.28)",
+  accent:   "hsla(0, 0%, 96%, 0.92)",
+  accentDim:"hsla(210, 40%, 55%, 0.16)",
+  text:     "hsla(210, 20%, 96%, 0.95)",
+  textSub:  "hsla(210, 14%, 70%, 0.78)",
+  textMuted:"hsla(210, 12%, 55%, 0.55)",
+  danger:   "hsl(0 60% 58%)",
+  success:  "hsl(145 45% 52%)",
 };
 
 function Field({ label, type = "text", value, onChange, placeholder, icon: Icon, maxLength, readOnly }: any) {
@@ -284,9 +267,10 @@ function Field({ label, type = "text", value, onChange, placeholder, icon: Icon,
       {label && <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px", color: C.textMuted }}>{label}</label>}
       <div style={{
         position: "relative", display: "flex", alignItems: "center",
-        background: C.surface,
+        background: "hsla(220, 28%, 12%, 0.32)",
         border: `1px solid ${focused ? C.borderFocus : C.border}`,
-        borderRadius: "8px", transition: "border-color 0.15s",
+        borderRadius: "999px", transition: "border-color 0.15s",
+        backdropFilter: "blur(10px)",
       }}>
         {Icon && <Icon size={12} style={{ position: "absolute", left: "12px", color: C.textMuted, flexShrink: 0 }} />}
         <input
@@ -340,7 +324,7 @@ function Divider() {
 
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "10px", padding: "0 16px" }}>
+    <div style={{ background: "hsla(220, 28%, 12%, 0.28)", border: `1px solid ${C.border}`, borderRadius: "16px", padding: "0 16px", backdropFilter: "blur(12px)" }}>
       {children}
     </div>
   );
@@ -349,11 +333,12 @@ function SectionCard({ children }: { children: React.ReactNode }) {
 function ApplyBtn({ saved, onClick }: { saved: boolean; onClick: () => void }) {
   return (
     <button onClick={onClick} style={{
-      display: "flex", alignItems: "center", gap: "7px", padding: "9px 18px", borderRadius: "8px", marginTop: "18px",
-      background: saved ? "transparent" : C.accentDim,
+      display: "flex", alignItems: "center", gap: "7px", padding: "8px 16px", borderRadius: "999px", marginTop: "18px",
+      background: saved ? "transparent" : "hsla(210, 40%, 70%, 0.12)",
       border: `1px solid ${saved ? C.success : C.borderFocus}`,
-      color: saved ? C.success : C.accent,
-      fontSize: "12px", fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
+      color: saved ? C.success : C.text,
+      fontSize: "12px", fontWeight: 560, cursor: "pointer", transition: "all 0.2s",
+      fontFamily: "inherit", letterSpacing: "-0.01em",
     }}>
       {saved ? <Check size={13} /> : <Zap size={13} />}
       {saved ? "Applied!" : "Apply Settings"}
@@ -363,6 +348,7 @@ function ApplyBtn({ saved, onClick }: { saved: boolean; onClick: () => void }) {
 
 const NAV: { id: Section; label: string; icon: any; adminOnly?: boolean }[] = [
   { id: "profile",    label: "Profile",     icon: User },
+  { id: "proxy",      label: "Proxy",       icon: Network },
   { id: "get-links",  label: "Get Links",   icon: Link2 },
   { id: "achievements", label: "Achievements", icon: Trophy },
   { id: "appearance", label: "Appearance",  icon: Palette },
@@ -630,11 +616,21 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   }, []);
 
   const loadLocalSettings = useCallback(() => {
-    const keys = ["theme","siteTitle","siteLogo","panicKey","panicUrl","beforeUnload","disableRightClick","disableParticles","autocloak","backgroundColor","backgroundImage","bgNetwork"];
+    const keys = [
+      "theme","siteTitle","siteLogo","panicKey","panicUrl","beforeUnload","disableRightClick","autocloak",
+      "backgroundColor","backgroundImage","bgNetwork","debugHud","searchEdgeGlow","horizontalTabs","gameFocusMode","quickRelaunch","lowPowerBg",
+      "searchEngine","browserIdentity","uaPreset","customUserAgent","proxServer","extensionsEnabled","stripTrackers","preferHttps",
+    ];
     const loaded: Record<string,string> = {};
     keys.forEach(k => { const v = localStorage.getItem(k); if (v !== null) loaded[k] = v; });
-    if (!loaded.backgroundColor) loaded.backgroundColor = "#020810";
+    if (!loaded.theme) loaded.theme = "default";
+    if (!loaded.backgroundColor) loaded.backgroundColor = themeById(loaded.theme).bg;
     if (loaded.bgNetwork === undefined) loaded.bgNetwork = "false";
+    if (!loaded.searchEngine) loaded.searchEngine = "ddg";
+    if (!loaded.browserIdentity) loaded.browserIdentity = "mirror";
+    if (!loaded.uaPreset) loaded.uaPreset = "auto";
+    if (!loaded.extensionsEnabled) loaded.extensionsEnabled = "true";
+    if (loaded.searchEdgeGlow === undefined) loaded.searchEdgeGlow = "true";
     setS(loaded);
   }, []);
 
@@ -1426,7 +1422,11 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
         const ok = await pullSettings();
         loadLocalSettings();
         const loaded: Record<string, string> = {};
-        ["theme","siteTitle","siteLogo","panicKey","panicUrl","beforeUnload","disableRightClick","disableParticles","autocloak","backgroundColor","backgroundImage","bgNetwork"].forEach(k => {
+        [
+          "theme","siteTitle","siteLogo","panicKey","panicUrl","beforeUnload","disableRightClick","autocloak",
+          "backgroundColor","backgroundImage","bgNetwork","debugHud","searchEdgeGlow","horizontalTabs","gameFocusMode","quickRelaunch","lowPowerBg",
+          "searchEngine","browserIdentity","uaPreset","customUserAgent","proxServer","extensionsEnabled","stripTrackers","preferHttps",
+        ].forEach(k => {
           const v = localStorage.getItem(k);
           if (v !== null) loaded[k] = v;
         });
@@ -1853,21 +1853,56 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
 
   const avatarLetter = (user.username || user.email)[0].toUpperCase();
 
-  return (
-    <div style={{ height: "100%", display: "flex", background: "hsla(216, 32%, 6%, 0.72)", backdropFilter: "blur(18px)", overflow: "hidden" }}>
+  const panelProps = {
+    C,
+    s,
+    setS,
+    setVal,
+    toggle,
+    applySettings,
+    settingsSaved,
+    applySettingsNow,
+    bgImgRef,
+    openAboutBlank,
+  };
 
-      <div style={{
-        width: "190px", flexShrink: 0, display: "flex", flexDirection: "column",
-        borderRight: `1px solid ${C.border}`, padding: "18px 10px",
-        background: C.surface, minHeight: 0, overflow: "hidden",
-      }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", marginBottom: "20px", paddingBottom: "16px", borderBottom: `1px solid ${C.border}` }}>
+  return (
+    <div
+      className="account-settings-shell"
+      style={{
+        height: "100%",
+        display: "flex",
+        overflow: "hidden",
+        background: "transparent",
+        fontFamily: "plusjakartasans-obf, ui-sans-serif, system-ui, sans-serif",
+      }}
+    >
+      <motion.div
+        initial={{ x: -28, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        style={{
+          width: "188px",
+          flexShrink: 0,
+          display: "flex",
+          flexDirection: "column",
+          borderRight: `1px solid ${C.border}`,
+          padding: "14px 8px",
+          background: "hsla(220, 30%, 8%, 0.42)",
+          backdropFilter: "blur(18px) saturate(1.2)",
+          WebkitBackdropFilter: "blur(18px) saturate(1.2)",
+          minHeight: 0,
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", marginBottom: "16px", paddingBottom: "14px", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ position: "relative" }}>
             <div style={{
-              width: "48px", height: "48px", borderRadius: "14px", overflow: "hidden",
-              background: C.accentDim, border: `1px solid ${C.border}`,
+              width: "46px", height: "46px", borderRadius: "13px", overflow: "hidden",
+              background: C.elevated, border: `1px solid ${C.border}`,
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "18px", fontWeight: 700, color: C.accent,
+              fontSize: "17px", fontWeight: 700, color: C.text,
+              boxShadow: "0 8px 20px rgba(0,0,0,0.25)",
             }}>
               {user.avatar_url
                 ? <img src={user.avatar_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="" />
@@ -1875,10 +1910,10 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
             </div>
             <button onClick={() => avatarRef.current?.click()} style={{
               position: "absolute", bottom: "-3px", right: "-3px", width: "18px", height: "18px", borderRadius: "50%",
-              background: C.accentDim, border: `2px solid ${C.bg}`, cursor: "pointer",
+              background: C.elevated, border: `2px solid ${C.bg}`, cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>
-              {avatarUploading ? <Loader2 size={8} color={C.accent} className="animate-spin" /> : <Camera size={8} color={C.accent} />}
+              {avatarUploading ? <Loader2 size={8} color={C.text} className="animate-spin" /> : <Camera size={8} color={C.textSub} />}
             </button>
             <input ref={avatarRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" style={{ display: "none" }} onChange={uploadAvatar} />
           </div>
@@ -1896,22 +1931,30 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
           </div>
         </div>
 
-        <nav style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: "1px", scrollbarWidth: "thin" }}>
-          {visibleSections.map(({ id, label, icon: Icon }) => {
+        <nav style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: "2px", scrollbarWidth: "thin" }}>
+          {visibleSections.map(({ id, label, icon: Icon }, idx) => {
             const active = section === id;
             return (
-              <button key={id} onClick={() => setSection(id)} style={{
-                display: "flex", alignItems: "center", gap: "8px", padding: "7px 10px", borderRadius: "7px", width: "100%",
-                background: active ? `${C.accentDim}50` : "transparent",
-                border: `1px solid ${active ? C.borderFocus : "transparent"}`,
-                color: active ? C.accent : C.textSub,
-                fontSize: "12px", fontWeight: active ? 600 : 400, cursor: "pointer", transition: "all 0.12s", textAlign: "left",
-              }}
-              onMouseEnter={e => { if (!active) { e.currentTarget.style.background = C.elevated; e.currentTarget.style.color = C.text; } }}
-              onMouseLeave={e => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.textSub; } }}>
+              <motion.button
+                key={id}
+                initial={{ opacity: 0, x: -16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.04 + idx * 0.028, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                onClick={() => setSection(id)}
+                style={{
+                  display: "flex", alignItems: "center", gap: "8px", padding: "7px 10px", borderRadius: "999px", width: "100%",
+                  background: active ? "hsla(210, 40%, 80%, 0.1)" : "transparent",
+                  border: `1px solid ${active ? "hsla(210, 40%, 80%, 0.18)" : "transparent"}`,
+                  color: active ? C.text : C.textSub,
+                  fontSize: "12px", fontWeight: active ? 560 : 450, cursor: "pointer", textAlign: "left",
+                  letterSpacing: "-0.01em",
+                }}
+                onMouseEnter={e => { if (!active) { e.currentTarget.style.background = "hsla(210, 40%, 80%, 0.06)"; e.currentTarget.style.color = C.text; } }}
+                onMouseLeave={e => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.textSub; } }}
+              >
                 <Icon size={12} />
                 {label}
-              </button>
+              </motion.button>
             );
           })}
         </nav>
@@ -1925,11 +1968,24 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
         onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.textMuted; e.currentTarget.style.borderColor = "transparent"; }}>
           <LogOut size={11} />Sign out
         </button>
-      </div>
+      </motion.div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "28px 30px", scrollbarWidth: "thin", scrollbarColor: `${C.border} transparent` }}>
+      <div style={{
+        flex: 1,
+        overflowY: "auto",
+        padding: "26px 30px",
+        scrollbarWidth: "thin",
+        scrollbarColor: `${C.border} transparent`,
+        background: "transparent",
+      }}>
         <AnimatePresence mode="wait">
-          <motion.div key={section} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.13 }}>
+          <motion.div
+            key={section}
+            initial={{ opacity: 0, y: 10, filter: "blur(5px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
+            transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+          >
 
             {section === "profile" && (
               <div style={{ maxWidth: "520px" }}>
@@ -2519,187 +2575,9 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
               </div>
             )}
 
-            {section === "appearance" && (
-              <div style={{ maxWidth: "520px" }}>
-                <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: "0 0 3px" }}>Appearance</h2>
-                <p style={{ fontSize: "11px", color: C.textSub, margin: "0 0 20px" }}>
-                  Dark space backdrop, chrome accents, and optional network lines
-                </p>
+            {section === "appearance" && <AppearanceSettings {...panelProps} />}
 
-                <div style={{
-                  height: 110, borderRadius: 12, marginBottom: 18, overflow: "hidden", position: "relative",
-                  border: `1px solid ${C.border}`,
-                  background: s.backgroundImage
-                    ? `url(${s.backgroundImage}) center/cover`
-                    : (s.backgroundColor || "#020810"),
-                }}>
-                  {!s.backgroundImage && (
-                    <div style={{
-                      position: "absolute", inset: 0,
-                      background: `
-                        radial-gradient(ellipse 60% 50% at 50% 45%, hsla(210,90%,70%,0.12), transparent 60%),
-                        conic-gradient(from 200deg at 50% 50%, transparent 0deg, hsla(205,100%,85%,0.08) 10deg, transparent 20deg, transparent 80deg, hsla(0,0%,100%,0.05) 90deg, transparent 100deg)
-                      `,
-                      mixBlendMode: "screen",
-                    }} />
-                  )}
-                  <div style={{
-                    position: "absolute", left: 12, bottom: 10, fontSize: 10, fontWeight: 600,
-                    color: "hsla(0,0%,100%,0.75)", letterSpacing: "0.04em", textTransform: "uppercase",
-                  }}>
-                    Live preview
-                  </div>
-                </div>
-
-                <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 10px" }}>Atmosphere</p>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "7px", marginBottom: "18px" }}>
-                  {THEMES.map(t => {
-                    const active = (s.theme || "default") === t.id;
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() => {
-                          const next = {
-                            ...s,
-                            theme: t.id,
-                            backgroundColor: THEME_COLORS[t.id]?.bgColor || t.color,
-                            backgroundImage: "",
-                          };
-                          setS(next);
-                          applySettingsNow(next);
-                        }}
-                        style={{
-                          display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", padding: "10px 6px", borderRadius: "9px", cursor: "pointer",
-                          background: active ? `${C.accentDim}40` : C.surface,
-                          border: `1px solid ${active ? C.borderFocus : C.border}`,
-                          transition: "all 0.15s",
-                        }}
-                      >
-                        <div style={{ width: "24px", height: "24px", borderRadius: "6px", background: t.color, border: `1px solid ${C.border}` }} />
-                        <span style={{ fontSize: "9px", fontWeight: 500, color: active ? C.accent : C.textSub }}>{t.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <Divider />
-
-                <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "14px 0 10px" }}>Background</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "16px" }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px", color: C.textMuted }}>Color</label>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <div style={{ position: "relative", width: "36px", height: "36px", borderRadius: "8px", overflow: "hidden", border: `1px solid ${C.border}`, flexShrink: 0 }}>
-                        <input
-                          type="color"
-                          value={/^#[0-9a-fA-F]{6}$/.test(s.backgroundColor || "") ? s.backgroundColor : "#020810"}
-                          onChange={e => {
-                            const next = { ...s, backgroundColor: e.target.value, backgroundImage: "" };
-                            setS(next);
-                            applySettingsNow(next);
-                          }}
-                          style={{ position: "absolute", inset: "-4px", width: "calc(100% + 8px)", height: "calc(100% + 8px)", cursor: "pointer", border: "none", padding: 0 }}
-                        />
-                      </div>
-                      <input
-                        type="text"
-                        value={s.backgroundColor || "#020810"}
-                        onChange={e => setVal("backgroundColor", e.target.value)}
-                        onBlur={() => {
-                          const next = { ...s, backgroundImage: "" };
-                          applySettingsNow(next);
-                        }}
-                        style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: "8px", color: C.text, fontSize: "12px", padding: "8px 10px", outline: "none", fontFamily: "monospace" }}
-                      />
-                      <button
-                        onClick={() => {
-                          const next = { ...s, backgroundColor: "#020810", backgroundImage: "", theme: "default" };
-                          setS(next);
-                          applySettingsNow(next);
-                        }}
-                        style={{
-                          padding: "8px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.border}`,
-                          color: C.textSub, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap",
-                        }}
-                      >
-                        Reset
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px", color: C.textMuted }}>Custom image</label>
-                    <input ref={bgImgRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => {
-                      const file = e.target.files?.[0]; if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = ev => {
-                        const next = { ...s, backgroundImage: ev.target?.result as string, backgroundColor: "" };
-                        setS(next);
-                        applySettingsNow(next);
-                      };
-                      reader.readAsDataURL(file);
-                      e.target.value = "";
-                    }} />
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <button onClick={() => bgImgRef.current?.click()} style={{
-                        flex: 1, display: "flex", alignItems: "center", gap: "8px", padding: "9px 12px", borderRadius: "8px",
-                        background: C.surface, border: `1px solid ${C.border}`, color: C.textSub, fontSize: "12px", cursor: "pointer",
-                      }}>
-                        <Image size={12} />
-                        {s.backgroundImage ? "Change image" : "Upload image"}
-                      </button>
-                      {s.backgroundImage && (
-                        <button onClick={() => {
-                          const next = { ...s, backgroundImage: "", backgroundColor: s.backgroundColor || "#020810" };
-                          setS(next);
-                          applySettingsNow(next);
-                        }} style={{
-                          padding: "9px 12px", borderRadius: "8px", background: "transparent",
-                          border: `1px solid hsl(0 60% 50% / 0.2)`, color: C.danger, fontSize: "11px", cursor: "pointer",
-                        }}>
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      const on = s.bgNetwork !== "true";
-                      const next = { ...s, bgNetwork: on ? "true" : "false" };
-                      setS(next);
-                      applySettingsNow(next);
-                    }}
-                    style={{
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                      padding: "12px 14px", borderRadius: 10, cursor: "pointer", textAlign: "left",
-                      background: C.surface, border: `1px solid ${s.bgNetwork === "true" ? C.borderFocus : C.border}`,
-                    }}
-                  >
-                    <div>
-                      <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: C.text }}>Network lines</p>
-                      <p style={{ margin: "3px 0 0", fontSize: 10, color: C.textSub }}>
-                        Optional white mesh overlay — off by default
-                      </p>
-                    </div>
-                    <div style={{
-                      width: 36, height: 20, borderRadius: 99, padding: 2, flexShrink: 0,
-                      background: s.bgNetwork === "true" ? C.accent : C.elevated,
-                      border: `1px solid ${C.border}`,
-                      transition: "background 0.15s",
-                    }}>
-                      <div style={{
-                        width: 14, height: 14, borderRadius: "50%", background: "#fff",
-                        transform: s.bgNetwork === "true" ? "translateX(16px)" : "translateX(0)",
-                        transition: "transform 0.15s",
-                      }} />
-                    </div>
-                  </button>
-                </div>
-
-                <ApplyBtn saved={settingsSaved} onClick={applySettings} />
-              </div>
-            )}
+            {section === "proxy" && <ProxySettings {...panelProps} />}
 
             {section === "cloaking" && (
               <div style={{ maxWidth: "440px" }}>
@@ -2754,41 +2632,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
               </div>
             )}
 
-            {section === "behavior" && (
-              <div style={{ maxWidth: "420px" }}>
-                <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: "0 0 3px" }}>Behavior</h2>
-                <p style={{ fontSize: "11px", color: C.textSub, margin: "0 0 20px" }}>Control how the browser behaves</p>
-                <SectionCard>
-                  <div style={{ borderBottom: `1px solid ${C.border}` }}>
-                    <Toggle label="Exit warning" desc="Show a confirmation before closing the tab" checked={s.beforeUnload === "true"} onChange={() => toggle("beforeUnload")} />
-                  </div>
-                  <div style={{ borderBottom: `1px solid ${C.border}` }}>
-                    <Toggle label="Autocloak" desc="Wrap the site in about:blank on load" checked={s.autocloak === "true"} onChange={() => {
-                      const next = s.autocloak !== "true";
-                      setVal("autocloak", next ? "true" : "false");
-                      localStorage.setItem("autocloak", next ? "true" : "false");
-                      if (next) openAboutBlank();
-                    }} />
-                  </div>
-                  <div style={{ borderBottom: `1px solid ${C.border}` }}>
-                    <Toggle label="Disable right click" desc="Block the browser context menu" checked={s.disableRightClick === "true"} onChange={() => toggle("disableRightClick")} />
-                  </div>
-                  <Toggle label="Disable particles" desc="Remove background animations on new tab" checked={s.disableParticles === "true"} onChange={() => toggle("disableParticles")} />
-                </SectionCard>
-                <Divider />
-                <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "14px 0 6px" }}>About:Blank</p>
-                <p style={{ fontSize: "11px", color: C.textSub, margin: "0 0 10px" }}>Open the site disguised inside an about:blank popup</p>
-                <button onClick={openAboutBlank} style={{
-                  display: "flex", alignItems: "center", gap: "8px", padding: "9px 16px", borderRadius: "8px", marginBottom: "18px",
-                  background: C.accentDim, border: `1px solid ${C.borderFocus}`,
-                  color: C.accent, fontSize: "12px", fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
-                }}>
-                  <ExternalLink size={12} />
-                  Open in about:blank
-                </button>
-                <ApplyBtn saved={settingsSaved} onClick={applySettings} />
-              </div>
-            )}
+            {section === "behavior" && <BehaviorSettings {...panelProps} />}
 
             {section === "data" && (
               <div style={{ maxWidth: "400px" }}>

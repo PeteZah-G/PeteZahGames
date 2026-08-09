@@ -1,9 +1,17 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { requestAdGate, playApplixirAd } from "@/lib/applixir";
-import { AdBanner320, playAdsterraLoadingAd, scrubAdsterraLoadingArtifacts } from "@/components/ads/Adsterra";
+import {
+  AdBanner320,
+  AdBanner728,
+  AdNativeBar,
+  playLoaderNetworkAds,
+  scrubAdsterraLoadingArtifacts,
+} from "@/components/ads/Adsterra";
 
 type Context = "game" | "app" | "vm";
+
+const LOADER_AD_MS = 3600;
 
 export function useInterstitialUnlock(context: Context, enabled = true) {
   const [unlocked, setUnlocked] = useState(!enabled);
@@ -41,14 +49,14 @@ export function useInterstitialUnlock(context: Context, enabled = true) {
 
         if (gate.show) {
           setPhase("ad");
-          setShowBanner(false);
+          setShowBanner(true);
           await playApplixirAd(gate.apiKey, userId);
         } else {
           const reason = gate.reason;
           if (reason === "disabled" || reason === "network" || reason === "skip") {
             setPhase("ad");
             setShowBanner(true);
-            await playAdsterraLoadingAd(2600);
+            await playLoaderNetworkAds(LOADER_AD_MS);
           }
         }
       } catch {
@@ -56,12 +64,11 @@ export function useInterstitialUnlock(context: Context, enabled = true) {
           setPhase("ad");
           setShowBanner(true);
           try {
-            await playAdsterraLoadingAd(2200);
+            await playLoaderNetworkAds(LOADER_AD_MS);
           } catch {}
         }
       }
 
-      // Always tear down Social Bar leftovers once the gate finishes.
       try {
         scrubAdsterraLoadingArtifacts();
       } catch {}
@@ -102,10 +109,11 @@ export function InterstitialOverlay({
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: 12,
+        gap: 10,
         background: "hsla(220, 35%, 5%, 0.94)",
         backdropFilter: "blur(8px)",
         padding: 16,
+        overflowY: "auto",
       }}
     >
       <Loader2 size={18} className="animate-spin" style={{ color: "hsla(213,70%,62%,1)" }} />
@@ -113,8 +121,26 @@ export function InterstitialOverlay({
         {phase === "ad" ? "Loading — thanks for supporting PeteZah" : "Preparing…"}
       </p>
       {showBanner ? (
-        <div style={{ width: "100%", maxWidth: 360, marginTop: 4 }}>
-          <AdBanner320 />
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 760,
+            marginTop: 4,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <div style={{ width: "100%", maxWidth: 360 }}>
+            <AdBanner320 />
+          </div>
+          <div className="hidden sm:block" style={{ width: "100%", maxWidth: 728 }}>
+            <AdBanner728 />
+          </div>
+          <div style={{ width: "100%", maxWidth: 520 }}>
+            <AdNativeBar />
+          </div>
         </div>
       ) : null}
       <p style={{ margin: 0, fontSize: 10, color: "hsla(0,0%,100%,0.4)" }}>

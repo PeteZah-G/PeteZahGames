@@ -9,6 +9,8 @@ import ContentArea from "@/components/ContentArea";
 import StatusBar from "@/components/StatusBar";
 import DiscordPopup from "@/components/DiscordPopup";
 import VantaBackground from "@/components/VantaBackground";
+import DebugHud from "@/components/DebugHud";
+import HorizontalTabBar from "@/components/HorizontalTabBar";
 import GlobalAnnouncement from "@/components/GlobalAnnouncement";
 import {
   classifyOpenUrl,
@@ -46,6 +48,20 @@ export default function ArcBrowser() {
     ? state.tabs.find((t) => t.id === state.splitTabId)
     : undefined;
   const [zoomLevel, setZoomLevel] = useState(100);
+  const [gameFocus, setGameFocus] = useState(() => localStorage.getItem("gameFocusMode") === "true");
+  const [horizontalTabs, setHorizontalTabs] = useState(
+    () => localStorage.getItem("horizontalTabs") === "true"
+  );
+  useEffect(() => {
+    const sync = () => {
+      setGameFocus(localStorage.getItem("gameFocusMode") === "true");
+      setHorizontalTabs(localStorage.getItem("horizontalTabs") === "true");
+    };
+    window.addEventListener("petezah-settings-updated", sync);
+    return () => window.removeEventListener("petezah-settings-updated", sync);
+  }, []);
+  const dimChrome =
+    gameFocus && !!state.focusedTab?.url?.startsWith("petezah://gameviewer");
   const contentRef = useRef<HTMLDivElement>(null);
   const [openToast, setOpenToast] = useState<string | null>(null);
   const openToastTimer = useRef<number | null>(null);
@@ -287,6 +303,7 @@ export default function ArcBrowser() {
       }}
     >
       <VantaBackground />
+      <DebugHud />
       <div
         style={{
           position: "relative",
@@ -310,30 +327,45 @@ export default function ArcBrowser() {
           onTabClose={state.closeTab}
           onTabPin={state.togglePin}
           onTabSplit={(id) => state.openSplit(id)}
+          onTabReorder={state.reorderTabs}
           onAddTab={() => state.addTab()}
           onToggleCollapse={() => state.setSidebarCollapsed(!state.sidebarCollapsed)}
           onAccountClick={() => state.navigateToUrl("petezah://account")}
           onNavigate={state.navigateToUrl}
           user={user}
+          hideTabs={horizontalTabs}
         />
         <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative bg-transparent">
-          <Toolbar
-            activeTab={state.focusedTab}
-            urlInput={state.urlInput}
-            isUrlFocused={state.isUrlFocused}
-            onUrlChange={state.setUrlInput}
-            onUrlFocus={state.setIsUrlFocused}
-            onNavigate={state.navigateToUrl}
-            onNotificationClick={() => state.navigateToUrl("petezah://account")}
-            onCloseTab={() => state.focusedTab && state.closeTab(state.focusedTab.id)}
-            onCloseAllTabs={state.closeAllTabs}
-            onNewTab={() => state.addTab()}
-            zoomLevel={zoomLevel}
-            onZoomIn={zoomIn}
-            onZoomOut={zoomOut}
-            onResetZoom={resetZoom}
-            onFullscreen={toggleContentFullscreen}
-          />
+          {horizontalTabs && (
+            <HorizontalTabBar
+              pinnedTabs={state.pinnedTabs}
+              unpinnedTabs={state.unpinnedTabs}
+              activeTabId={state.focusedTabId}
+              onSelect={state.selectTab}
+              onClose={state.closeTab}
+              onReorder={state.reorderTabs}
+              onAddTab={() => state.addTab()}
+            />
+          )}
+          <div style={{ opacity: dimChrome ? 0.4 : 1, transition: "opacity 0.25s ease" }}>
+            <Toolbar
+              activeTab={state.focusedTab}
+              urlInput={state.urlInput}
+              isUrlFocused={state.isUrlFocused}
+              onUrlChange={state.setUrlInput}
+              onUrlFocus={state.setIsUrlFocused}
+              onNavigate={state.navigateToUrl}
+              onNotificationClick={() => state.navigateToUrl("petezah://account")}
+              onCloseTab={() => state.focusedTab && state.closeTab(state.focusedTab.id)}
+              onCloseAllTabs={state.closeAllTabs}
+              onNewTab={() => state.addTab()}
+              zoomLevel={zoomLevel}
+              onZoomIn={zoomIn}
+              onZoomOut={zoomOut}
+              onResetZoom={resetZoom}
+              onFullscreen={toggleContentFullscreen}
+            />
+          </div>
           <ContentArea
             tabs={state.tabs}
             activeTab={state.activeTab}
@@ -346,7 +378,9 @@ export default function ArcBrowser() {
             zoomLevel={zoomLevel}
             contentRef={contentRef}
           />
-          <StatusBar tabCount={state.tabs.length} />
+          <div style={{ opacity: dimChrome ? 0.45 : 1, transition: "opacity 0.25s ease" }}>
+            <StatusBar tabCount={state.tabs.length} />
+          </div>
         </main>
       </div>
       <DiscordPopup />

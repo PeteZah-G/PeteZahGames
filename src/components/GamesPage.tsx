@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Dices, Plus, Star, MoreVertical, X, Trash2, Share2, Copy, Check, Upload } from "lucide-react";
+import { Search, Dices, Plus, Star, MoreVertical, X, Trash2, Share2, Copy, Check, Upload, ChevronLeft, ChevronRight, RefreshCw, Crown } from "lucide-react";
 import { requestSyncSoon } from "@/lib/settingsSync";
 import { AdResponsiveBanner, AdNativeBar } from "@/components/ads/Adsterra";
 
@@ -44,6 +44,7 @@ interface Game {
 interface GamesPageProps {
   onNavigate?: (url: string) => void;
   adminEdit?: boolean;
+  initialQuery?: string;
 }
 
 function getCustomGames(): Game[] {
@@ -64,6 +65,140 @@ function getHiddenGames(): string[] {
 function saveHiddenGames(hidden: string[]) {
   try { localStorage.setItem("hiddenGames", JSON.stringify(hidden)); requestSyncSoon(); } catch {}
 }
+function getRecentGameIds(): string[] {
+  try {
+    const s = localStorage.getItem("recentGames");
+    return s ? JSON.parse(s) : [];
+  } catch {
+    return [];
+  }
+}
+function pushRecentGame(id: string) {
+  try {
+    const prev = getRecentGameIds().filter((x) => x !== id);
+    const next = [id, ...prev].slice(0, 24);
+    localStorage.setItem("recentGames", JSON.stringify(next));
+  } catch {}
+}
+
+function carouselBadge(title: string, index: number): { label: string; tone: "blue" | "gold" | "white" } | null {
+  const t = title.toLowerCase();
+  if (t.includes("recent")) return { label: "Updated", tone: "blue" };
+  if (t.includes("top") || index === 0) return { label: "Top", tone: "gold" };
+  if (t.includes("action") || t.includes("sport")) return { label: "Pick", tone: "white" };
+  if (index % 5 === 2) return { label: "Hot", tone: "gold" };
+  return null;
+}
+
+function clearRecentGames() {
+  try {
+    localStorage.removeItem("recentGames");
+  } catch {}
+}
+
+function GameCarousel({
+  title,
+  games,
+  favorites,
+  onPlay,
+  onOptions,
+  onClear,
+}: {
+  title: string;
+  games: Game[];
+  favorites: string[];
+  onPlay: (g: Game) => void;
+  onOptions: (g: Game) => void;
+  onClear?: () => void;
+}) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  if (!games.length) return null;
+
+  const scrollBy = (dir: number) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.min(el.clientWidth * 0.78, 520), behavior: "smooth" });
+  };
+
+  return (
+    <div className="mb-5 relative group/carousel">
+      <div className="flex items-center justify-between mb-2 px-0.5">
+        <h2 className="text-[13px] font-semibold text-white/90 tracking-tight">{title}</h2>
+        <div className="flex items-center gap-2">
+          {onClear ? (
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-[10px] font-medium px-2 py-0.5 rounded-md transition-colors"
+              style={{
+                color: "hsla(0,0%,100%,0.45)",
+                border: "1px solid hsla(0,0%,100%,0.1)",
+                background: "hsla(0,0%,100%,0.04)",
+              }}
+            >
+              Clear
+            </button>
+          ) : null}
+          <span className="text-[10px] text-white/28 tabular-nums">{games.length}</span>
+        </div>
+      </div>
+      <div className="relative">
+        <button
+          type="button"
+          aria-label="Scroll left"
+          onClick={() => scrollBy(-1)}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center"
+          style={{
+            background: "hsla(0,0%,0%,0.55)",
+            border: "1px solid hsla(0,0%,100%,0.35)",
+            color: "#fff",
+            marginLeft: -2,
+          }}
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <button
+          type="button"
+          aria-label="Scroll right"
+          onClick={() => scrollBy(1)}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center"
+          style={{
+            background: "hsla(0,0%,0%,0.55)",
+            border: "1px solid hsla(0,0%,100%,0.35)",
+            color: "#fff",
+            marginRight: -2,
+          }}
+        >
+          <ChevronRight size={16} />
+        </button>
+        <div
+          ref={scrollerRef}
+          className="flex gap-1.5 overflow-x-auto pb-1 px-0.5"
+          style={{ scrollbarWidth: "none", scrollSnapType: "x proximity" }}
+        >
+          {games.map((game, i) => (
+            <div
+              key={game.id}
+              className="flex-shrink-0"
+              style={{ width: 148, scrollSnapAlign: "start" }}
+            >
+              <GameCard
+                game={game}
+                isFav={favorites.includes(game.id)}
+                priority={i < 6}
+                index={i}
+                badge={carouselBadge(title, i)}
+                onPlay={() => onPlay(game)}
+                onOptions={() => onOptions(game)}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 function resolveGameUrl(url: string): string {
   if (!url) return url;
@@ -248,54 +383,85 @@ function ShareModal({ url, onClose }: { url: string; onClose: () => void }) {
   );
 }
 
-function GameCard({ game, isFav, onPlay, onOptions, priority = false, index = 0 }: {
+function GameCard({ game, isFav, onPlay, onOptions, priority = false, index = 0, badge = null }: {
   game: Game; isFav: boolean; onPlay: () => void; onOptions: () => void; priority?: boolean; index?: number;
+  badge?: { label: string; tone: "blue" | "gold" | "white" } | null;
 }) {
   const ease = [0.22, 1, 0.36, 1] as const;
+  const badgeStyle =
+    badge?.tone === "gold"
+      ? { background: "#e8b84a", color: "#1a1204" }
+      : badge?.tone === "white"
+        ? { background: "#f4f4f6", color: "#4b2d8a" }
+        : { background: "#5aa8d4", color: "#fff" };
   return (
     <motion.div
-      initial={{ opacity: 0, y: 18, scale: 0.94, filter: "blur(8px)" }}
-      animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+      initial={{ opacity: 0, y: 14, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
-        duration: 0.55,
-        delay: Math.min(index, 20) * 0.038,
+        duration: 0.45,
+        delay: Math.min(index, 20) * 0.03,
         ease,
       }}
-      whileHover={{ scale: 1.06, zIndex: 10 }}
-      whileTap={{ scale: 0.97 }}
-      className="relative cursor-pointer group rounded-xl overflow-hidden border-2 border-white/5 hover:border-white/40 transition-colors duration-150 game-card"
-      style={{ aspectRatio: "4/3", background: "var(--accent)" }}
+      whileHover={{ scale: 1.04, zIndex: 10 }}
+      whileTap={{ scale: 0.985 }}
+      className="relative cursor-pointer group rounded-xl overflow-hidden game-card"
+      style={{
+        aspectRatio: "5/4",
+        background: "hsla(220, 28%, 10%, 0.9)",
+        boxShadow: "0 6px 18px rgba(0,0,0,0.26)",
+        border: "2px solid transparent",
+        transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "var(--pz-accent, hsla(210, 70%, 70%, 0.75))";
+        e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.35), 0 0 0 1px color-mix(in srgb, var(--pz-accent, #6eb0d4) 35%, transparent)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "transparent";
+        e.currentTarget.style.boxShadow = "0 6px 18px rgba(0,0,0,0.26)";
+      }}
       onClick={onPlay}
     >
       <img
         src={game.imageUrl}
         alt={game.label}
-        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         loading={priority ? "eager" : "lazy"}
         decoding="async"
         fetchPriority={priority ? "high" : "low"}
-        sizes="(max-width: 640px) 46vw, (max-width: 1024px) 22vw, 160px"
-        width={160}
-        height={120}
+        sizes="(max-width: 640px) 42vw, 148px"
+        width={148}
+        height={118}
         style={{ background: "hsla(210, 30%, 12%, 0.6)" }}
       />
 
       <div
         className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)" }}
+        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.25) 55%, transparent 100%)" }}
       />
 
-      <div
-        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"
-        style={{ boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.28), 0 0 60px rgba(99,179,237,0.35)" }}
-      />
-
-      <div className="absolute bottom-0 left-0 right-0 px-2.5 py-2.5 translate-y-2 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-200">
+      <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 translate-y-1 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-200">
         <p className="text-white text-[11px] font-semibold truncate drop-shadow-sm">{game.label}</p>
       </div>
 
-      {isFav && (
+      {badge && (
+        <div
+          className="absolute top-1.5 left-1.5 z-10 flex items-center gap-1 px-1.5 py-[2px] rounded-full text-[8px] font-bold tracking-wide"
+          style={badgeStyle}
+        >
+          {badge.tone === "gold" ? <Star size={8} className="fill-current" /> : badge.tone === "white" ? <Crown size={8} /> : <RefreshCw size={8} />}
+          {badge.label}
+        </div>
+      )}
+
+      {isFav && !badge && (
         <div className="absolute top-1.5 left-1.5">
+          <Star size={10} className="fill-yellow-400 text-yellow-400 drop-shadow-sm" />
+        </div>
+      )}
+      {isFav && badge && (
+        <div className="absolute top-1.5 right-1.5">
           <Star size={10} className="fill-yellow-400 text-yellow-400 drop-shadow-sm" />
         </div>
       )}
@@ -310,12 +476,12 @@ function GameCard({ game, isFav, onPlay, onOptions, priority = false, index = 0 
   );
 }
 
-export default function GamesPage({ onNavigate, adminEdit = false }: GamesPageProps) {
+export default function GamesPage({ onNavigate, adminEdit = false, initialQuery = "" }: GamesPageProps) {
   const [allGames, setAllGames] = useState<Game[]>([]);
   const [playCounts, setPlayCounts] = useState<Record<string, number>>({});
   const [listReady, setListReady] = useState(false);
   const [favorites, setFavorites] = useState<string[]>(getFavorites);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialQuery);
   const [activeCategory, setActiveCategory] = useState("All");
   const [page, setPage] = useState(1);
   const PER_PAGE = 50;
@@ -324,6 +490,7 @@ export default function GamesPage({ onNavigate, adminEdit = false }: GamesPagePr
   const [showAdd, setShowAdd] = useState(false);
   const [adminOk, setAdminOk] = useState(false);
   const [adminBusy, setAdminBusy] = useState(false);
+  const [recentTick, setRecentTick] = useState(0);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const isAdminMode = adminEdit && adminOk;
 
@@ -424,12 +591,40 @@ export default function GamesPage({ onNavigate, adminEdit = false }: GamesPagePr
 
   const handlePlay = useCallback((game: Game) => {
     recordPlay(game);
+    pushRecentGame(game.id);
     setPlayCounts((prev) => ({ ...prev, [game.id]: (prev[game.id] || 0) + 1 }));
     if (onNavigate) {
       const resolved = resolveGameUrl(game.url);
       onNavigate(`petezah://gameviewer?url=${encodeURIComponent(resolved)}&title=${encodeURIComponent(game.label)}&gid=${encodeURIComponent(game.id)}`);
     }
   }, [onNavigate]);
+
+  const showCarousels = !search.trim() && activeCategory === "All" && listReady;
+
+  const carouselShelves = (() => {
+    if (!showCarousels) return [] as { title: string; games: Game[] }[];
+    void recentTick;
+    const byId = new Map(allGames.map((g) => [g.id, g]));
+    const recentIds = getRecentGameIds();
+    const recentlyPlayed = recentIds.map((id) => byId.get(id)).filter(Boolean) as Game[];
+    const topGames = [...allGames]
+      .sort((a, b) => (playCounts[b.id] || 0) - (playCounts[a.id] || 0))
+      .filter((g) => (playCounts[g.id] || 0) > 0)
+      .slice(0, 16);
+    const sports = allGames
+      .filter((g) => g.categories.some((c) => /sport/i.test(c)))
+      .slice(0, 16);
+    const action = allGames
+      .filter((g) => g.categories.some((c) => /action|racing|shooting/i.test(c)))
+      .slice(0, 16);
+    const shelves: { title: string; games: Game[] }[] = [];
+    if (recentlyPlayed.length) shelves.push({ title: "Recently Played", games: recentlyPlayed.slice(0, 16) });
+    if (topGames.length) shelves.push({ title: "Top Games", games: topGames });
+    else shelves.push({ title: "Top Games", games: allGames.slice(0, 16) });
+    if (sports.length) shelves.push({ title: "Sports", games: sports });
+    if (action.length) shelves.push({ title: "Action & Racing", games: action });
+    return shelves.slice(0, 4);
+  })();
 
   const handleFav = useCallback((id: string) => {
     setFavorites(prev => {
@@ -624,6 +819,30 @@ export default function GamesPage({ onNavigate, adminEdit = false }: GamesPagePr
             </div>
           ) : (
             <>
+              {showCarousels &&
+                carouselShelves.map((shelf) => (
+                  <GameCarousel
+                    key={shelf.title}
+                    title={shelf.title}
+                    games={shelf.games}
+                    favorites={favorites}
+                    onPlay={handlePlay}
+                    onOptions={setOptionsGame}
+                    onClear={
+                      shelf.title === "Recently Played"
+                        ? () => {
+                            clearRecentGames();
+                            setRecentTick((n) => n + 1);
+                          }
+                        : undefined
+                    }
+                  />
+                ))}
+              {showCarousels && (
+                <h2 className="text-sm font-semibold text-white/90 tracking-tight mb-2.5">
+                  All Games
+                </h2>
+              )}
               <div className="grid gap-3 games-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
                 {visible.map((game, i) => (
                   <GameCard

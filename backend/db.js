@@ -309,6 +309,17 @@ try {
       created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_ai_prompts_created ON ai_prompt_samples(created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS ai_conversation_shares (
+      token TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      revoked INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (conversation_id) REFERENCES ai_conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_ai_shares_convo ON ai_conversation_shares(conversation_id);
   `);
 } catch (e) {
   console.error('ai_conversations migration error:', e);

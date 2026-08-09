@@ -6,6 +6,8 @@ const NATIVE_ID = "1f9ef1ea03eb9743ae2feb0b3f839a92";
 const NATIVE_SRC = `https://pl25832426.effectivecpmnetwork.com/${NATIVE_ID}/invoke.js`;
 const LOADING_SRC =
   "https://pl27983175.effectivecpmnetwork.com/c1/07/27/c10727dadb32856a5f427df5cc7f44ab.js";
+const MONETAG_SRC = "https://quge5.com/88/tag.min.js";
+const MONETAG_ZONE = "268321";
 const INVOKE_HOST = "https://www.highperformanceformat.com";
 
 export function adSrcDoc(key: string, width: number, height: number) {
@@ -82,7 +84,7 @@ const slotShell: CSSProperties = {
 
 export function AdBanner728({ className = "" }: { className?: string }) {
   return (
-    <div className={className} style={{ ...slotShell, minHeight: 110 }}>
+    <div className={className} style={{ ...slotShell, minHeight: 110 }} data-ad-slot="728">
       <AdLabel />
       <AdFrame adKey={KEY_728} width={728} height={90} />
     </div>
@@ -91,7 +93,7 @@ export function AdBanner728({ className = "" }: { className?: string }) {
 
 export function AdBanner320({ className = "" }: { className?: string }) {
   return (
-    <div className={className} style={{ ...slotShell, minHeight: 70 }}>
+    <div className={className} style={{ ...slotShell, minHeight: 70 }} data-ad-slot="320">
       <AdLabel />
       <AdFrame adKey={KEY_320} width={320} height={50} />
     </div>
@@ -145,18 +147,24 @@ export function AdNativeBar() {
 }
 
 const LOADING_HOST_ID = "pz-adsterra-loading-host";
+const MONETAG_HOST_ID = "pz-monetag-loading-host";
 const AD_BLEED_SRC_RE =
-  /effectivecpmnetwork\.com|highperformanceformat\.com|profitablegatecpm\.com|adsterra\.com|senty\.com\.au/i;
+  /effectivecpmnetwork\.com|highperformanceformat\.com|profitablegatecpm\.com|adsterra\.com|senty\.com\.au|quge5\.com|monetag/i;
 
-/** Remove leftover Social Bar / notification widgets from the top document. */
-export function scrubAdsterraLoadingArtifacts() {
+function scrubHost(id: string) {
   try {
-    document.getElementById(LOADING_HOST_ID)?.remove();
+    document.getElementById(id)?.remove();
   } catch {}
+}
+
+/** Remove leftover Social Bar / notification / Monetag widgets from the top document. */
+export function scrubAdsterraLoadingArtifacts() {
+  scrubHost(LOADING_HOST_ID);
+  scrubHost(MONETAG_HOST_ID);
 
   try {
     document
-      .querySelectorAll('script[data-pz-loading-ad="1"]')
+      .querySelectorAll('script[data-pz-loading-ad="1"], script[data-pz-monetag="1"]')
       .forEach((el) => {
         try {
           el.remove();
@@ -164,11 +172,10 @@ export function scrubAdsterraLoadingArtifacts() {
       });
   } catch {}
 
-  // Social Bar injects fixed iframes/widgets as direct body children.
   try {
     for (const el of Array.from(document.body.children)) {
       if (el.id === "root" || el.id === "app" || el.id === "pz-applixir-root") continue;
-      if (el.id === LOADING_HOST_ID) {
+      if (el.id === LOADING_HOST_ID || el.id === MONETAG_HOST_ID) {
         try {
           el.remove();
         } catch {}
@@ -188,7 +195,6 @@ export function scrubAdsterraLoadingArtifacts() {
       const html = (el as HTMLElement).outerHTML?.slice(0, 2500) || "";
       const src = tag === "IFRAME" ? (el as HTMLIFrameElement).src || "" : "";
       if (!AD_BLEED_SRC_RE.test(html) && !AD_BLEED_SRC_RE.test(src)) continue;
-      // Keep intentional in-page banner/native slots.
       if ((el as HTMLElement).closest?.("[data-ad-slot]")) continue;
       try {
         const style = window.getComputedStyle(el);
@@ -206,72 +212,144 @@ export function scrubAdsterraLoadingArtifacts() {
   } catch {}
 }
 
+function mountSandboxedAdScript(opts: {
+  hostId: string;
+  scriptSrc: string;
+  scriptAttrs?: Record<string, string>;
+  zIndex: number;
+}): { host: HTMLDivElement; frame: HTMLIFrameElement; preserved: Set<Element> } {
+  const preserved = new Set<Element>(Array.from(document.body.children));
+  scrubHost(opts.hostId);
+
+  const host = document.createElement("div");
+  host.id = opts.hostId;
+  host.style.cssText = `position:fixed;inset:0;z-index:${opts.zIndex};pointer-events:none;overflow:hidden;background:transparent;`;
+
+  const attrs = Object.entries(opts.scriptAttrs || {})
+    .map(([k, v]) => `${k}="${String(v).replace(/"/g, "&quot;")}"`)
+    .join(" ");
+
+  const frame = document.createElement("iframe");
+  frame.title = "Advertisement";
+  frame.setAttribute(
+    "sandbox",
+    "allow-scripts allow-popups allow-popups-to-escape-sandbox"
+  );
+  frame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+  frame.style.cssText =
+    "position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:auto;background:transparent;";
+  frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden}</style></head><body><script src="${opts.scriptSrc}" ${attrs}><\/script></body></html>`;
+
+  host.appendChild(frame);
+  document.body.appendChild(host);
+  return { host, frame, preserved };
+}
+
+function teardownSandboxedAd(
+  host: HTMLDivElement,
+  frame: HTMLIFrameElement,
+  preserved: Set<Element>
+) {
+  try {
+    frame.srcdoc = "<!DOCTYPE html><html><body></body></html>";
+    frame.src = "about:blank";
+  } catch {}
+  try {
+    host.remove();
+  } catch {}
+  try {
+    for (const el of Array.from(document.body.children)) {
+      if (preserved.has(el)) continue;
+      if (el.id === "root" || el.id === "app" || el.id === "pz-applixir-root") continue;
+      try {
+        el.remove();
+      } catch {}
+    }
+  } catch {}
+}
+
 /**
  * Temporary Social Bar / notification unit for the game/app loader.
  * Runs inside an opaque-origin sandbox so it cannot keep injecting into the
  * top page after the interstitial ends.
  */
-export function playAdsterraLoadingAd(ms = 2800): Promise<"shown" | "skipped"> {
+export function playAdsterraLoadingAd(ms = 3600): Promise<"shown" | "skipped"> {
   return new Promise((resolve) => {
     let settled = false;
-    const preserved = new Set<Element>(Array.from(document.body.children));
-
     scrubAdsterraLoadingArtifacts();
 
-    const host = document.createElement("div");
-    host.id = LOADING_HOST_ID;
-    host.setAttribute("data-pz-loading-host", "1");
-    host.style.cssText =
-      "position:fixed;inset:0;z-index:2147483645;pointer-events:none;overflow:hidden;background:transparent;";
-
-    const frame = document.createElement("iframe");
-    frame.title = "Advertisement";
-    // No allow-same-origin: script cannot reach window.top / parent.document,
-    // which is what leaves notification widgets stuck on the site.
-    frame.setAttribute(
-      "sandbox",
-      "allow-scripts allow-popups allow-popups-to-escape-sandbox"
-    );
-    frame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
-    frame.style.cssText =
-      "position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:auto;background:transparent;";
-    frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden}</style></head><body><script src="${LOADING_SRC}"><\/script></body></html>`;
+    let pack: ReturnType<typeof mountSandboxedAdScript> | null = null;
+    try {
+      pack = mountSandboxedAdScript({
+        hostId: LOADING_HOST_ID,
+        scriptSrc: LOADING_SRC,
+        scriptAttrs: { "data-cfasync": "false", "data-pz-loading-ad": "1" },
+        zIndex: 2147483645,
+      });
+    } catch {
+      resolve("skipped");
+      return;
+    }
 
     const finish = (r: "shown" | "skipped") => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      try {
-        frame.srcdoc = "<!DOCTYPE html><html><body></body></html>";
-        frame.src = "about:blank";
-      } catch {}
-      try {
-        host.remove();
-      } catch {}
-      // Anything the network still managed to attach on top — remove it.
-      try {
-        for (const el of Array.from(document.body.children)) {
-          if (preserved.has(el)) continue;
-          if (el.id === "root" || el.id === "app" || el.id === "pz-applixir-root") continue;
-          try {
-            el.remove();
-          } catch {}
-        }
-      } catch {}
+      if (pack) teardownSandboxedAd(pack.host, pack.frame, pack.preserved);
       scrubAdsterraLoadingArtifacts();
       resolve(r);
     };
 
     const timer = window.setTimeout(() => finish("shown"), Math.max(1200, ms));
-    frame.onerror = () => finish("skipped");
-
-    try {
-      host.appendChild(frame);
-      document.body.appendChild(host);
-    } catch {
-      finish("skipped");
-    }
+    pack.frame.onerror = () => finish("skipped");
   });
 }
 
-export { LOADING_SRC, KEY_728, KEY_320, NATIVE_ID, INVOKE_HOST };
+/** Monetag tag for the game loader — sandboxed + scrubbed after the interstitial. */
+export function playMonetagLoadingAd(ms = 3600): Promise<"shown" | "skipped"> {
+  return new Promise((resolve) => {
+    let settled = false;
+
+    let pack: ReturnType<typeof mountSandboxedAdScript> | null = null;
+    try {
+      pack = mountSandboxedAdScript({
+        hostId: MONETAG_HOST_ID,
+        scriptSrc: MONETAG_SRC,
+        scriptAttrs: {
+          "data-zone": MONETAG_ZONE,
+          "data-cfasync": "false",
+          "data-pz-monetag": "1",
+        },
+        zIndex: 2147483644,
+      });
+    } catch {
+      resolve("skipped");
+      return;
+    }
+
+    const finish = (r: "shown" | "skipped") => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (pack) teardownSandboxedAd(pack.host, pack.frame, pack.preserved);
+      scrubAdsterraLoadingArtifacts();
+      resolve(r);
+    };
+
+    const timer = window.setTimeout(() => finish("shown"), Math.max(1200, ms));
+    pack.frame.onerror = () => finish("skipped");
+  });
+}
+
+/** Run Adsterra Social Bar + Monetag together for the loader, then scrub both. */
+export async function playLoaderNetworkAds(ms = 3600): Promise<"shown" | "skipped"> {
+  const results = await Promise.allSettled([
+    playAdsterraLoadingAd(ms),
+    playMonetagLoadingAd(ms),
+  ]);
+  scrubAdsterraLoadingArtifacts();
+  const anyShown = results.some((r) => r.status === "fulfilled" && r.value === "shown");
+  return anyShown ? "shown" : "skipped";
+}
+
+export { LOADING_SRC, KEY_728, KEY_320, NATIVE_ID, INVOKE_HOST, MONETAG_SRC, MONETAG_ZONE };

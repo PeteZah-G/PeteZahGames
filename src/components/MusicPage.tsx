@@ -152,7 +152,14 @@ export default function MusicPage({
   onNavigate: (url: string) => void;
   initialUrl?: string;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => {
+    try {
+      if (!initialUrl) return "";
+      return new URLSearchParams(initialUrl.split("?")[1] || "").get("q") || "";
+    } catch {
+      return "";
+    }
+  });
   const [results, setResults] = useState<Track[]>([]);
   const [trending, setTrending] = useState<Track[]>([]);
   const [sections, setSections] = useState<BrowseSection[]>([]);
@@ -161,7 +168,15 @@ export default function MusicPage({
   const [error, setError] = useState("");
   const [playlists, setPlaylists] = useState<Playlist[]>(loadPlaylists);
   const [liked, setLiked] = useState<Track[]>(loadLiked);
-  const [nav, setNav] = useState<NavView>("browse");
+  const [nav, setNav] = useState<NavView>(() => {
+    try {
+      if (!initialUrl) return "browse";
+      const q = new URLSearchParams(initialUrl.split("?")[1] || "").get("q");
+      return q ? "search" : "browse";
+    } catch {
+      return "browse";
+    }
+  });
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
   const [queue, setQueue] = useState<Track[]>([]);
   const [queueIndex, setQueueIndex] = useState(0);

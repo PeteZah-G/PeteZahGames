@@ -1,4 +1,4 @@
-import { playAdsterraLoadingAd, scrubAdsterraLoadingArtifacts } from "@/components/ads/Adsterra";
+import { playLoaderNetworkAds, scrubAdsterraLoadingArtifacts } from "@/components/ads/Adsterra";
 
 const SDK_SRC = "https://cdn.applixir.com/applixir.app.v6.1.0.js";
 const CONTAINER_ID = "pz-applixir-root";
@@ -166,7 +166,7 @@ export async function runInterstitial(
   }
   const reason = "reason" in gate ? gate.reason : undefined;
   if (reason === "disabled" || reason === "network" || reason === "skip") {
-    await playAdsterraLoadingAd(2600);
+    await playLoaderNetworkAds(3600);
     return "fallback";
   }
   return "skipped";

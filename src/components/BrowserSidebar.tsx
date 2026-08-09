@@ -34,6 +34,7 @@ interface SidebarProps {
   onTabClose: (id: string) => void;
   onTabPin: (id: string) => void;
   onTabSplit: (id: string) => void;
+  onTabReorder?: (orderedIds: string[]) => void;
   onAddTab: () => void;
   onToggleCollapse: () => void;
   onAccountClick: () => void;
@@ -44,6 +45,7 @@ interface SidebarProps {
     avatar_url?: string;
     is_admin?: number;
   } | null;
+  hideTabs?: boolean;
 }
 
 const SIDEBAR_FEATURES = [
@@ -69,13 +71,14 @@ export default function Sidebar({
   onTabClose,
   onTabPin,
   onTabSplit,
+  onTabReorder,
   onAddTab,
   onToggleCollapse,
   onAccountClick,
   onNavigate,
   user,
+  hideTabs = false,
 }: SidebarProps) {
-  const allTabs = [...pinnedTabs, ...unpinnedTabs];
   const displayName = user?.username || user?.email?.split("@")[0] || "Guest";
   const isLoggedIn = !!user;
   const [isPhone, setIsPhone] = useState(false);
@@ -148,16 +151,52 @@ export default function Sidebar({
       {collapsed ? (
         <div className="flex-1 flex flex-col items-center overflow-hidden min-h-0">
           <div className="flex-1 overflow-y-auto scrollbar-none py-1 space-y-1 min-h-0 w-full">
-            <TabList
-              label="Tabs"
-              tabs={allTabs}
-              activeTabId={activeTabId}
-              collapsed
-              onSelect={onTabSelect}
-              onClose={onTabClose}
-              onTogglePin={onTabPin}
-              onToggleSplit={onTabSplit}
-            />
+            {!hideTabs && pinnedTabs.length > 0 && (
+              <TabList
+                label="Pinned"
+                tabs={pinnedTabs}
+                activeTabId={activeTabId}
+                pinned
+                collapsed
+                onSelect={onTabSelect}
+                onClose={onTabClose}
+                onTogglePin={onTabPin}
+                onToggleSplit={onTabSplit}
+                onReorder={(ids) =>
+                  onTabReorder?.([...ids, ...unpinnedTabs.map((t) => t.id)])
+                }
+              />
+            )}
+            {!hideTabs && (
+              <TabList
+                label="Tabs"
+                tabs={unpinnedTabs}
+                activeTabId={activeTabId}
+                collapsed
+                onSelect={onTabSelect}
+                onClose={onTabClose}
+                onTogglePin={onTabPin}
+                onToggleSplit={onTabSplit}
+                onReorder={(ids) =>
+                  onTabReorder?.([...pinnedTabs.map((t) => t.id), ...ids])
+                }
+              />
+            )}
+            {hideTabs && (
+              <div className="flex flex-col items-center gap-0.5 py-1">
+                {SIDEBAR_FEATURES.map(({ icon: Icon, label, url }) => (
+                  <button
+                    key={label}
+                    onClick={() => onNavigate(url)}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 transition-all"
+                    style={{ color: "hsla(0,0%,100%,0.78)" }}
+                    title={label}
+                  >
+                    <Icon size={13} />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div
@@ -205,15 +244,42 @@ export default function Sidebar({
           className="flex-1 flex flex-col overflow-hidden min-h-0"
         >
           <div className="flex-1 overflow-y-auto scrollbar-none space-y-0.5 pb-2 min-h-0">
-            <TabList
-              label="Tabs"
-              tabs={allTabs}
-              activeTabId={activeTabId}
-              onSelect={onTabSelect}
-              onClose={onTabClose}
-              onTogglePin={onTabPin}
-              onToggleSplit={onTabSplit}
-            />
+            {!hideTabs && pinnedTabs.length > 0 && (
+              <TabList
+                label="Pinned"
+                tabs={pinnedTabs}
+                activeTabId={activeTabId}
+                pinned
+                onSelect={onTabSelect}
+                onClose={onTabClose}
+                onTogglePin={onTabPin}
+                onToggleSplit={onTabSplit}
+                onReorder={(ids) =>
+                  onTabReorder?.([...ids, ...unpinnedTabs.map((t) => t.id)])
+                }
+              />
+            )}
+            {!hideTabs && (
+              <TabList
+                label="Tabs"
+                tabs={unpinnedTabs}
+                activeTabId={activeTabId}
+                onSelect={onTabSelect}
+                onClose={onTabClose}
+                onTogglePin={onTabPin}
+                onToggleSplit={onTabSplit}
+                onReorder={(ids) =>
+                  onTabReorder?.([...pinnedTabs.map((t) => t.id), ...ids])
+                }
+              />
+            )}
+            {hideTabs && (
+              <div className="px-2 pt-2">
+                <p className="px-2 py-1.5 text-[10px] font-mono uppercase tracking-[0.15em] text-foreground/40">
+                  Shortcuts
+                </p>
+              </div>
+            )}
           </div>
 
           <div

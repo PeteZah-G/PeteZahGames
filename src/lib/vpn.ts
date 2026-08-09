@@ -56,8 +56,38 @@ export const VPN_REGION_DEFS: VpnRegionDef[] = [
   },
 ];
 
+export function getVpnRegions(): VpnRegionDef[] {
+  const list = [...VPN_REGION_DEFS];
+  try {
+    const custom = (localStorage.getItem("proxServer") || "").trim();
+    if (/^wss?:\/\//i.test(custom) && custom.endsWith("/")) {
+      list.unshift({
+        id: "custom",
+        label: "Custom",
+        sublabel: "Your Wisp",
+        wisp: custom,
+        config: "config.js",
+      });
+    }
+  } catch {}
+  return list;
+}
+
 export async function applyVpnRegion(regionId: string) {
-  const region = VPN_REGION_DEFS.find((r) => r.id === regionId);
+  if (regionId === "custom") {
+    const custom = (localStorage.getItem("proxServer") || "").trim();
+    if (!/^wss?:\/\//i.test(custom) || !custom.endsWith("/")) return;
+  }
+  const region =
+    regionId === "custom"
+      ? {
+          id: "custom",
+          label: "Custom",
+          sublabel: "Your Wisp",
+          wisp: (localStorage.getItem("proxServer") || "").trim(),
+          config: "config.js",
+        }
+      : VPN_REGION_DEFS.find((r) => r.id === regionId);
   if (!region) return;
 
   try {
@@ -76,11 +106,19 @@ export async function applyVpnRegion(regionId: string) {
 
     const cfg = (window as any)._CONFIG;
     const wispUrl =
-      cfg?.wispurl ??
-      (location.protocol === "https:" ? "wss" : "ws") +
-        "://" +
-        location.host +
-        region.wisp;
+      regionId === "custom"
+        ? region.wisp
+        : cfg?.wispurl ??
+          (location.protocol === "https:" ? "wss" : "ws") +
+            "://" +
+            location.host +
+            region.wisp;
+    if (regionId === "custom") {
+      try {
+        localStorage.setItem("proxServer", region.wisp);
+        if ((window as any)._CONFIG) (window as any)._CONFIG.wispurl = region.wisp;
+      } catch {}
+    }
 
     if (getMuxRoot()) {
       const conn = openMuxConnection(PX.muxWorker);

@@ -78,6 +78,14 @@ export default function Toolbar({
   const inputRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const suggestWrapRef = useRef<HTMLDivElement>(null);
+  const [suggestions, setSuggestions] = useState<
+    { type: string; label: string; url: string; tag?: string; action?: string; imageUrl?: string }[]
+  >([]);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const suggestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestAbort = useRef<AbortController | null>(null);
   const [mapsReady, setMapsReady] = useState(false);
 
   useEffect(() => {
@@ -101,6 +109,78 @@ export default function Toolbar({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [menuOpen]);
+
+  useEffect(() => {
+    if (!isUrlFocused) {
+      setSuggestOpen(false);
+      setSuggestions([]);
+      setActiveIdx(-1);
+      return;
+    }
+    const q = String(urlInput || "").trim();
+    if (q.length < 1 || q.startsWith("http") || q.startsWith("petezah://") || q.includes(".")) {
+      setSuggestions([]);
+      setSuggestOpen(false);
+      setActiveIdx(-1);
+      return;
+    }
+    if (suggestTimer.current) clearTimeout(suggestTimer.current);
+    suggestTimer.current = setTimeout(async () => {
+      try {
+        suggestAbort.current?.abort();
+        const ac = new AbortController();
+        suggestAbort.current = ac;
+        const r = await fetch(`/api/search/suggest?q=${encodeURIComponent(q.slice(0, 80))}`, {
+          signal: ac.signal,
+          credentials: "same-origin",
+        });
+        if (!r.ok) return;
+        const d = await r.json();
+        const list = Array.isArray(d?.suggestions) ? d.suggestions : [];
+        setSuggestions(list.slice(0, 18));
+        setSuggestOpen(list.length > 0);
+        setActiveIdx(-1);
+      } catch {}
+    }, 180);
+    return () => {
+      if (suggestTimer.current) clearTimeout(suggestTimer.current);
+    };
+  }, [urlInput, isUrlFocused]);
+
+  useEffect(() => {
+    if (!suggestOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (suggestWrapRef.current && !suggestWrapRef.current.contains(e.target as Node)) {
+        setSuggestOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [suggestOpen]);
+
+  const pickSuggestion = (item: { url: string; label: string; type: string }) => {
+    setSuggestOpen(false);
+    setActiveIdx(-1);
+    if (item.type === "web") {
+      onUrlChange(item.label);
+      try {
+        const eng = localStorage.getItem("searchEngine") || "ddg";
+        const map: Record<string, string> = {
+          ddg: "https://duckduckgo.com/?q=",
+          bing: "https://www.bing.com/search?q=",
+          google: "https://www.google.com/search?q=",
+          startpage: "https://www.startpage.com/sp/search?query=",
+          brave: "https://search.brave.com/search?q=",
+        };
+        onNavigate(`${map[eng] || map.ddg}${encodeURIComponent(item.label)}`);
+      } catch {
+        onNavigate(`https://duckduckgo.com/?q=${encodeURIComponent(item.label)}`);
+      }
+    } else {
+      onNavigate(item.url);
+    }
+    onUrlFocus(false);
+  };
 
   const rawDisplay = isUrlFocused
     ? urlInput
@@ -212,7 +292,8 @@ export default function Toolbar({
       </div>
 
       <div
-        className={`flex-1 flex items-center gap-2 rounded-xl px-3 py-1.5 mx-2 transition-all duration-200 cursor-text ${
+        ref={suggestWrapRef}
+        className={`relative flex-1 flex items-center gap-2 rounded-xl px-3 py-1.5 mx-2 transition-all duration-200 cursor-text ${
           isUrlFocused ? "ring-1 ring-white/20" : "border border-white/10"
         }`}
         style={{ background: isUrlFocused ? "hsla(210, 40%, 90%, 0.08)" : "hsla(210, 40%, 90%, 0.05)" }}
@@ -252,10 +333,36 @@ export default function Toolbar({
             onUrlChange(activeTab?.url || "");
             onUrlFocus(true);
           }}
-          onBlur={() => onUrlFocus(false)}
+          onBlur={() => {
+            window.setTimeout(() => {
+              if (!suggestWrapRef.current?.contains(document.activeElement)) {
+                onUrlFocus(false);
+              }
+            }, 120);
+          }}
           onKeyDown={(e) => {
-            if (e.key === "Enter") onNavigate(urlInput);
-            if (e.key === "Escape") onUrlFocus(false);
+            if (e.key === "Escape") {
+              setSuggestOpen(false);
+              onUrlFocus(false);
+              return;
+            }
+            if (suggestOpen && suggestions.length > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+              e.preventDefault();
+              setActiveIdx((prev) => {
+                if (e.key === "ArrowDown") return prev < suggestions.length - 1 ? prev + 1 : 0;
+                return prev > 0 ? prev - 1 : suggestions.length - 1;
+              });
+              return;
+            }
+            if (e.key === "Enter") {
+              if (suggestOpen && activeIdx >= 0 && suggestions[activeIdx]) {
+                e.preventDefault();
+                pickSuggestion(suggestions[activeIdx]);
+                return;
+              }
+              onNavigate(urlInput);
+              setSuggestOpen(false);
+            }
           }}
           placeholder="Search or enter URL"
           className="pz-url-input flex-1 bg-transparent text-[12px] outline-none placeholder:text-white/35"
@@ -269,6 +376,9 @@ export default function Toolbar({
             fontVariantLigatures: urlObfuscated ? "none" : undefined,
           }}
           spellCheck={false}
+          role="combobox"
+          aria-expanded={suggestOpen}
+          aria-autocomplete="list"
         />
 
         {!isUrlFocused && barTitle && (
@@ -280,6 +390,88 @@ export default function Toolbar({
             {barTitle}
           </span>
         )}
+
+        <AnimatePresence>
+          {isUrlFocused && suggestOpen && suggestions.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="absolute left-0 right-0 top-full mt-1.5 z-[80] rounded-xl overflow-hidden"
+              style={{
+                background: "hsla(220, 32%, 8%, 0.96)",
+                border: "1px solid hsla(210, 40%, 80%, 0.12)",
+                boxShadow: "0 16px 40px rgba(0,0,0,0.45)",
+                backdropFilter: "blur(16px)",
+                maxHeight: 280,
+                overflowY: "auto",
+              }}
+            >
+              {suggestions.map((s, i) => {
+                const active = i === activeIdx;
+                const tag =
+                  s.tag ||
+                  (s.type === "web" ? "Web" : s.type === "games" ? "Game" : s.type === "apps" ? "Apps" : "");
+                const thumb = s.imageUrl && (s.type === "games" || s.type === "apps") ? s.imageUrl : "";
+                return (
+                  <button
+                    key={`${s.type}-${s.label}-${i}`}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => pickSuggestion(s)}
+                    onMouseEnter={() => setActiveIdx(i)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
+                    style={{
+                      background: active ? "hsla(0,0%,100%,0.07)" : "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {thumb ? (
+                      <img
+                        src={thumb}
+                        alt=""
+                        width={28}
+                        height={28}
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 7,
+                          objectFit: "cover",
+                          flexShrink: 0,
+                          background: "hsla(0,0%,100%,0.06)",
+                        }}
+                      />
+                    ) : (
+                      <Search size={11} style={{ color: "hsla(0,0%,100%,0.35)", flexShrink: 0 }} />
+                    )}
+                    <span className="flex-1 min-w-0 truncate text-[12px]" style={{ color: "hsla(0,0%,100%,0.88)" }}>
+                      {s.type === "shortcut" ? (
+                        <>
+                          <span style={{ color: "hsla(0,0%,100%,0.45)" }}>{s.tag}: </span>
+                          {s.label}
+                        </>
+                      ) : (
+                        s.label
+                      )}
+                    </span>
+                    {s.type !== "shortcut" && tag ? (
+                      <span
+                        className="text-[9px] px-1.5 py-0.5 rounded-md flex-shrink-0"
+                        style={{
+                          background: s.type === "games" ? "hsla(45, 80%, 50%, 0.16)" : "hsla(0,0%,100%,0.06)",
+                          color: s.type === "games" ? "hsla(45, 90%, 70%, 0.95)" : "hsla(0,0%,100%,0.4)",
+                        }}
+                      >
+                        {tag}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="flex items-center gap-0.5 flex-shrink-0" style={{ color: "hsla(0,0%,100%,0.78)" }}>

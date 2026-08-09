@@ -22,7 +22,7 @@ export interface BookmarkGroup {
 }
 
 
-function getBookmarks(): { items: BookmarkItem[]; groups: BookmarkGroup[] } {
+export function getBookmarks(): { items: BookmarkItem[]; groups: BookmarkGroup[] } {
   try {
     const raw = localStorage.getItem("petezah-bookmarks");
     if (raw) return JSON.parse(raw);
@@ -31,6 +31,58 @@ function getBookmarks(): { items: BookmarkItem[]; groups: BookmarkGroup[] } {
 }
 function saveBookmarks(data: { items: BookmarkItem[]; groups: BookmarkGroup[] }) {
   try { localStorage.setItem("petezah-bookmarks", JSON.stringify(data)); requestSyncSoon(); } catch {}
+}
+
+const DEFAULT_HOME_BOOKMARKS: BookmarkItem[] = [
+  {
+    id: "bm-instagram",
+    title: "Instagram",
+    url: "https://instagram.com",
+    favicon: "/icons/bookmarks/instagram.svg",
+    groupId: null,
+    createdAt: 1,
+  },
+  {
+    id: "bm-spotify",
+    title: "Spotify",
+    url: "https://spotify.com",
+    favicon: "/icons/bookmarks/spotify.svg",
+    groupId: null,
+    createdAt: 2,
+  },
+  {
+    id: "bm-tiktok",
+    title: "TikTok",
+    url: "https://tiktok.com",
+    favicon: "/icons/bookmarks/tiktok.svg",
+    groupId: null,
+    createdAt: 3,
+  },
+];
+
+export function ensureDefaultBookmarks() {
+  const data = getBookmarks();
+  const iconById: Record<string, string> = {
+    "bm-instagram": "/icons/bookmarks/instagram.svg",
+    "bm-spotify": "/icons/bookmarks/spotify.svg",
+    "bm-tiktok": "/icons/bookmarks/tiktok.svg",
+  };
+  let changed = false;
+  if (data.items.length === 0 && data.groups.length === 0) {
+    const seeded = { items: DEFAULT_HOME_BOOKMARKS, groups: [] as BookmarkGroup[] };
+    saveBookmarks(seeded);
+    return seeded;
+  }
+  data.items = data.items.map((item) => {
+    const nextIcon = iconById[item.id];
+    if (nextIcon && item.favicon !== nextIcon) {
+      changed = true;
+      return { ...item, favicon: nextIcon };
+    }
+    return item;
+  });
+  if (changed) saveBookmarks(data);
+  return data;
 }
 
 export function addBookmark(url: string, title: string) {
