@@ -10,6 +10,140 @@ const UA =
 let cachedClientId = null;
 let clientIdFetchedAt = 0;
 
+const browseCache = { at: 0, sections: null };
+const ytSearchCache = new Map();
+
+const SEED_SECTIONS = [
+  {
+    id: 'top',
+    title: 'Top Hits',
+    icon: 'flame',
+    tracks: [
+      { id: 'yt51zjlMhdSTE', title: 'Espresso', artist: 'Sabrina Carpenter', artwork: 'https://i.ytimg.com/vi/51zjlMhdSTE/hqdefault.jpg', duration: 176000 },
+      { id: 'ytd5gf9dXbPi0', title: 'BIRDS OF A FEATHER', artist: 'Billie Eilish', artwork: 'https://i.ytimg.com/vi/d5gf9dXbPi0/hqdefault.jpg', duration: 212000 },
+      { id: 'ytPfH7jq_uSCM', title: 'Die With A Smile', artist: 'Lady Gaga & Bruno Mars', artwork: 'https://i.ytimg.com/vi/PfH7jq_uSCM/hqdefault.jpg', duration: 252000 },
+      { id: 'yt8Ebqe2Dbzls', title: 'APT.', artist: 'ROSÉ & Bruno Mars', artwork: 'https://i.ytimg.com/vi/8Ebqe2Dbzls/hqdefault.jpg', duration: 170000 },
+      { id: 'ytnZjTtuNR3Og', title: 'A Bar Song (Tipsy)', artist: 'Shaboozey', artwork: 'https://i.ytimg.com/vi/nZjTtuNR3Og/hqdefault.jpg', duration: 172000 },
+      { id: 'ytFkOpwodhROI', title: 'Lose Control', artist: 'Teddy Swims', artwork: 'https://i.ytimg.com/vi/FkOpwodhROI/hqdefault.jpg', duration: 211000 },
+      { id: 'ytHU08BcK5SUY', title: 'Beautiful Things', artist: 'Benson Boone', artwork: 'https://i.ytimg.com/vi/HU08BcK5SUY/hqdefault.jpg', duration: 181000 },
+      { id: 'yt1RKqOmSkGgM', title: 'Good Luck, Babe!', artist: 'Chappell Roan', artwork: 'https://i.ytimg.com/vi/1RKqOmSkGgM/hqdefault.jpg', duration: 219000 },
+      { id: 'ytW_YOJWZIjxo', title: "That's So True", artist: 'Gracie Abrams', artwork: 'https://i.ytimg.com/vi/W_YOJWZIjxo/hqdefault.jpg', duration: 167000 },
+      { id: 'ytkpwunIatorM', title: 'Ordinary', artist: 'Alex Warren', artwork: 'https://i.ytimg.com/vi/kpwunIatorM/hqdefault.jpg', duration: 188000 },
+      { id: 'ytmhTiOYFF0wg', title: 'Messy', artist: 'Lola Young', artwork: 'https://i.ytimg.com/vi/mhTiOYFF0wg/hqdefault.jpg', duration: 285000 },
+      { id: 'ytm0NZ-aH0G1g', title: 'Sailor Song', artist: 'Gigi Perez', artwork: 'https://i.ytimg.com/vi/m0NZ-aH0G1g/hqdefault.jpg', duration: 211000 },
+    ],
+  },
+  {
+    id: 'pop',
+    title: 'Pop',
+    icon: 'sparkles',
+    tracks: [
+      { id: 'ytzAgVtzhjfCA', title: 'Please Please Please', artist: 'Sabrina Carpenter', artwork: 'https://i.ytimg.com/vi/zAgVtzhjfCA/hqdefault.jpg', duration: 187000 },
+      { id: 'ytz9Q9OzL_wI8', title: 'Taste', artist: 'Sabrina Carpenter', artwork: 'https://i.ytimg.com/vi/z9Q9OzL_wI8/hqdefault.jpg', duration: 158000 },
+      { id: 'ytic8j13piAhQ', title: 'Cruel Summer', artist: 'Taylor Swift', artwork: 'https://i.ytimg.com/vi/ic8j13piAhQ/hqdefault.jpg', duration: 180000 },
+      { id: 'ytV1Z586zoeeE', title: 'As It Was', artist: 'Harry Styles', artwork: 'https://i.ytimg.com/vi/V1Z586zoeeE/hqdefault.jpg', duration: 166000 },
+      { id: 'ytXqN2qFvY64U', title: 'Anti-Hero', artist: 'Taylor Swift', artwork: 'https://i.ytimg.com/vi/XqN2qFvY64U/hqdefault.jpg', duration: 204000 },
+      { id: 'ytWHuBW3qKm9g', title: 'Levitating', artist: 'Dua Lipa', artwork: 'https://i.ytimg.com/vi/WHuBW3qKm9g/hqdefault.jpg', duration: 221000 },
+      { id: 'ytvp6XdbG3AhA', title: 'Pink Pony Club', artist: 'Chappell Roan', artwork: 'https://i.ytimg.com/vi/vp6XdbG3AhA/hqdefault.jpg', duration: 259000 },
+      { id: 'ytHU08BcK5SUY', title: 'Beautiful Things', artist: 'Benson Boone', artwork: 'https://i.ytimg.com/vi/HU08BcK5SUY/hqdefault.jpg', duration: 181000 },
+    ],
+  },
+  {
+    id: 'hiphop',
+    title: 'Hip-Hop',
+    icon: 'zap',
+    tracks: [
+      { id: 'ytT6eK-2OQtew', title: 'Not Like Us', artist: 'Kendrick Lamar', artwork: 'https://i.ytimg.com/vi/T6eK-2OQtew/hqdefault.jpg', duration: 274000 },
+      { id: 'ytHfWLgELllZs', title: 'luther', artist: 'Kendrick Lamar & SZA', artwork: 'https://i.ytimg.com/vi/HfWLgELllZs/hqdefault.jpg', duration: 178000 },
+      { id: 'ytU-l4ya3ejko', title: 'FE!N', artist: 'Travis Scott', artwork: 'https://i.ytimg.com/vi/U-l4ya3ejko/hqdefault.jpg', duration: 194000 },
+      { id: 'ytd-JBBNg8YKs', title: 'SICKO MODE', artist: 'Travis Scott', artwork: 'https://i.ytimg.com/vi/d-JBBNg8YKs/hqdefault.jpg', duration: 315000 },
+      { id: 'ytm1a_GqJf02M', title: "God's Plan", artist: 'Drake', artwork: 'https://i.ytimg.com/vi/m1a_GqJf02M/hqdefault.jpg', duration: 199000 },
+      { id: 'yti9PSG5mFYoo', title: 'Industry Baby', artist: 'Lil Nas X & Jack Harlow', artwork: 'https://i.ytimg.com/vi/i9PSG5mFYoo/hqdefault.jpg', duration: 229000 },
+    ],
+  },
+  {
+    id: 'rnb',
+    title: 'R&B',
+    icon: 'heart',
+    tracks: [
+      { id: 'ytSv5yCzPCkv8', title: 'Snooze', artist: 'SZA', artwork: 'https://i.ytimg.com/vi/Sv5yCzPCkv8/hqdefault.jpg', duration: 204000 },
+      { id: 'ytSQnc1QibapQ', title: 'Kill Bill', artist: 'SZA', artwork: 'https://i.ytimg.com/vi/SQnc1QibapQ/hqdefault.jpg', duration: 156000 },
+      { id: 'ytfHI8X4OXluQ', title: 'Blinding Lights', artist: 'The Weeknd', artwork: 'https://i.ytimg.com/vi/fHI8X4OXluQ/hqdefault.jpg', duration: 204000 },
+      { id: 'ytu6lihZAcy4s', title: 'Save Your Tears', artist: 'The Weeknd', artwork: 'https://i.ytimg.com/vi/u6lihZAcy4s/hqdefault.jpg', duration: 217000 },
+      { id: 'ytmX19AV35PhI', title: 'Timeless', artist: 'The Weeknd & Playboi Carti', artwork: 'https://i.ytimg.com/vi/mX19AV35PhI/hqdefault.jpg', duration: 257000 },
+      { id: 'ytHfWLgELllZs', title: 'luther', artist: 'Kendrick Lamar & SZA', artwork: 'https://i.ytimg.com/vi/HfWLgELllZs/hqdefault.jpg', duration: 178000 },
+    ],
+  },
+  {
+    id: 'chill',
+    title: 'Chill',
+    icon: 'radio',
+    tracks: [
+      { id: 'ytFvOpPeKSf_4', title: 'Glimpse of Us', artist: 'Joji', artwork: 'https://i.ytimg.com/vi/FvOpPeKSf_4/hqdefault.jpg', duration: 234000 },
+      { id: 'ytLUXu4aTnK7E', title: 'Slow Dancing in the Dark', artist: 'Joji', artwork: 'https://i.ytimg.com/vi/LUXu4aTnK7E/hqdefault.jpg', duration: 210000 },
+      { id: 'ytApXoWvfEYVU', title: 'Sunflower', artist: 'Post Malone & Swae Lee', artwork: 'https://i.ytimg.com/vi/ApXoWvfEYVU/hqdefault.jpg', duration: 162000 },
+      { id: 'ytpQV0WEdT_OE', title: 'Circles', artist: 'Post Malone', artwork: 'https://i.ytimg.com/vi/pQV0WEdT_OE/hqdefault.jpg', duration: 216000 },
+      { id: 'ytKT7F15T9VBI', title: 'Heat Waves', artist: 'Glass Animals', artwork: 'https://i.ytimg.com/vi/KT7F15T9VBI/hqdefault.jpg', duration: 239000 },
+      { id: 'ytFkOpwodhROI', title: 'Lose Control', artist: 'Teddy Swims', artwork: 'https://i.ytimg.com/vi/FkOpwodhROI/hqdefault.jpg', duration: 211000 },
+    ],
+  },
+];
+
+function normalizeSeedTrack(t) {
+  const vid = String(t.id || '').startsWith('yt') ? String(t.id).slice(2) : '';
+  if (!/^[\w-]{11}$/.test(vid)) return null;
+  return {
+    id: `yt${vid}`,
+    title: t.title,
+    artist: t.artist,
+    artwork: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
+    duration: Number(t.duration) || 0,
+    permalink_url: `https://www.youtube.com/watch?v=${vid}`,
+    genre: null,
+    streamable: true,
+    source: 'yt',
+  };
+}
+
+function seedSections() {
+  return SEED_SECTIONS.map((s) => ({
+    id: s.id,
+    title: s.title,
+    icon: s.icon,
+    tracks: s.tracks.map(normalizeSeedTrack).filter(Boolean),
+  }));
+}
+
+function seedFlat() {
+  const seen = new Set();
+  const out = [];
+  for (const s of seedSections()) {
+    for (const t of s.tracks) {
+      if (seen.has(t.id)) continue;
+      seen.add(t.id);
+      out.push(t);
+    }
+  }
+  return out;
+}
+
+function parseTrackId(raw) {
+  const id = String(raw || '').trim();
+  if (!id || id.length > 64) return null;
+  if (/^yt[\w-]{11}$/.test(id)) return { kind: 'yt', id, videoId: id.slice(2) };
+  if (/^[\w-]{11}$/.test(id) && !/^\d+$/.test(id)) return { kind: 'yt', id: `yt${id}`, videoId: id };
+  if (/^it\d{1,18}$/.test(id)) return { kind: 'it', id, itunesId: id.slice(2) };
+  if (/^\d{6,18}$/.test(id)) return { kind: 'sc', id };
+  return null;
+}
+
+function sanitizeQuery(q) {
+  return String(q || '')
+    .replace(/[<>{}[\]\\]/g, '')
+    .trim()
+    .slice(0, 120);
+}
+
 async function resolveClientId() {
   if (cachedClientId && Date.now() - clientIdFetchedAt < 1000 * 60 * 60 * 6) {
     return cachedClientId;
@@ -45,17 +179,13 @@ async function resolveClientId() {
 
 function mapTrack(t) {
   if (!t || !t.id) return null;
-  const artwork =
-    t.artwork_url ||
-    t.user?.avatar_url ||
-    null;
+  const artwork = t.artwork_url || t.user?.avatar_url || null;
   const followers = Number(t.user?.followers_count || 0);
   const verified = !!(t.user?.verified || t.user?.badges?.verified || t.user?.badges?.pro_unlimited || t.user?.badges?.pro);
   const transcodings = t.media?.transcodings || [];
   const hasProgressive = transcodings.some((x) => x?.format?.protocol === 'progressive' && x?.url);
   const hasHls = transcodings.some((x) => x?.format?.protocol === 'hls' && x?.url);
   const policy = t.policy || null;
-  // Monetized major-label tracks are encrypted-HLS only and cannot play in <audio>.
   const streamable =
     policy === 'BLOCK'
       ? false
@@ -77,20 +207,18 @@ function mapTrack(t) {
     followers,
     verified,
     playbackCount: Number(t.playback_count || 0),
+    source: 'sc',
   };
 }
 
 const JUNK_TITLE =
-  /\b(playlist|mashup|mix|1\s*hour|one\s*hour|kumpulan|lagu|cover|nightcore|sped\s*up|slowed|reverb|bootleg|compilation|mega\s*mix|year\s*mix|tiktok\s*viral|best\s+of|top\s+\d+|mp3|\.mp3|full\s+album)\b/i;
-const NON_LATIN_HEAVY = /[\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/;
+  /\b(playlist|mashup|mix|1\s*hour|one\s*hour|kumpulan|lagu|cover|nightcore|sped\s*up|slowed|reverb|bootleg|compilation|mega\s*mix|year\s*mix|tiktok\s*viral|best\s+of|top\s+\d+|mp3|\.mp3|full\s+album|lyrics?\s+video|audio\s+visualizer)\b/i;
 
 function isQualityTrack(t, { strict = true } = {}) {
   if (!t || !t.id || !t.title) return false;
   if (!t.artwork) return false;
   if (JUNK_TITLE.test(t.title)) return false;
   if (t.title.length > 80) return false;
-  if (NON_LATIN_HEAVY.test(t.title) || NON_LATIN_HEAVY.test(t.artist || '')) return false;
-  // Prefer real songs: 45s–7.5min
   const dur = Number(t.duration || 0);
   if (dur > 0 && (dur < 45_000 || dur > 450_000)) return false;
   if (strict) {
@@ -110,21 +238,11 @@ function stripMeta(t) {
     artist: t.artist,
     artwork: t.artwork,
     duration: t.duration,
-    permalink_url: t.permalink_url,
-    genre: t.genre,
-    streamable: !!t.streamable,
+    permalink_url: t.permalink_url || null,
+    genre: t.genre || null,
+    streamable: t.streamable !== false,
+    source: t.source || null,
   };
-}
-
-function withClientId(url, clientId) {
-  try {
-    const u = new URL(url);
-    u.searchParams.set('client_id', clientId);
-    return u.toString();
-  } catch {
-    const sep = String(url).includes('?') ? '&' : '?';
-    return `${url}${sep}client_id=${encodeURIComponent(clientId)}`;
-  }
 }
 
 async function fetchSearchRaw(clientId, q, limit = 24) {
@@ -141,299 +259,425 @@ async function fetchSearchRaw(clientId, q, limit = 24) {
   }
 }
 
-async function fetchUserTracks(clientId, userId, limit = 8) {
+async function itunesSearch(term, limit = 20) {
+  const q = sanitizeQuery(term);
+  if (!q) return [];
   try {
-    const url = `https://api-v2.soundcloud.com/users/${userId}/tracks?client_id=${clientId}&limit=${limit}&offset=0`;
-    const r = await fetch(url, {
-      headers: { 'User-Agent': UA, Accept: 'application/json' },
-    });
+    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=music&entity=song&limit=${Math.min(50, limit)}`;
+    const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
     if (!r.ok) return [];
     const data = await r.json();
-    const list = Array.isArray(data) ? data : data.collection || [];
-    return list.map(mapTrack).filter(Boolean);
+    return (data.results || [])
+      .filter((x) => x?.trackId && x?.trackName)
+      .map((x) => ({
+        id: `it${x.trackId}`,
+        title: x.trackName,
+        artist: x.artistName || 'Unknown',
+        artwork: String(x.artworkUrl100 || '').replace('100x100bb', '500x500bb') || null,
+        duration: Number(x.trackTimeMillis) || 0,
+        permalink_url: x.trackViewUrl || null,
+        genre: x.primaryGenreName || null,
+        streamable: true,
+        source: 'it',
+        _searchHint: `${x.trackName} ${x.artistName || ''}`.trim(),
+      }));
   } catch {
     return [];
   }
 }
 
-async function resolveArtistUserId(clientId, name) {
+async function itunesChart(limit = 20) {
   try {
-    const url = `https://api-v2.soundcloud.com/search/users?q=${encodeURIComponent(name)}&client_id=${clientId}&limit=5&offset=0`;
-    const r = await fetch(url, {
-      headers: { 'User-Agent': UA, Accept: 'application/json' },
-    });
-    if (!r.ok) return null;
+    const url = 'https://itunes.apple.com/us/rss/topsongs/limit=50/json';
+    const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
+    if (!r.ok) return [];
     const data = await r.json();
-    const users = data.collection || [];
-    const want = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    let best = null;
-    for (const u of users) {
-      const uname = String(u.username || u.full_name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      const followers = Number(u.followers_count || 0);
-      const verified = !!(u.verified || u.badges?.verified || u.badges?.pro_unlimited);
-      const exact = uname === want || uname.includes(want) || want.includes(uname);
-      if (!exact && followers < 100_000) continue;
-      const score = (exact ? 1_000_000 : 0) + (verified ? 500_000 : 0) + followers;
-      if (!best || score > best.score) best = { id: u.id, score };
+    const entries = data?.feed?.entry || [];
+    return entries.slice(0, limit).map((e) => {
+      const id = String(e?.id?.attributes?.['im:id'] || '').replace(/\D/g, '');
+      const title = e?.['im:name']?.label || e?.title?.label || 'Untitled';
+      const artist = e?.['im:artist']?.label || 'Unknown';
+      const arts = e?.['im:image'] || [];
+      const art = arts[arts.length - 1]?.label || null;
+      return {
+        id: id ? `it${id}` : `ytseed-${title}`,
+        title,
+        artist,
+        artwork: art ? art.replace(/\d+x\d+bb/, '500x500bb') : null,
+        duration: 0,
+        permalink_url: e?.link?.attributes?.href || null,
+        genre: e?.category?.attributes?.label || null,
+        streamable: true,
+        source: 'it',
+        _searchHint: `${title} ${artist}`.trim(),
+      };
+    }).filter((t) => t.id.startsWith('it'));
+  } catch {
+    return [];
+  }
+}
+
+function extractYtVideoId(urlOrId) {
+  const s = String(urlOrId || '');
+  const m =
+    s.match(/^[a-zA-Z0-9_-]{11}$/) ||
+    s.match(/[?&]v=([a-zA-Z0-9_-]{11})/) ||
+    s.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/) ||
+    s.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+  return m ? (m[1] || m[0]) : null;
+}
+
+async function youtubeSearch(query, limit = 12) {
+  const q = sanitizeQuery(query);
+  if (!q) return [];
+  const cacheKey = q.toLowerCase();
+  const cached = ytSearchCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < 1000 * 60 * 20) return cached.tracks.slice(0, limit);
+
+  try {
+    const body = {
+      context: {
+        client: {
+          clientName: 'WEB',
+          clientVersion: '2.20240101.00.00',
+          hl: 'en',
+          gl: 'US',
+        },
+      },
+      query: `${q} official audio`,
+    };
+    const r = await fetch('https://www.youtube.com/youtubei/v1/search?prettyPrint=false', {
+      method: 'POST',
+      headers: {
+        'User-Agent': UA,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Origin: 'https://www.youtube.com',
+        Referer: 'https://www.youtube.com/',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) return [];
+    const data = await r.json();
+    const tracks = [];
+    const seen = new Set();
+
+    const walk = (node) => {
+      if (!node || tracks.length >= limit) return;
+      if (Array.isArray(node)) {
+        for (const n of node) walk(n);
+        return;
+      }
+      if (typeof node !== 'object') return;
+      const vr = node.videoRenderer || node.compactVideoRenderer || node.lockupViewModel;
+      if (vr) {
+        const videoId =
+          vr.videoId ||
+          extractYtVideoId(vr?.onTap?.innertubeCommand?.watchEndpoint?.videoId) ||
+          extractYtVideoId(vr?.rendererContext?.commandContext?.onTap?.innertubeCommand?.watchEndpoint?.videoId);
+        if (videoId && !seen.has(videoId)) {
+          const title =
+            vr.title?.runs?.map((x) => x.text).join('') ||
+            vr.title?.simpleText ||
+            vr?.metadata?.lockupMetadataViewModel?.title?.content ||
+            'Untitled';
+          const artist =
+            vr.ownerText?.runs?.[0]?.text ||
+            vr.shortBylineText?.runs?.[0]?.text ||
+            vr.longBylineText?.runs?.[0]?.text ||
+            vr?.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows?.[0]?.metadataParts?.[0]?.text?.content ||
+            'YouTube';
+          const lengthText = vr.lengthText?.simpleText || vr.lengthText?.runs?.[0]?.text || '';
+          let duration = 0;
+          if (lengthText) {
+            const parts = lengthText.split(':').map((n) => parseInt(n, 10)).filter((n) => !Number.isNaN(n));
+            if (parts.length === 2) duration = (parts[0] * 60 + parts[1]) * 1000;
+            if (parts.length === 3) duration = (parts[0] * 3600 + parts[1] * 60 + parts[2]) * 1000;
+          }
+          if (!JUNK_TITLE.test(title) && duration >= 60_000 && duration <= 480_000) {
+            seen.add(videoId);
+            tracks.push({
+              id: `yt${videoId}`,
+              title,
+              artist,
+              artwork: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+              duration,
+              permalink_url: `https://www.youtube.com/watch?v=${videoId}`,
+              genre: null,
+              streamable: true,
+              source: 'yt',
+            });
+          }
+        }
+      }
+      for (const v of Object.values(node)) walk(v);
+    };
+    walk(data);
+    ytSearchCache.set(cacheKey, { at: Date.now(), tracks });
+    if (ytSearchCache.size > 200) {
+      const first = ytSearchCache.keys().next().value;
+      ytSearchCache.delete(first);
     }
-    return best?.id ? String(best.id) : null;
+    return tracks.slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+
+async function findSoundCloudPlayable(title, artist) {
+  const q = sanitizeQuery(`${title || ''} ${artist || ''}`.trim());
+  if (!q) return null;
+  try {
+    const clientId = await resolveClientId();
+    const tracks = await fetchSearchRaw(clientId, q, 20);
+    const scored = tracks
+      .filter((t) => t.streamable && t.policy !== 'BLOCK')
+      .filter((t) => Number(t.duration || 0) >= 60_000)
+      .filter((t) => !JUNK_TITLE.test(t.title));
+    if (!scored.length) return null;
+    const wantTitle = String(title || '').toLowerCase();
+    const wantArtist = String(artist || '').toLowerCase().split(/\s+/)[0] || '';
+    scored.sort((a, b) => {
+      const aScore =
+        (wantTitle && String(a.title).toLowerCase().includes(wantTitle.slice(0, 12)) ? 50 : 0) +
+        (wantArtist && String(a.artist).toLowerCase().includes(wantArtist) ? 30 : 0) +
+        (a.policy === 'ALLOW' ? 20 : 0);
+      const bScore =
+        (wantTitle && String(b.title).toLowerCase().includes(wantTitle.slice(0, 12)) ? 50 : 0) +
+        (wantArtist && String(b.artist).toLowerCase().includes(wantArtist) ? 30 : 0) +
+        (b.policy === 'ALLOW' ? 20 : 0);
+      return bScore - aScore;
+    });
+    return scored[0];
   } catch {
     return null;
   }
 }
 
-async function tracksFromArtists(clientId, artists, perArtist = 3, limit = 14, fallbackQueries = []) {
-  const out = [];
-  const seen = new Set();
+const playCache = new Map();
+const searchResultCache = new Map();
 
-  const consider = (tracks) => {
-    for (const t of tracks) {
-      if (!t?.hasProgressive || !t.streamable || t.policy === 'BLOCK') continue;
-      if (!isQualityTrack(t, { strict: false })) continue;
-      if (seen.has(t.id)) continue;
-      seen.add(t.id);
-      out.push(t);
-      if (out.length >= limit) return true;
-    }
-    return false;
-  };
-
-  for (const name of artists) {
-    let tracks = await fetchSearchRaw(clientId, name, 30);
-    tracks = tracks.filter((t) => {
-      if (!t.hasProgressive || !t.streamable) return false;
-      const artistMatch = String(t.artist || '')
-        .toLowerCase()
-        .includes(name.toLowerCase().split(' ')[0].toLowerCase());
-      return artistMatch || t.verified || (t.followers || 0) >= 40_000 || (t.playbackCount || 0) >= 50_000;
-    });
-    if (consider(tracks)) return out.map(stripMeta);
-
-    const uid = await resolveArtistUserId(clientId, name);
-    if (uid) {
-      const owned = await fetchUserTracks(clientId, uid, perArtist + 8);
-      if (consider(owned)) return out.map(stripMeta);
-    }
+function cacheSet(map, key, value, max = 400) {
+  map.set(key, { at: Date.now(), value });
+  if (map.size > max) {
+    const first = map.keys().next().value;
+    map.delete(first);
   }
-
-  for (const q of fallbackQueries) {
-    const more = await fetchSearchRaw(clientId, q, 24);
-    if (consider(more)) return out.map(stripMeta);
-  }
-
-  return out.map(stripMeta);
 }
 
-async function fetchStreamUrl(trackId, clientId) {
-  const trackRes = await fetch(`https://api-v2.soundcloud.com/tracks/${trackId}?client_id=${clientId}`, {
-    headers: {
-      'User-Agent': UA,
-      Accept: 'application/json',
-      Origin: 'https://soundcloud.com',
-      Referer: 'https://soundcloud.com/',
-    },
-  });
-  if (!trackRes.ok) throw new Error('Track not found');
-  const track = await trackRes.json();
-
-  if (track?.policy === 'BLOCK') throw new Error('This track is blocked from streaming');
-
-  const transcodings = Array.isArray(track?.media?.transcodings) ? track.media.transcodings : [];
-  const progressive = transcodings.filter((x) => x?.format?.protocol === 'progressive' && x?.url);
-  const plainHls = transcodings.filter((x) => x?.format?.protocol === 'hls' && x?.url);
-  const ordered = [...progressive, ...plainHls];
-
-  if (!ordered.length) {
-    const encrypted = transcodings.some((x) => String(x?.format?.protocol || '').includes('encrypted'));
-    if (encrypted || track?.policy === 'MONETIZE') {
-      throw new Error('This track is DRM-protected and cannot be streamed here');
-    }
-    throw new Error('No stream available');
+function cacheGet(map, key, ttlMs) {
+  const hit = map.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > ttlMs) {
+    map.delete(key);
+    return null;
   }
+  return hit.value;
+}
 
-  let lastError = 'Stream resolve failed';
-  for (const chosen of ordered) {
-    try {
-      const streamMeta = await fetch(withClientId(chosen.url, clientId), {
-        headers: {
-          'User-Agent': UA,
-          Accept: 'application/json',
-          Origin: 'https://soundcloud.com',
-          Referer: 'https://soundcloud.com/',
-        },
+function youtubePlayIntent(videoId, metaHint = {}) {
+  if (!/^[\w-]{11}$/.test(videoId)) throw new Error('Invalid video id');
+  return {
+    provider: 'youtube',
+    videoId,
+    embed: true,
+    track: stripMeta({
+      id: `yt${videoId}`,
+      title: metaHint.title || 'YouTube',
+      artist: metaHint.artist || 'YouTube',
+      artwork: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+      duration: metaHint.duration || 0,
+      permalink_url: `https://www.youtube.com/watch?v=${videoId}`,
+      streamable: true,
+      source: 'yt',
+    }),
+  };
+}
+
+function soundcloudPlayIntent(track) {
+  const id = String(track.id);
+  return {
+    provider: 'soundcloud',
+    soundcloudId: id,
+    embed: true,
+    widgetUrl:
+      'https://w.soundcloud.com/player/?url=' +
+      encodeURIComponent(`https://api.soundcloud.com/tracks/${id}`) +
+      '&color=%23ffffff&auto_play=true&hide_related=true&show_comments=false&show_user=false&show_reposts=false&show_teaser=false&visual=false',
+    track: stripMeta({
+      ...track,
+      source: 'sc',
+      streamable: true,
+    }),
+  };
+}
+
+async function resolvePlayIntent(parsed, metaHint) {
+  const cacheKey = `play:${parsed.kind}:${parsed.id}:${metaHint?.title || ''}:${metaHint?.artist || ''}`;
+  const cached = cacheGet(playCache, cacheKey, 1000 * 60 * 45);
+  if (cached) return cached;
+
+  let intent = null;
+
+  if (parsed.kind === 'yt') {
+    intent = youtubePlayIntent(parsed.videoId, metaHint || {});
+  } else if (parsed.kind === 'it') {
+    const hint =
+      metaHint?._searchHint ||
+      `${metaHint?.title || ''} ${metaHint?.artist || ''}`.trim() ||
+      parsed.itunesId;
+    const yt = await youtubeSearch(hint || metaHint?.title || 'music', 6);
+    if (yt.length) {
+      intent = youtubePlayIntent(yt[0].id.slice(2), {
+        title: metaHint?.title || yt[0].title,
+        artist: metaHint?.artist || yt[0].artist,
+        duration: metaHint?.duration || yt[0].duration,
       });
-      if (!streamMeta.ok) {
-        lastError = `Stream resolve failed (${streamMeta.status})`;
-        continue;
+    } else {
+      const sc = await findSoundCloudPlayable(metaHint?.title || hint, metaHint?.artist);
+      if (sc) intent = soundcloudPlayIntent(sc);
+    }
+  } else {
+    try {
+      const clientId = await resolveClientId();
+      const r = await fetch(`https://api-v2.soundcloud.com/tracks/${parsed.id}?client_id=${clientId}`, {
+        headers: { 'User-Agent': UA, Accept: 'application/json' },
+      });
+      if (r.ok) {
+        const mapped = mapTrack(await r.json());
+        if (mapped && mapped.policy !== 'BLOCK') {
+          intent = soundcloudPlayIntent(mapped);
+        }
       }
-      const meta = await streamMeta.json().catch(() => null);
-      if (!meta?.url) {
-        lastError = 'No stream url';
-        continue;
+    } catch {}
+    if (!intent && metaHint?.title) {
+      const yt = await youtubeSearch(`${metaHint.title} ${metaHint.artist || ''}`.trim(), 5);
+      if (yt.length) {
+        intent = youtubePlayIntent(yt[0].id.slice(2), {
+          title: metaHint.title,
+          artist: metaHint.artist,
+          duration: metaHint.duration || yt[0].duration,
+        });
       }
-      if (chosen.format?.protocol === 'hls' && /\.m3u8(\?|$)/i.test(meta.url)) {
-        lastError = 'HLS-only track is not playable here';
-        continue;
-      }
-      return {
-        streamUrl: meta.url,
-        protocol: chosen.format?.protocol || 'progressive',
-        track: mapTrack(track),
-      };
-    } catch (e) {
-      lastError = e?.message || 'Stream resolve failed';
     }
   }
-  const encrypted = transcodings.some((x) => String(x?.format?.protocol || '').includes('encrypted'));
-  if (encrypted || track?.policy === 'MONETIZE') {
-    throw new Error('This track is DRM-protected and cannot be streamed here');
-  }
-  throw new Error(lastError);
+
+  if (!intent) throw new Error('Could not resolve a licensed embed for this track');
+  cacheSet(playCache, cacheKey, intent);
+  return intent;
 }
 
 router.get('/search', async (req, res) => {
-  const q = String(req.query.q || '').trim();
+  const q = sanitizeQuery(req.query.q);
   if (!q) return res.status(400).json({ error: 'Missing query' });
-  const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit || '24'), 10) || 24));
+  const limit = Math.min(40, Math.max(1, parseInt(String(req.query.limit || '24'), 10) || 24));
+  const cacheKey = `search:${q.toLowerCase()}:${limit}`;
+  const cached = cacheGet(searchResultCache, cacheKey, 1000 * 60 * 12);
+  if (cached) {
+    res.setHeader('Cache-Control', 'public, max-age=120');
+    return res.json(cached);
+  }
 
   try {
-    const clientId = await resolveClientId();
-    const url = `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(q)}&client_id=${clientId}&limit=${limit}&offset=0`;
-    const r = await fetch(url, {
-      headers: { 'User-Agent': UA, Accept: 'application/json' },
-    });
-    if (!r.ok) return res.status(502).json({ error: 'Search failed' });
-    const data = await r.json();
-    const tracks = (data.collection || [])
-      .map(mapTrack)
-      .filter(Boolean)
-      .filter((t) => !JUNK_TITLE.test(t.title) && t.title.length <= 100)
-      .filter((t) => t.hasProgressive || t.streamable)
-      .map(stripMeta);
-    res.json({ tracks });
+    const [ytTracks, itunesTracks, scTracks] = await Promise.all([
+      youtubeSearch(q, Math.min(16, limit)),
+      itunesSearch(q, Math.min(12, limit)),
+      (async () => {
+        try {
+          const clientId = await resolveClientId();
+          return (await fetchSearchRaw(clientId, q, limit))
+            .filter((t) => !JUNK_TITLE.test(t.title) && t.title.length <= 100)
+            .filter((t) => t.streamable)
+            .map(stripMeta);
+        } catch {
+          return [];
+        }
+      })(),
+    ]);
+
+    const seen = new Set();
+    const tracks = [];
+    for (const t of [...ytTracks, ...itunesTracks, ...scTracks]) {
+      const key = `${String(t.title).toLowerCase()}|${String(t.artist).toLowerCase()}`;
+      if (seen.has(t.id) || seen.has(key)) continue;
+      seen.add(t.id);
+      seen.add(key);
+      tracks.push(stripMeta(t));
+      if (tracks.length >= limit) break;
+    }
+    const payload = { tracks };
+    cacheSet(searchResultCache, cacheKey, payload);
+    res.setHeader('Cache-Control', 'public, max-age=120');
+    res.json(payload);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
 router.get('/track/:id', async (req, res) => {
-  const id = String(req.params.id || '').replace(/[^\d]/g, '');
-  if (!id) return res.status(400).json({ error: 'Invalid id' });
+  const parsed = parseTrackId(req.params.id);
+  if (!parsed) return res.status(400).json({ error: 'Invalid id' });
   try {
+    if (parsed.kind === 'yt') {
+      res.setHeader('Cache-Control', 'public, max-age=600');
+      return res.json({
+        track: stripMeta({
+          id: parsed.id,
+          title: 'YouTube track',
+          artist: 'YouTube',
+          artwork: `https://i.ytimg.com/vi/${parsed.videoId}/hqdefault.jpg`,
+          duration: 0,
+          permalink_url: `https://www.youtube.com/watch?v=${parsed.videoId}`,
+          streamable: true,
+          source: 'yt',
+        }),
+      });
+    }
+    if (parsed.kind === 'it') {
+      const found = await itunesSearch(parsed.itunesId, 5);
+      const hit = found.find((t) => t.id === parsed.id) || found[0];
+      if (!hit) return res.status(404).json({ error: 'Track not found' });
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      return res.json({ track: stripMeta(hit) });
+    }
     const clientId = await resolveClientId();
-    const r = await fetch(`https://api-v2.soundcloud.com/tracks/${id}?client_id=${clientId}`, {
+    const r = await fetch(`https://api-v2.soundcloud.com/tracks/${parsed.id}?client_id=${clientId}`, {
       headers: { 'User-Agent': UA, Accept: 'application/json' },
     });
     if (!r.ok) return res.status(404).json({ error: 'Track not found' });
     const track = mapTrack(await r.json());
-    res.json({ track });
+    res.setHeader('Cache-Control', 'public, max-age=180');
+    res.json({ track: stripMeta(track) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-router.get('/stream/:id', async (req, res) => {
-  const id = String(req.params.id || '').replace(/[^\d]/g, '');
-  if (!id) return res.status(400).json({ error: 'Invalid id' });
+async function handlePlay(req, res) {
+  const parsed = parseTrackId(req.params.id);
+  if (!parsed) return res.status(400).json({ error: 'Invalid id' });
   try {
-    let clientId = await resolveClientId();
-    try {
-      const data = await fetchStreamUrl(id, clientId);
-      try { bumpUsage('music', 1); } catch {}
-      return res.json(data);
-    } catch (firstErr) {
-      const msg = String(firstErr?.message || '');
-      if (/DRM-protected|blocked from streaming|No stream available|Track not found/i.test(msg)) {
-        throw firstErr;
-      }
-      // Stale client_id is a common cause of resolve failures — refresh once.
-      cachedClientId = null;
-      clientIdFetchedAt = 0;
-      clientId = await resolveClientId();
-      const data = await fetchStreamUrl(id, clientId);
-      try { bumpUsage('music', 1); } catch {}
-      return res.json(data);
-    }
+    const title = sanitizeQuery(req.query.t || '');
+    const artist = sanitizeQuery(req.query.a || '');
+    const metaHint = title || artist ? { title, artist, _searchHint: `${title} ${artist}`.trim() } : null;
+    const data = await resolvePlayIntent(parsed, metaHint);
+    try { bumpUsage('music', 1); } catch {}
+    res.setHeader('Cache-Control', 'private, max-age=120');
+    return res.json(data);
   } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-async function fetchChart(clientId, genre, limit = 16) {
-  const genrePath = `soundcloud:genres:${genre}`;
-  const url = `https://api-v2.soundcloud.com/charts?kind=top&genre=${encodeURIComponent(genrePath)}&client_id=${clientId}&limit=${limit}&offset=0`;
-  try {
-    const r = await fetch(url, {
-      headers: { 'User-Agent': UA, Accept: 'application/json' },
-    });
-    if (!r.ok) return [];
-    const data = await r.json();
-    return (data.collection || [])
-      .map((c) => mapTrack(c.track || c))
-      .filter(Boolean)
-      .filter((t) => isQualityTrack(t, { strict: false }))
-      .map(stripMeta);
-  } catch {
-    return [];
+    res.status(500).json({ error: e.message || 'Play failed' });
   }
 }
 
-const BROWSE_SHELVES = [
-  {
-    id: 'top',
-    title: 'Top Tracks',
-    icon: 'flame',
-    artists: ['Drake', 'The Weeknd', 'Taylor Swift', 'Billie Eilish', 'Post Malone', 'Ariana Grande', 'Ed Sheeran', 'Dua Lipa'],
-    fallbackQueries: ['popular indie pop', 'viral hits 2024', 'chart songs free'],
-  },
-  {
-    id: 'pop',
-    title: 'Pop Hits',
-    icon: 'sparkles',
-    artists: ['Olivia Rodrigo', 'Sabrina Carpenter', 'Dua Lipa', 'Harry Styles', 'Charlie Puth', 'Shawn Mendes', 'Doja Cat', 'Lady Gaga'],
-    fallbackQueries: ['pop hits', 'upbeat pop song', 'dance pop'],
-  },
-  {
-    id: 'hiphop',
-    title: 'Rap & Hip-Hop',
-    icon: 'zap',
-    artists: ['Kendrick Lamar', 'Travis Scott', 'J. Cole', 'Eminem', 'Future', 'Lil Baby', 'Nicki Minaj', 'Ice Spice'],
-    fallbackQueries: ['hip hop beats', 'rap freestyle', 'trap music'],
-  },
-  {
-    id: 'chill',
-    title: 'Chill & Soft',
-    icon: 'radio',
-    artists: ['Lauv', 'Joji', 'Clairo', 'Rex Orange County', 'Girl in Red', 'Steve Lacy', 'Tame Impala', 'Khalid'],
-    fallbackQueries: ['chill lo-fi', 'soft indie', 'acoustic chill'],
-  },
-  {
-    id: 'rnb',
-    title: 'R&B Favorites',
-    icon: 'heart',
-    artists: ['SZA', 'Frank Ocean', 'The Weeknd', 'Brent Faiyaz', 'Summer Walker', 'H.E.R.', 'Daniel Caesar', 'Giveon'],
-    fallbackQueries: ['rnb soul', 'smooth rnb', 'quiet storm'],
-  },
-];
+router.get('/play/:id', handlePlay);
+router.get('/stream/:id', handlePlay);
 
 router.get('/trending', async (_req, res) => {
   try {
-    const clientId = await resolveClientId();
-    let tracks = await tracksFromArtists(
-      clientId,
-      BROWSE_SHELVES[0].artists,
-      3,
-      20,
-      BROWSE_SHELVES[0].fallbackQueries || []
-    );
-    if (!tracks.length) {
-      const raw = await fetchSearchRaw(clientId, 'popular songs', 40);
-      tracks = raw
-        .filter((t) => t.hasProgressive && isQualityTrack(t, { strict: false }))
-        .slice(0, 16)
-        .map(stripMeta);
-    }
-    res.json({ tracks });
+    const seeded = seedFlat().slice(0, 20);
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.json({ tracks: seeded });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -441,37 +685,44 @@ router.get('/trending', async (_req, res) => {
 
 router.get('/browse', async (_req, res) => {
   try {
-    const clientId = await resolveClientId();
-    const results = await Promise.all(
-      BROWSE_SHELVES.map(async (s) => ({
-        id: s.id,
-        title: s.title,
-        icon: s.icon,
-        tracks: await tracksFromArtists(clientId, s.artists, 3, 14, s.fallbackQueries || []),
-      }))
-    );
-    let out = results.filter((s) => s.tracks.length > 0);
-    if (!out.length) {
-      const fallback = await tracksFromArtists(
-        clientId,
-        ['Drake', 'The Weeknd', 'Taylor Swift', 'Billie Eilish', 'SZA'],
-        4,
-        16,
-        ['popular indie pop', 'viral hits', 'chill lo-fi']
-      );
-      if (fallback.length) {
-        out = [{ id: 'top', title: 'Top Tracks', icon: 'flame', tracks: fallback }];
-      }
+    const seeded = seedSections().filter((s) => s.tracks.length > 0);
+    if (browseCache.sections && Date.now() - browseCache.at < 1000 * 60 * 60) {
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      return res.json({ sections: browseCache.sections });
     }
-    res.json({ sections: out });
+    res.setHeader('Cache-Control', 'public, max-age=120');
+    res.json({ sections: seeded });
+
+    Promise.resolve()
+      .then(async () => {
+        const chart = await itunesChart(24);
+        const sections = seeded.map((s) => ({ ...s, tracks: [...s.tracks] }));
+        if (chart.length) {
+          const top = sections.find((s) => s.id === 'top');
+          if (top) {
+            const merged = [];
+            const seen = new Set();
+            for (const t of [...top.tracks, ...chart.map(stripMeta)]) {
+              if (seen.has(t.id)) continue;
+              seen.add(t.id);
+              merged.push(t);
+              if (merged.length >= 18) break;
+            }
+            top.tracks = merged;
+          }
+        }
+        browseCache.at = Date.now();
+        browseCache.sections = sections;
+      })
+      .catch(() => {});
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
 router.get('/home', async (_req, res) => {
-  // Kept for compatibility; homepage no longer surfaces music.
-  res.json({ tracks: [], artists: [] });
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.json({ tracks: seedFlat().slice(0, 12), artists: [] });
 });
 
 export default router;

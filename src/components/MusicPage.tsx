@@ -7,7 +7,6 @@ import {
   ListPlus, ListEnd, Library,
 } from "lucide-react";
 import { requestSyncSoon } from "@/lib/settingsSync";
-import { pxEncode } from "@/lib/px";
 import { trackAchievementEvent } from "@/lib/achievementEvents";
 import { AdResponsiveBanner } from "@/components/ads/Adsterra";
 
@@ -56,6 +55,79 @@ const S = {
 const MUSIC_KEY = "petezah-music";
 const LIKED_KEY = "petezah-music-liked";
 const ease = [0.22, 1, 0.36, 1] as const;
+
+const INSTANT_SEED: BrowseSection[] = [
+  {
+    id: "top",
+    title: "Top Hits",
+    icon: "flame",
+    tracks: [
+      { id: "yt51zjlMhdSTE", title: "Espresso", artist: "Sabrina Carpenter", artwork: "https://i.ytimg.com/vi/51zjlMhdSTE/hqdefault.jpg", duration: 176000 },
+      { id: "ytd5gf9dXbPi0", title: "BIRDS OF A FEATHER", artist: "Billie Eilish", artwork: "https://i.ytimg.com/vi/d5gf9dXbPi0/hqdefault.jpg", duration: 212000 },
+      { id: "ytPfH7jq_uSCM", title: "Die With A Smile", artist: "Lady Gaga & Bruno Mars", artwork: "https://i.ytimg.com/vi/PfH7jq_uSCM/hqdefault.jpg", duration: 252000 },
+      { id: "yt8Ebqe2Dbzls", title: "APT.", artist: "ROSÉ & Bruno Mars", artwork: "https://i.ytimg.com/vi/8Ebqe2Dbzls/hqdefault.jpg", duration: 170000 },
+      { id: "ytnZjTtuNR3Og", title: "A Bar Song (Tipsy)", artist: "Shaboozey", artwork: "https://i.ytimg.com/vi/nZjTtuNR3Og/hqdefault.jpg", duration: 172000 },
+      { id: "ytFkOpwodhROI", title: "Lose Control", artist: "Teddy Swims", artwork: "https://i.ytimg.com/vi/FkOpwodhROI/hqdefault.jpg", duration: 211000 },
+      { id: "ytHU08BcK5SUY", title: "Beautiful Things", artist: "Benson Boone", artwork: "https://i.ytimg.com/vi/HU08BcK5SUY/hqdefault.jpg", duration: 181000 },
+      { id: "yt1RKqOmSkGgM", title: "Good Luck, Babe!", artist: "Chappell Roan", artwork: "https://i.ytimg.com/vi/1RKqOmSkGgM/hqdefault.jpg", duration: 219000 },
+      { id: "ytW_YOJWZIjxo", title: "That's So True", artist: "Gracie Abrams", artwork: "https://i.ytimg.com/vi/W_YOJWZIjxo/hqdefault.jpg", duration: 167000 },
+      { id: "ytkpwunIatorM", title: "Ordinary", artist: "Alex Warren", artwork: "https://i.ytimg.com/vi/kpwunIatorM/hqdefault.jpg", duration: 188000 },
+      { id: "ytmhTiOYFF0wg", title: "Messy", artist: "Lola Young", artwork: "https://i.ytimg.com/vi/mhTiOYFF0wg/hqdefault.jpg", duration: 285000 },
+      { id: "ytm0NZ-aH0G1g", title: "Sailor Song", artist: "Gigi Perez", artwork: "https://i.ytimg.com/vi/m0NZ-aH0G1g/hqdefault.jpg", duration: 211000 },
+    ],
+  },
+  {
+    id: "pop",
+    title: "Pop",
+    icon: "sparkles",
+    tracks: [
+      { id: "ytzAgVtzhjfCA", title: "Please Please Please", artist: "Sabrina Carpenter", artwork: "https://i.ytimg.com/vi/zAgVtzhjfCA/hqdefault.jpg", duration: 187000 },
+      { id: "ytz9Q9OzL_wI8", title: "Taste", artist: "Sabrina Carpenter", artwork: "https://i.ytimg.com/vi/z9Q9OzL_wI8/hqdefault.jpg", duration: 158000 },
+      { id: "ytic8j13piAhQ", title: "Cruel Summer", artist: "Taylor Swift", artwork: "https://i.ytimg.com/vi/ic8j13piAhQ/hqdefault.jpg", duration: 180000 },
+      { id: "ytV1Z586zoeeE", title: "As It Was", artist: "Harry Styles", artwork: "https://i.ytimg.com/vi/V1Z586zoeeE/hqdefault.jpg", duration: 166000 },
+      { id: "ytXqN2qFvY64U", title: "Anti-Hero", artist: "Taylor Swift", artwork: "https://i.ytimg.com/vi/XqN2qFvY64U/hqdefault.jpg", duration: 204000 },
+      { id: "ytWHuBW3qKm9g", title: "Levitating", artist: "Dua Lipa", artwork: "https://i.ytimg.com/vi/WHuBW3qKm9g/hqdefault.jpg", duration: 221000 },
+      { id: "ytvp6XdbG3AhA", title: "Pink Pony Club", artist: "Chappell Roan", artwork: "https://i.ytimg.com/vi/vp6XdbG3AhA/hqdefault.jpg", duration: 259000 },
+    ],
+  },
+  {
+    id: "hiphop",
+    title: "Hip-Hop",
+    icon: "zap",
+    tracks: [
+      { id: "ytT6eK-2OQtew", title: "Not Like Us", artist: "Kendrick Lamar", artwork: "https://i.ytimg.com/vi/T6eK-2OQtew/hqdefault.jpg", duration: 274000 },
+      { id: "ytHfWLgELllZs", title: "luther", artist: "Kendrick Lamar & SZA", artwork: "https://i.ytimg.com/vi/HfWLgELllZs/hqdefault.jpg", duration: 178000 },
+      { id: "ytU-l4ya3ejko", title: "FE!N", artist: "Travis Scott", artwork: "https://i.ytimg.com/vi/U-l4ya3ejko/hqdefault.jpg", duration: 194000 },
+      { id: "ytd-JBBNg8YKs", title: "SICKO MODE", artist: "Travis Scott", artwork: "https://i.ytimg.com/vi/d-JBBNg8YKs/hqdefault.jpg", duration: 315000 },
+      { id: "ytm1a_GqJf02M", title: "God's Plan", artist: "Drake", artwork: "https://i.ytimg.com/vi/m1a_GqJf02M/hqdefault.jpg", duration: 199000 },
+      { id: "yti9PSG5mFYoo", title: "Industry Baby", artist: "Lil Nas X & Jack Harlow", artwork: "https://i.ytimg.com/vi/i9PSG5mFYoo/hqdefault.jpg", duration: 229000 },
+    ],
+  },
+  {
+    id: "rnb",
+    title: "R&B",
+    icon: "heart",
+    tracks: [
+      { id: "ytSv5yCzPCkv8", title: "Snooze", artist: "SZA", artwork: "https://i.ytimg.com/vi/Sv5yCzPCkv8/hqdefault.jpg", duration: 204000 },
+      { id: "ytSQnc1QibapQ", title: "Kill Bill", artist: "SZA", artwork: "https://i.ytimg.com/vi/SQnc1QibapQ/hqdefault.jpg", duration: 156000 },
+      { id: "ytfHI8X4OXluQ", title: "Blinding Lights", artist: "The Weeknd", artwork: "https://i.ytimg.com/vi/fHI8X4OXluQ/hqdefault.jpg", duration: 204000 },
+      { id: "ytu6lihZAcy4s", title: "Save Your Tears", artist: "The Weeknd", artwork: "https://i.ytimg.com/vi/u6lihZAcy4s/hqdefault.jpg", duration: 217000 },
+      { id: "ytmX19AV35PhI", title: "Timeless", artist: "The Weeknd & Playboi Carti", artwork: "https://i.ytimg.com/vi/mX19AV35PhI/hqdefault.jpg", duration: 257000 },
+    ],
+  },
+  {
+    id: "chill",
+    title: "Chill",
+    icon: "radio",
+    tracks: [
+      { id: "ytFvOpPeKSf_4", title: "Glimpse of Us", artist: "Joji", artwork: "https://i.ytimg.com/vi/FvOpPeKSf_4/hqdefault.jpg", duration: 234000 },
+      { id: "ytLUXu4aTnK7E", title: "Slow Dancing in the Dark", artist: "Joji", artwork: "https://i.ytimg.com/vi/LUXu4aTnK7E/hqdefault.jpg", duration: 210000 },
+      { id: "ytApXoWvfEYVU", title: "Sunflower", artist: "Post Malone & Swae Lee", artwork: "https://i.ytimg.com/vi/ApXoWvfEYVU/hqdefault.jpg", duration: 162000 },
+      { id: "ytpQV0WEdT_OE", title: "Circles", artist: "Post Malone", artwork: "https://i.ytimg.com/vi/pQV0WEdT_OE/hqdefault.jpg", duration: 216000 },
+      { id: "ytKT7F15T9VBI", title: "Heat Waves", artist: "Glass Animals", artwork: "https://i.ytimg.com/vi/KT7F15T9VBI/hqdefault.jpg", duration: 239000 },
+    ],
+  },
+];
 
 function loadPlaylists(): Playlist[] {
   try {
@@ -117,10 +189,6 @@ function decodeShare(raw: string) {
   }
 }
 
-function proxifyStream(url: string): string {
-  return pxEncode(url) || url;
-}
-
 function parseMusicUrl(url?: string) {
   if (!url || !url.startsWith("petezah://music")) return { trackId: null as string | null, share: null as any };
   try {
@@ -132,6 +200,47 @@ function parseMusicUrl(url?: string) {
   } catch {
     return { trackId: null, share: null };
   }
+}
+
+function loadScriptOnce(id: string, src: string) {
+  return new Promise<void>((resolve, reject) => {
+    const existing = document.getElementById(id) as HTMLScriptElement | null;
+    if (existing) {
+      if ((existing as any).dataset.ready === "1") resolve();
+      else existing.addEventListener("load", () => resolve(), { once: true });
+      return;
+    }
+    const s = document.createElement("script");
+    s.id = id;
+    s.src = src;
+    s.async = true;
+    s.onload = () => {
+      (s as any).dataset.ready = "1";
+      resolve();
+    };
+    s.onerror = () => reject(new Error(`Failed to load ${src}`));
+    document.head.appendChild(s);
+  });
+}
+
+function loadYoutubeApi() {
+  return new Promise<any>((resolve) => {
+    const w = window as any;
+    if (w.YT?.Player) {
+      resolve(w.YT);
+      return;
+    }
+    const prev = w.onYouTubeIframeAPIReady;
+    w.onYouTubeIframeAPIReady = () => {
+      try { prev?.(); } catch {}
+      resolve(w.YT);
+    };
+    loadScriptOnce("youtube-iframe-api", "https://www.youtube.com/iframe_api").catch(() => {});
+  });
+}
+
+function loadSoundCloudApi() {
+  return loadScriptOnce("soundcloud-widget-api", "https://w.soundcloud.com/player/api.js").then(() => (window as any).SC);
 }
 
 function sectionIcon(name: string) {
@@ -161,10 +270,10 @@ export default function MusicPage({
     }
   });
   const [results, setResults] = useState<Track[]>([]);
-  const [trending, setTrending] = useState<Track[]>([]);
-  const [sections, setSections] = useState<BrowseSection[]>([]);
+  const [trending, setTrending] = useState<Track[]>(() => INSTANT_SEED[0]?.tracks || []);
+  const [sections, setSections] = useState<BrowseSection[]>(INSTANT_SEED);
   const [loading, setLoading] = useState(false);
-  const [browseLoading, setBrowseLoading] = useState(true);
+  const [browseLoading, setBrowseLoading] = useState(false);
   const [error, setError] = useState("");
   const [playlists, setPlaylists] = useState<Playlist[]>(loadPlaylists);
   const [liked, setLiked] = useState<Track[]>(loadLiked);
@@ -191,26 +300,57 @@ export default function MusicPage({
   const [menuTrack, setMenuTrack] = useState<Track | null>(null);
   const [addMenuTrack, setAddMenuTrack] = useState<Track | null>(null);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ytHostRef = useRef<HTMLDivElement | null>(null);
+  const scFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const ytPlayerRef = useRef<any>(null);
+  const scWidgetRef = useRef<any>(null);
+  const providerRef = useRef<"youtube" | "soundcloud" | null>(null);
+  const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const current = queue[queueIndex] || null;
+
+  const clearProgressTimer = () => {
+    if (progressTimer.current) {
+      clearInterval(progressTimer.current);
+      progressTimer.current = null;
+    }
+  };
+
+  const stopAllPlayers = useCallback(() => {
+    clearProgressTimer();
+    try { ytPlayerRef.current?.stopVideo?.(); } catch {}
+    try { scWidgetRef.current?.pause?.(); } catch {}
+    providerRef.current = null;
+  }, []);
+
+  const startProgressPoll = useCallback(() => {
+    clearProgressTimer();
+    progressTimer.current = setInterval(() => {
+      try {
+        if (providerRef.current === "youtube" && ytPlayerRef.current?.getCurrentTime) {
+          setProgress(ytPlayerRef.current.getCurrentTime() || 0);
+          setDuration(ytPlayerRef.current.getDuration?.() || 0);
+        } else if (providerRef.current === "soundcloud" && scWidgetRef.current?.getPosition) {
+          scWidgetRef.current.getPosition((pos: number) => setProgress((pos || 0) / 1000));
+          scWidgetRef.current.getDuration((dur: number) => setDuration((dur || 0) / 1000));
+        }
+      } catch {}
+    }, 400);
+  }, []);
 
   useEffect(() => { savePlaylists(playlists); }, [playlists]);
   useEffect(() => { saveLiked(liked); }, [liked]);
 
   useEffect(() => {
     let cancelled = false;
-    setBrowseLoading(true);
     Promise.all([
       fetch("/api/music/browse").then((r) => r.json()).catch(() => ({ sections: [] })),
       fetch("/api/music/trending").then((r) => r.json()).catch(() => ({ tracks: [] })),
     ]).then(([browse, trend]) => {
       if (cancelled) return;
-      const secs: BrowseSection[] = browse.sections || [];
+      const secs: BrowseSection[] = browse.sections?.length ? browse.sections : INSTANT_SEED;
       setSections(secs);
-      setTrending(trend.tracks?.length ? trend.tracks : secs[0]?.tracks || []);
-    }).finally(() => {
-      if (!cancelled) setBrowseLoading(false);
+      setTrending(trend.tracks?.length ? trend.tracks : secs[0]?.tracks || INSTANT_SEED[0].tracks);
     });
     return () => { cancelled = true; };
   }, []);
@@ -274,20 +414,128 @@ export default function MusicPage({
   }, [query, nav]);
 
   const loadAndPlay = useCallback(async (track: Track) => {
-    const audio = audioRef.current;
-    if (!audio) return;
     try {
-      const r = await fetch(`/api/music/stream/${track.id}`);
+      const params = new URLSearchParams();
+      if (track.title) params.set("t", track.title);
+      if (track.artist) params.set("a", track.artist);
+      const qs = params.toString();
+      const r = await fetch(`/api/music/play/${encodeURIComponent(track.id)}${qs ? `?${qs}` : ""}`);
       const d = await r.json();
-      if (!r.ok || !d.streamUrl) throw new Error(d.error || "Stream failed");
-      audio.src = proxifyStream(d.streamUrl);
-      await audio.play();
-      setPlaying(true);
+      if (!r.ok) throw new Error(d.error || "Play failed");
+
+      stopAllPlayers();
+      setProgress(0);
+      setDuration((track.duration || 0) / 1000);
+
+      if (d.provider === "youtube" && d.videoId) {
+        providerRef.current = "youtube";
+        const YT = await loadYoutubeApi();
+        await new Promise<void>((resolve, reject) => {
+          if (!ytHostRef.current) return reject(new Error("Player unavailable"));
+          ytHostRef.current.innerHTML = "";
+          const mount = document.createElement("div");
+          ytHostRef.current.appendChild(mount);
+          ytPlayerRef.current = new YT.Player(mount, {
+            height: "1",
+            width: "1",
+            videoId: d.videoId,
+            playerVars: {
+              autoplay: 1,
+              controls: 0,
+              disablekb: 1,
+              fs: 0,
+              modestbranding: 1,
+              playsinline: 1,
+              rel: 0,
+              origin: window.location.origin,
+            },
+            events: {
+              onReady: (ev: any) => {
+                try {
+                  ev.target.playVideo();
+                  setPlaying(true);
+                  startProgressPoll();
+                  resolve();
+                } catch (e) {
+                  reject(e);
+                }
+              },
+              onStateChange: (ev: any) => {
+                const state = ev.data;
+                if (state === YT.PlayerState.PLAYING) {
+                  setPlaying(true);
+                  startProgressPoll();
+                } else if (state === YT.PlayerState.PAUSED) {
+                  setPlaying(false);
+                } else if (state === YT.PlayerState.ENDED) {
+                  if (loopTrack) {
+                    try {
+                      ev.target.seekTo(0);
+                      ev.target.playVideo();
+                    } catch {}
+                    return;
+                  }
+                  if (queueIndex < queue.length - 1) setQueueIndex((i) => i + 1);
+                  else if (loopPlaylist && queue.length) setQueueIndex(0);
+                  else setPlaying(false);
+                }
+              },
+              onError: () => reject(new Error("YouTube playback unavailable")),
+            },
+          });
+        });
+        setError("");
+        return;
+      }
+
+      if (d.provider === "soundcloud" && (d.widgetUrl || d.soundcloudId)) {
+        providerRef.current = "soundcloud";
+        const SC = await loadSoundCloudApi();
+        if (!scFrameRef.current) throw new Error("Player unavailable");
+        const widgetUrl =
+          d.widgetUrl ||
+          `https://w.soundcloud.com/player/?url=${encodeURIComponent(`https://api.soundcloud.com/tracks/${d.soundcloudId}`)}&auto_play=true&hide_related=true&show_comments=false&visual=false`;
+        scFrameRef.current.src = widgetUrl;
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error("SoundCloud timeout")), 12000);
+          const widget = SC.Widget(scFrameRef.current);
+          scWidgetRef.current = widget;
+          widget.bind(SC.Widget.Events.READY, () => {
+            clearTimeout(timer);
+            try {
+              widget.play();
+              setPlaying(true);
+              startProgressPoll();
+              resolve();
+            } catch (e) {
+              reject(e);
+            }
+          });
+          widget.bind(SC.Widget.Events.PLAY, () => {
+            setPlaying(true);
+            startProgressPoll();
+          });
+          widget.bind(SC.Widget.Events.PAUSE, () => setPlaying(false));
+          widget.bind(SC.Widget.Events.FINISH, () => {
+            if (loopTrack) {
+              try { widget.seekTo(0); widget.play(); } catch {}
+              return;
+            }
+            if (queueIndex < queue.length - 1) setQueueIndex((i) => i + 1);
+            else if (loopPlaylist && queue.length) setQueueIndex(0);
+            else setPlaying(false);
+          });
+        });
+        setError("");
+        return;
+      }
+
+      throw new Error("No licensed player available for this track");
     } catch (e: any) {
       setError(e.message || "Could not play track");
       setPlaying(false);
     }
-  }, []);
+  }, [stopAllPlayers, startProgressPoll, loopTrack, loopPlaylist, queue.length, queueIndex]);
 
   const playTrack = useCallback((track: Track, list?: Track[]) => {
     const nextQueue = list && list.length ? list : [track];
@@ -320,55 +568,40 @@ export default function MusicPage({
     loadAndPlay(current);
   }, [current?.id, queueIndex]);
 
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.loop = !!loopTrack;
-  }, [loopTrack]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const onTime = () => {
-      setProgress(audio.currentTime);
-      setDuration(audio.duration || 0);
-    };
-    const onEnded = () => {
-      if (loopTrack) return;
-      if (queueIndex < queue.length - 1) {
-        setQueueIndex((i) => i + 1);
-      } else if (loopPlaylist && queue.length) {
-        setQueueIndex(0);
-      } else {
-        setPlaying(false);
-      }
-    };
-    const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
-
-    audio.addEventListener("timeupdate", onTime);
-    audio.addEventListener("ended", onEnded);
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-    return () => {
-      audio.removeEventListener("timeupdate", onTime);
-      audio.removeEventListener("ended", onEnded);
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-    };
-  }, [loopTrack, loopPlaylist, queue.length, queueIndex]);
+  useEffect(() => () => {
+    stopAllPlayers();
+  }, [stopAllPlayers]);
 
   const togglePlay = () => {
-    const audio = audioRef.current;
-    if (!audio || !current) return;
-    if (playing) audio.pause();
-    else audio.play().catch(() => {});
+    if (!current) return;
+    try {
+      if (providerRef.current === "youtube" && ytPlayerRef.current) {
+        if (playing) ytPlayerRef.current.pauseVideo();
+        else ytPlayerRef.current.playVideo();
+        return;
+      }
+      if (providerRef.current === "soundcloud" && scWidgetRef.current) {
+        if (playing) scWidgetRef.current.pause();
+        else scWidgetRef.current.play();
+      }
+    } catch {}
+  };
+
+  const seekTo = (seconds: number) => {
+    try {
+      if (providerRef.current === "youtube" && ytPlayerRef.current?.seekTo) {
+        ytPlayerRef.current.seekTo(seconds, true);
+        setProgress(seconds);
+      } else if (providerRef.current === "soundcloud" && scWidgetRef.current?.seekTo) {
+        scWidgetRef.current.seekTo(seconds * 1000);
+        setProgress(seconds);
+      }
+    } catch {}
   };
 
   const prev = () => {
     if (progress > 3) {
-      if (audioRef.current) audioRef.current.currentTime = 0;
+      seekTo(0);
       return;
     }
     setQueueIndex((i) => Math.max(0, i - 1));
@@ -477,7 +710,17 @@ export default function MusicPage({
         position: "absolute", inset: 0, background: S.bg, display: "flex", flexDirection: "column", overflow: "hidden",
       }}
     >
-      <audio ref={audioRef} preload="metadata" />
+      <div
+        ref={ytHostRef}
+        aria-hidden
+        style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none", overflow: "hidden", left: -9999, top: 0 }}
+      />
+      <iframe
+        ref={scFrameRef}
+        title="SoundCloud player"
+        allow="autoplay"
+        style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none", left: -9999, top: 0, border: 0 }}
+      />
 
       <div className="music-body" style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {/* Sidebar */}
@@ -750,6 +993,9 @@ export default function MusicPage({
             {/* Ad sits below all shelves / lists — scroll to reach */}
             <div style={{ padding: "28px 22px 48px", minHeight: 140 }}>
               <AdResponsiveBanner />
+              <p style={{ margin: "10px 0 0", fontSize: 10, color: S.textMuted, lineHeight: 1.4 }}>
+                Playback via official YouTube and SoundCloud embeds. Metadata from iTunes Search. Content remains on those platforms.
+              </p>
             </div>
           </div>
         </div>
@@ -779,10 +1025,10 @@ export default function MusicPage({
             position: "relative", overflow: "hidden",
           }}
           onClick={(e) => {
-            if (!audioRef.current || !duration) return;
+            if (!current || !duration) return;
             const rect = e.currentTarget.getBoundingClientRect();
             const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-            audioRef.current.currentTime = ratio * duration;
+            seekTo(ratio * duration);
           }}
         >
           <div style={{

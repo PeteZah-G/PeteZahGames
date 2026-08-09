@@ -113,6 +113,12 @@ const PROVIDERS = [
     tv: (id: number, s: number, e: number) => `https://vidsrc.cc/v2/embed/tv/${id}/${s}/${e}`,
   },
   {
+    id: "vidsrcnet",
+    label: "VidSrc Net",
+    movie: (id: number) => `https://vidsrc.net/embed/movie/${id}`,
+    tv: (id: number, s: number, e: number) => `https://vidsrc.net/embed/tv/${id}/${s}-${e}`,
+  },
+  {
     id: "embedsu",
     label: "EmbedSU",
     movie: (id: number) => `https://embed.su/embed/movie/${id}`,
@@ -129,6 +135,18 @@ const PROVIDERS = [
     label: "MoviesAPI",
     movie: (id: number) => `https://moviesapi.club/movie/${id}`,
     tv: (id: number, s: number, e: number) => `https://moviesapi.club/tv/${id}-${s}-${e}`,
+  },
+  {
+    id: "2embed",
+    label: "2Embed",
+    movie: (id: number) => `https://www.2embed.cc/embed/${id}`,
+    tv: (id: number, s: number, e: number) => `https://www.2embed.cc/embedtv/${id}&s=${s}&e=${e}`,
+  },
+  {
+    id: "autoembed",
+    label: "AutoEmbed",
+    movie: (id: number) => `https://player.autoembed.cc/embed/movie/${id}`,
+    tv: (id: number, s: number, e: number) => `https://player.autoembed.cc/embed/tv/${id}/${s}/${e}`,
   },
 ];
 
@@ -606,7 +624,7 @@ export default function MoviesPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [sortBy, setSortBy] = useState<"popular" | "trending">("popular");
+  const [sortBy, setSortBy] = useState<"popular" | "trending" | "top_rated" | "now_playing">("popular");
   const [playerState, setPlayerState] = useState<PlayerState | null>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { items } = data;
@@ -792,7 +810,7 @@ export default function MoviesPage({
           {!searchQuery && (
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as "popular" | "trending")}
+              onChange={(e) => setSortBy(e.target.value as "popular" | "trending" | "top_rated" | "now_playing")}
               style={{
                 background: S.elevated, border: `1px solid ${S.border}`, borderRadius: 9,
                 color: S.textSub, fontSize: 12, padding: "8px 11px", outline: "none", cursor: "pointer",
@@ -800,6 +818,8 @@ export default function MoviesPage({
             >
               <option value="popular">Popular</option>
               <option value="trending">Trending</option>
+              <option value="top_rated">Top rated</option>
+              <option value="now_playing">Now playing</option>
             </select>
           )}
         </div>
@@ -923,7 +943,7 @@ export default function MoviesPage({
 
           <div>
             <SectionLabel>
-              <Film size={11} /> {searchQuery ? "Search results" : sortBy === "trending" ? "Trending" : "Popular"}
+              <Film size={11} /> {searchQuery ? "Search results" : sortBy === "trending" ? "Trending" : sortBy === "top_rated" ? "Top rated" : sortBy === "now_playing" ? "Now playing" : "Popular"}
             </SectionLabel>
             {loading && (
               <div style={{ textAlign: "center", color: S.textMuted, padding: "40px 0" }}>

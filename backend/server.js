@@ -32,7 +32,7 @@ import {
   setAttackModeHandler,
   setKillSwitchHandler,
 } from './api/admin-dashboard.js';
-import { authLimiter, createApiLimiter, createAiLimiter, signupLimiter, localStorageLimiter, pfpLimiter, securityActionLimiter, adminOverviewLimiter, aiConversationsLimiter } from './middleware/rate-limit.js';
+import { authLimiter, createApiLimiter, createAiLimiter, signupLimiter, localStorageLimiter, pfpLimiter, securityActionLimiter, adminOverviewLimiter, aiConversationsLimiter, musicBrowseLimiter, musicSearchLimiter, musicPlayLimiter } from './middleware/rate-limit.js';
 import challengeRouter from './routes/challenge.js';
 import aiRouter from './routes/ai.js';
 import moviesRouter from './routes/movies.js';
@@ -313,6 +313,12 @@ app.use('/api', challengeRouter);
 app.use('/api', elevated2faGate);
 app.use('/api/generate', aiLimiter, express.json({ limit: '20mb' }), aiRouter);
 app.use('/api/tmdb', moviesRouter);
+app.use('/api/music/browse', musicBrowseLimiter);
+app.use('/api/music/trending', musicBrowseLimiter);
+app.use('/api/music/home', musicBrowseLimiter);
+app.use('/api/music/search', musicSearchLimiter);
+app.use('/api/music/stream', musicPlayLimiter);
+app.use('/api/music/play', musicPlayLimiter);
 app.use('/api/music', musicRouter);
 app.use('/api/search', searchSuggestRouter);
 

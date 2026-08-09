@@ -64,6 +64,33 @@ export const aiConversationsLimiter = rateLimit({
   message: { error: 'Too many AI chat requests. Slow down.' },
 });
 
+export const musicBrowseLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 90,
+  keyGenerator: (req) => toIPv4(null, req),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many music browse requests' },
+});
+
+export const musicSearchLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 36,
+  keyGenerator: (req) => toIPv4(null, req),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many music searches. Slow down.' },
+});
+
+export const musicPlayLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 72,
+  keyGenerator: (req) => toIPv4(null, req),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many play requests. Slow down.' },
+});
+
 export function createApiLimiter(shield) {
   return rateLimit({
     windowMs: 60000,
