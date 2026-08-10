@@ -49,6 +49,7 @@ const TabItem = forwardRef<HTMLDivElement, TabItemProps>(
     const petezahIcons: Record<string, string> = {
       "petezah://tools": "T",
       "petezah://newtab": "N",
+      "petezah://trending": "TR",
       "petezah://games": "G",
       "petezah://ai": "AI",
       "petezah://apps": "AP",

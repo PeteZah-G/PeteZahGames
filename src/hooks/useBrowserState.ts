@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
 import { ensureProxyEngine } from "@/lib/browserInit";
+import { getHomeUrl } from "@/lib/homeUrl";
 
 export interface ProxyFrame {
   frame: HTMLIFrameElement;
@@ -135,11 +136,17 @@ function createTab(url: string, spaceId: string): Tab {
       }
     });
   }
-  const title = isNewTab
-    ? "New Tab"
-    : finalUrl.startsWith("petezah://ad")
-    ? "Sponsored"
-    : url.split("/")[2] || url;
+  let title = "New Tab";
+  if (!isNewTab) {
+    if (finalUrl === "petezah://trending") title = "Trending";
+    else if (finalUrl.startsWith("petezah://ad")) title = "Sponsored";
+    else if (finalUrl.startsWith("petezah://")) {
+      const name = finalUrl.replace("petezah://", "").split("?")[0];
+      title = name.charAt(0).toUpperCase() + name.slice(1);
+    } else {
+      title = url.split("/")[2] || url;
+    }
+  }
   return {
     id: tabId,
     title,
@@ -151,10 +158,11 @@ function createTab(url: string, spaceId: string): Tab {
 }
 
 function makeNewTabEntry(spaceId: string): Tab {
+  const url = getHomeUrl();
   return {
     id: String(tabCounter++),
-    title: "New Tab",
-    url: "petezah://newtab",
+    title: url === "petezah://trending" ? "Trending" : "New Tab",
+    url,
     spaceId,
   };
 }
@@ -184,7 +192,7 @@ export function useBrowserState() {
   const addTab = useCallback(
     (url?: unknown) => {
       const targetUrl =
-        typeof url === "string" && url.trim() ? url : "petezah://newtab";
+        typeof url === "string" && url.trim() ? url : getHomeUrl();
       const needsEngine =
         !!targetUrl &&
         !targetUrl.startsWith("petezah://") &&
@@ -358,6 +366,8 @@ export function useBrowserState() {
             let title = "New Tab";
             if (url === "petezah://newtab") {
               title = "New Tab";
+            } else if (url === "petezah://trending") {
+              title = "Trending";
             } else if (url.startsWith("petezah://ad")) {
               title = "Sponsored";
             } else if (url.startsWith("petezah://gameviewer") || url.startsWith("petezah://appviewer")) {

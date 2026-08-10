@@ -521,6 +521,20 @@ export function BehaviorSettings(props: Props) {
         <div style={{ borderBottom: `1px solid ${C.border}` }}>
           <ToggleRow
             C={C}
+            label="Trending homescreen"
+            desc="Open the Trending dashboard instead of petezah://newtab"
+            checked={s.trendingHomescreen === "true"}
+            onChange={() => {
+              const next = s.trendingHomescreen === "true" ? "false" : "true";
+              const ns = { ...s, trendingHomescreen: next };
+              setS(ns);
+              applySettingsNow(ns);
+            }}
+          />
+        </div>
+        <div style={{ borderBottom: `1px solid ${C.border}` }}>
+          <ToggleRow
+            C={C}
             label="Search edge glow"
             desc="Trace animation around the homepage search bar every few seconds"
             checked={s.searchEdgeGlow !== "false"}

@@ -4,7 +4,7 @@ import {
   Search, Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, ListMusic,
   Plus, Trash2, Share2, X, Music2, Heart, Copy, Check, Disc3, Flame,
   Sparkles, Zap, Radio, ChevronLeft, ChevronRight, MoreHorizontal,
-  ListPlus, ListEnd, Library,
+  ListPlus, ListEnd, Library, SlidersHorizontal,
 } from "lucide-react";
 import { requestSyncSoon } from "@/lib/settingsSync";
 import { trackAchievementEvent } from "@/lib/achievementEvents";
@@ -52,9 +52,41 @@ const S = {
   danger: "hsl(0 60% 56%)",
 };
 
+const EQ_BANDS = [
+  { label: "100", freq: 100 },
+  { label: "250", freq: 250 },
+  { label: "600", freq: 600 },
+  { label: "2k", freq: 2000 },
+  { label: "5k", freq: 5000 },
+  { label: "8k", freq: 8000 },
+] as const;
+
+const EQ_PRESETS: Record<string, number[]> = {
+  Flat: [0, 0, 0, 0, 0, 0],
+  Bass: [8, 5, 1, 0, -1, -2],
+  Vocal: [-2, 0, 4, 5, 3, 1],
+  Treble: [-2, -1, 0, 2, 6, 8],
+};
+
+const EQ_KEY = "petezah-music-eq";
+const EQ_ORANGE = "hsl(28 78% 58%)";
+const EQ_ORANGE_DIM = "hsla(28, 70%, 48%, 0.22)";
 const MUSIC_KEY = "petezah-music";
 const LIKED_KEY = "petezah-music-liked";
 const ease = [0.22, 1, 0.36, 1] as const;
+
+function loadEqState(): { on: boolean; gains: number[]; preset: string } {
+  try {
+    const raw = localStorage.getItem(EQ_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (Array.isArray(p.gains) && p.gains.length === EQ_BANDS.length) {
+        return { on: !!p.on, gains: p.gains.map((n: any) => Number(n) || 0), preset: p.preset || "Flat" };
+      }
+    }
+  } catch {}
+  return { on: false, gains: EQ_PRESETS.Flat.slice(), preset: "Flat" };
+}
 
 const INSTANT_SEED: BrowseSection[] = [
   {
@@ -300,14 +332,47 @@ export default function MusicPage({
   const [menuTrack, setMenuTrack] = useState<Track | null>(null);
   const [addMenuTrack, setAddMenuTrack] = useState<Track | null>(null);
 
+  const [eqOpen, setEqOpen] = useState(false);
+  const [eqOn, setEqOn] = useState(() => loadEqState().on);
+  const [eqGains, setEqGains] = useState(() => loadEqState().gains);
+  const [eqPreset, setEqPreset] = useState(() => loadEqState().preset);
+  const [playNonce, setPlayNonce] = useState(0);
+
   const ytHostRef = useRef<HTMLDivElement | null>(null);
   const scFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const ytPlayerRef = useRef<any>(null);
   const scWidgetRef = useRef<any>(null);
-  const providerRef = useRef<"youtube" | "soundcloud" | null>(null);
+  const providerRef = useRef<"youtube" | "soundcloud" | "audio" | null>(null);
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadGenRef = useRef(0);
+  const queueRef = useRef(queue);
+  const queueIndexRef = useRef(queueIndex);
+  const loopTrackRef = useRef(loopTrack);
+  const loopPlaylistRef = useRef(loopPlaylist);
+  const playingRef = useRef(playing);
+  const eqOnRef = useRef(eqOn);
+  const eqGainsRef = useRef(eqGains);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const eqFiltersRef = useRef<BiquadFilterNode[]>([]);
+  const eqSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const eqPreampRef = useRef<GainNode | null>(null);
   const current = queue[queueIndex] || null;
+
+  useEffect(() => { queueRef.current = queue; }, [queue]);
+  useEffect(() => { queueIndexRef.current = queueIndex; }, [queueIndex]);
+  useEffect(() => { loopTrackRef.current = loopTrack; }, [loopTrack]);
+  useEffect(() => { loopPlaylistRef.current = loopPlaylist; }, [loopPlaylist]);
+  useEffect(() => { playingRef.current = playing; }, [playing]);
+  useEffect(() => { eqOnRef.current = eqOn; }, [eqOn]);
+  useEffect(() => { eqGainsRef.current = eqGains; }, [eqGains]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(EQ_KEY, JSON.stringify({ on: eqOn, gains: eqGains, preset: eqPreset }));
+    } catch {}
+  }, [eqOn, eqGains, eqPreset]);
 
   const clearProgressTimer = () => {
     if (progressTimer.current) {
@@ -316,11 +381,102 @@ export default function MusicPage({
     }
   };
 
-  const stopAllPlayers = useCallback(() => {
-    clearProgressTimer();
-    try { ytPlayerRef.current?.stopVideo?.(); } catch {}
-    try { scWidgetRef.current?.pause?.(); } catch {}
-    providerRef.current = null;
+  const ensureEqGraph = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return null;
+    if (!audioCtxRef.current) {
+      const ctx = new AudioContext();
+      audioCtxRef.current = ctx;
+      const preamp = ctx.createGain();
+      preamp.gain.value = 1;
+      eqPreampRef.current = preamp;
+      const filters = EQ_BANDS.map((b, i) => {
+        const f = ctx.createBiquadFilter();
+        f.type = i === 0 ? "lowshelf" : i === EQ_BANDS.length - 1 ? "highshelf" : "peaking";
+        f.frequency.value = b.freq;
+        f.Q.value = 1.1;
+        f.gain.value = eqGainsRef.current[i] || 0;
+        return f;
+      });
+      eqFiltersRef.current = filters;
+      try {
+        const src = ctx.createMediaElementSource(audio);
+        eqSourceRef.current = src;
+        let node: AudioNode = src;
+        node.connect(preamp);
+        node = preamp;
+        for (const f of filters) {
+          node.connect(f);
+          node = f;
+        }
+        node.connect(ctx.destination);
+      } catch {}
+    }
+    return audioCtxRef.current;
+  }, []);
+
+  const applyEqGains = useCallback((gains: number[], on: boolean) => {
+    const filters = eqFiltersRef.current;
+    filters.forEach((f, i) => {
+      f.gain.value = on ? gains[i] || 0 : 0;
+    });
+    if (eqPreampRef.current) {
+      const boost = on ? Math.max(...gains.map(Math.abs), 0) : 0;
+      eqPreampRef.current.gain.value = boost > 6 ? 0.85 : 1;
+    }
+    if (providerRef.current === "youtube" && ytPlayerRef.current?.setVolume) {
+      try {
+        if (!on) ytPlayerRef.current.setVolume(100);
+        else {
+          const avg = gains.reduce((a, b) => a + b, 0) / gains.length;
+          ytPlayerRef.current.setVolume(Math.max(40, Math.min(100, 100 + avg * 3)));
+        }
+      } catch {}
+    }
+  }, []);
+
+  useEffect(() => {
+    applyEqGains(eqGains, eqOn);
+  }, [eqGains, eqOn, applyEqGains]);
+
+  const advanceQueue = useCallback(() => {
+    if (loopTrackRef.current) {
+      try {
+        if (providerRef.current === "youtube" && ytPlayerRef.current) {
+          ytPlayerRef.current.seekTo(0);
+          ytPlayerRef.current.playVideo();
+          setPlaying(true);
+          return;
+        }
+        if (providerRef.current === "soundcloud" && scWidgetRef.current) {
+          scWidgetRef.current.seekTo(0);
+          scWidgetRef.current.play();
+          setPlaying(true);
+          return;
+        }
+        if (providerRef.current === "audio" && audioRef.current) {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(() => {});
+          setPlaying(true);
+          return;
+        }
+      } catch {}
+    }
+    const q = queueRef.current;
+    const i = queueIndexRef.current;
+    if (i < q.length - 1) {
+      setQueueIndex(i + 1);
+      setPlaying(true);
+    } else if (loopPlaylistRef.current && q.length) {
+      if (i === 0 && q.length === 1) {
+        setPlayNonce((n) => n + 1);
+      } else {
+        setQueueIndex(0);
+      }
+      setPlaying(true);
+    } else {
+      setPlaying(false);
+    }
   }, []);
 
   const startProgressPoll = useCallback(() => {
@@ -333,9 +489,28 @@ export default function MusicPage({
         } else if (providerRef.current === "soundcloud" && scWidgetRef.current?.getPosition) {
           scWidgetRef.current.getPosition((pos: number) => setProgress((pos || 0) / 1000));
           scWidgetRef.current.getDuration((dur: number) => setDuration((dur || 0) / 1000));
+        } else if (providerRef.current === "audio" && audioRef.current) {
+          setProgress(audioRef.current.currentTime || 0);
+          setDuration(audioRef.current.duration || 0);
         }
       } catch {}
     }, 400);
+  }, []);
+
+  const pauseOthers = useCallback((keep: "youtube" | "soundcloud" | "audio") => {
+    try {
+      if (keep !== "youtube") ytPlayerRef.current?.pauseVideo?.();
+    } catch {}
+    try {
+      if (keep !== "soundcloud") scWidgetRef.current?.pause?.();
+    } catch {}
+    try {
+      if (keep !== "audio" && audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.removeAttribute("src");
+        audioRef.current.load();
+      }
+    } catch {}
   }, []);
 
   useEffect(() => { savePlaylists(playlists); }, [playlists]);
@@ -414,6 +589,7 @@ export default function MusicPage({
   }, [query, nav]);
 
   const loadAndPlay = useCallback(async (track: Track) => {
+    const gen = ++loadGenRef.current;
     try {
       const params = new URLSearchParams();
       if (track.title) params.set("t", track.title);
@@ -421,15 +597,55 @@ export default function MusicPage({
       const qs = params.toString();
       const r = await fetch(`/api/music/play/${encodeURIComponent(track.id)}${qs ? `?${qs}` : ""}`);
       const d = await r.json();
+      if (gen !== loadGenRef.current) return;
       if (!r.ok) throw new Error(d.error || "Play failed");
 
-      stopAllPlayers();
       setProgress(0);
       setDuration((track.duration || 0) / 1000);
 
+      const playAudioUrl = async (url: string) => {
+        pauseOthers("audio");
+        providerRef.current = "audio";
+        const audio = audioRef.current;
+        if (!audio) throw new Error("Player unavailable");
+        ensureEqGraph();
+        applyEqGains(eqGainsRef.current, eqOnRef.current);
+        if (audioCtxRef.current?.state === "suspended") {
+          await audioCtxRef.current.resume().catch(() => {});
+        }
+        audio.src = url;
+        audio.loop = false;
+        await audio.play();
+        if (gen !== loadGenRef.current) return;
+        setPlaying(true);
+        startProgressPoll();
+      };
+
+      if (d.audioUrl && typeof d.audioUrl === "string") {
+        await playAudioUrl(d.audioUrl);
+        if (gen !== loadGenRef.current) return;
+        setError("");
+        return;
+      }
+
       if (d.provider === "youtube" && d.videoId) {
+        pauseOthers("youtube");
         providerRef.current = "youtube";
         const YT = await loadYoutubeApi();
+        if (gen !== loadGenRef.current) return;
+
+        if (ytPlayerRef.current?.loadVideoById) {
+          try {
+            ytPlayerRef.current.loadVideoById({ videoId: d.videoId, startSeconds: 0 });
+            ytPlayerRef.current.playVideo();
+            setPlaying(true);
+            startProgressPoll();
+            applyEqGains(eqGainsRef.current, eqOnRef.current);
+            setError("");
+            return;
+          } catch {}
+        }
+
         await new Promise<void>((resolve, reject) => {
           if (!ytHostRef.current) return reject(new Error("Player unavailable"));
           ytHostRef.current.innerHTML = "";
@@ -455,6 +671,7 @@ export default function MusicPage({
                   ev.target.playVideo();
                   setPlaying(true);
                   startProgressPoll();
+                  applyEqGains(eqGainsRef.current, eqOnRef.current);
                   resolve();
                 } catch (e) {
                   reject(e);
@@ -466,31 +683,28 @@ export default function MusicPage({
                   setPlaying(true);
                   startProgressPoll();
                 } else if (state === YT.PlayerState.PAUSED) {
-                  setPlaying(false);
+                  if (document.visibilityState === "visible") setPlaying(false);
                 } else if (state === YT.PlayerState.ENDED) {
-                  if (loopTrack) {
-                    try {
-                      ev.target.seekTo(0);
-                      ev.target.playVideo();
-                    } catch {}
-                    return;
-                  }
-                  if (queueIndex < queue.length - 1) setQueueIndex((i) => i + 1);
-                  else if (loopPlaylist && queue.length) setQueueIndex(0);
-                  else setPlaying(false);
+                  advanceQueue();
                 }
               },
-              onError: () => reject(new Error("YouTube playback unavailable")),
+              onError: () => {
+                advanceQueue();
+                reject(new Error("YouTube playback unavailable"));
+              },
             },
           });
         });
+        if (gen !== loadGenRef.current) return;
         setError("");
         return;
       }
 
       if (d.provider === "soundcloud" && (d.widgetUrl || d.soundcloudId)) {
+        pauseOthers("soundcloud");
         providerRef.current = "soundcloud";
         const SC = await loadSoundCloudApi();
+        if (gen !== loadGenRef.current) return;
         if (!scFrameRef.current) throw new Error("Player unavailable");
         const widgetUrl =
           d.widgetUrl ||
@@ -515,48 +729,47 @@ export default function MusicPage({
             setPlaying(true);
             startProgressPoll();
           });
-          widget.bind(SC.Widget.Events.PAUSE, () => setPlaying(false));
-          widget.bind(SC.Widget.Events.FINISH, () => {
-            if (loopTrack) {
-              try { widget.seekTo(0); widget.play(); } catch {}
-              return;
-            }
-            if (queueIndex < queue.length - 1) setQueueIndex((i) => i + 1);
-            else if (loopPlaylist && queue.length) setQueueIndex(0);
-            else setPlaying(false);
+          widget.bind(SC.Widget.Events.PAUSE, () => {
+            if (document.visibilityState === "visible") setPlaying(false);
           });
+          widget.bind(SC.Widget.Events.FINISH, () => advanceQueue());
         });
+        if (gen !== loadGenRef.current) return;
         setError("");
         return;
       }
 
       throw new Error("No licensed player available for this track");
     } catch (e: any) {
+      if (gen !== loadGenRef.current) return;
       setError(e.message || "Could not play track");
       setPlaying(false);
     }
-  }, [stopAllPlayers, startProgressPoll, loopTrack, loopPlaylist, queue.length, queueIndex]);
+  }, [pauseOthers, startProgressPoll, advanceQueue, ensureEqGraph, applyEqGains]);
 
   const playTrack = useCallback((track: Track, list?: Track[]) => {
     const nextQueue = list && list.length ? list : [track];
     const idx = nextQueue.findIndex((t) => t.id === track.id);
     setQueue(nextQueue);
     setQueueIndex(idx >= 0 ? idx : 0);
+    setPlayNonce((n) => n + 1);
+    setPlaying(true);
   }, []);
 
   const playNext = useCallback((track: Track) => {
     setQueue((prev) => {
       if (!prev.length) return [track];
       const next = [...prev];
-      next.splice(queueIndex + 1, 0, track);
+      next.splice(queueIndexRef.current + 1, 0, track);
       return next;
     });
-  }, [queueIndex]);
+  }, []);
 
   const addToQueue = useCallback((track: Track) => {
     setQueue((prev) => {
       if (!prev.length) {
         setQueueIndex(0);
+        setPlayNonce((n) => n + 1);
         return [track];
       }
       return [...prev, track];
@@ -566,11 +779,50 @@ export default function MusicPage({
   useEffect(() => {
     if (!current) return;
     loadAndPlay(current);
-  }, [current?.id, queueIndex]);
+  }, [current?.id, queueIndex, playNonce]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onEnded = () => advanceQueue();
+    const onPlay = () => setPlaying(true);
+    const onPause = () => {
+      if (providerRef.current === "audio" && document.visibilityState === "visible") setPlaying(false);
+    };
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("play", onPlay);
+    audio.addEventListener("pause", onPause);
+    return () => {
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("pause", onPause);
+    };
+  }, [advanceQueue]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!playingRef.current) return;
+      try {
+        if (providerRef.current === "youtube" && ytPlayerRef.current?.playVideo) {
+          const st = ytPlayerRef.current.getPlayerState?.();
+          if (st === 2 || st === 5 || st === -1) ytPlayerRef.current.playVideo();
+        } else if (providerRef.current === "soundcloud" && scWidgetRef.current?.play) {
+          scWidgetRef.current.play();
+        } else if (providerRef.current === "audio" && audioRef.current?.paused) {
+          audioRef.current.play().catch(() => {});
+        }
+      } catch {}
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
 
   useEffect(() => () => {
-    stopAllPlayers();
-  }, [stopAllPlayers]);
+    clearProgressTimer();
+    try { ytPlayerRef.current?.destroy?.(); } catch {}
+    try { audioCtxRef.current?.close?.(); } catch {}
+  }, []);
 
   const togglePlay = () => {
     if (!current) return;
@@ -583,6 +835,11 @@ export default function MusicPage({
       if (providerRef.current === "soundcloud" && scWidgetRef.current) {
         if (playing) scWidgetRef.current.pause();
         else scWidgetRef.current.play();
+        return;
+      }
+      if (providerRef.current === "audio" && audioRef.current) {
+        if (playing) audioRef.current.pause();
+        else audioRef.current.play().catch(() => {});
       }
     } catch {}
   };
@@ -595,6 +852,9 @@ export default function MusicPage({
       } else if (providerRef.current === "soundcloud" && scWidgetRef.current?.seekTo) {
         scWidgetRef.current.seekTo(seconds * 1000);
         setProgress(seconds);
+      } else if (providerRef.current === "audio" && audioRef.current) {
+        audioRef.current.currentTime = seconds;
+        setProgress(seconds);
       }
     } catch {}
   };
@@ -605,11 +865,28 @@ export default function MusicPage({
       return;
     }
     setQueueIndex((i) => Math.max(0, i - 1));
+    setPlayNonce((n) => n + 1);
   };
 
   const next = () => {
-    if (queueIndex < queue.length - 1) setQueueIndex((i) => i + 1);
-    else if (loopPlaylist) setQueueIndex(0);
+    const q = queueRef.current;
+    const i = queueIndexRef.current;
+    if (i < q.length - 1) {
+      setQueueIndex(i + 1);
+      setPlayNonce((n) => n + 1);
+    } else if (loopPlaylistRef.current && q.length) {
+      setQueueIndex(0);
+      setPlayNonce((n) => n + 1);
+    }
+  };
+
+  const setEqPresetGains = (name: string) => {
+    const gains = (EQ_PRESETS[name] || EQ_PRESETS.Flat).slice();
+    setEqPreset(name);
+    setEqGains(gains);
+    setEqOn(true);
+    ensureEqGraph();
+    applyEqGains(gains, true);
   };
 
   const isLiked = (id: string) => liked.some((t) => t.id === id);
@@ -721,6 +998,7 @@ export default function MusicPage({
         allow="autoplay"
         style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none", left: -9999, top: 0, border: 0 }}
       />
+      <audio ref={audioRef} preload="metadata" crossOrigin="anonymous" style={{ display: "none" }} />
 
       <div className="music-body" style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {/* Sidebar */}
@@ -887,8 +1165,7 @@ export default function MusicPage({
               {nav === "playlist" && activePlaylist && activePlaylist.tracks.length > 0 && (
                 <button
                   onClick={() => {
-                    setQueue(activePlaylist.tracks);
-                    setQueueIndex(0);
+                    playTrack(activePlaylist.tracks[0], activePlaylist.tracks);
                   }}
                   style={{
                     display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 999,
@@ -898,14 +1175,53 @@ export default function MusicPage({
                   <Play size={11} fill="#fff" /> Play all
                 </button>
               )}
-              <div
-                style={{
-                  width: 30, height: 30, borderRadius: "50%",
-                  border: `1px solid ${S.border}`, background: S.elevated,
-                  display: "flex", alignItems: "center", justifyContent: "center", color: S.textMuted,
-                }}
-              >
-                <Music2 size={13} />
+              <div style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEqOpen((v) => !v);
+                    ensureEqGraph();
+                    if (audioCtxRef.current?.state === "suspended") {
+                      audioCtxRef.current.resume().catch(() => {});
+                    }
+                  }}
+                  title="Equaliser"
+                  style={{
+                    width: 30, height: 30, borderRadius: "50%",
+                    border: `1px solid ${eqOpen || eqOn ? EQ_ORANGE : S.border}`,
+                    background: eqOpen || eqOn ? EQ_ORANGE_DIM : S.elevated,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    color: eqOpen || eqOn ? EQ_ORANGE : S.textMuted,
+                    cursor: "pointer", padding: 0,
+                  }}
+                >
+                  <SlidersHorizontal size={13} />
+                </button>
+                <AnimatePresence>
+                  {eqOpen && (
+                    <EqualiserPopover
+                      on={eqOn}
+                      gains={eqGains}
+                      preset={eqPreset}
+                      onToggle={(v) => {
+                        setEqOn(v);
+                        ensureEqGraph();
+                        applyEqGains(eqGains, v);
+                      }}
+                      onGain={(idx, val) => {
+                        setEqGains((prev) => {
+                          const next = prev.slice();
+                          next[idx] = val;
+                          applyEqGains(next, eqOn);
+                          return next;
+                        });
+                        setEqPreset("Custom");
+                      }}
+                      onPreset={setEqPresetGains}
+                      onClose={() => setEqOpen(false)}
+                    />
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </motion.div>
@@ -966,7 +1282,7 @@ export default function MusicPage({
             ) : (
               <TrackListView
                 tracks={listTracks}
-                loading={loading || (nav === "browse" && browseLoading)}
+                loading={loading}
                 emptyLabel={
                   nav === "search"
                     ? query
@@ -1658,5 +1974,146 @@ function SideBtn({
       <span style={{ flexShrink: 0, display: "flex", color: active ? S.accent : "inherit" }}>{icon}</span>
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
     </motion.button>
+  );
+}
+
+function EqualiserPopover({
+  on,
+  gains,
+  preset,
+  onToggle,
+  onGain,
+  onPreset,
+  onClose,
+}: {
+  on: boolean;
+  gains: number[];
+  preset: string;
+  onToggle: (v: boolean) => void;
+  onGain: (idx: number, val: number) => void;
+  onPreset: (name: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -6, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -4, scale: 0.98 }}
+      transition={{ duration: 0.18 }}
+      style={{
+        position: "absolute",
+        top: "calc(100% + 10px)",
+        right: 0,
+        zIndex: 40,
+        width: 280,
+        padding: "14px 14px 12px",
+        borderRadius: 18,
+        background: "hsla(222, 28%, 10%, 0.96)",
+        border: `1px solid ${S.border}`,
+        boxShadow: "0 18px 48px rgba(0,0,0,0.45)",
+        backdropFilter: "blur(16px)",
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: -6,
+          right: 12,
+          width: 12,
+          height: 12,
+          background: "hsla(222, 28%, 10%, 0.96)",
+          borderLeft: `1px solid ${S.border}`,
+          borderTop: `1px solid ${S.border}`,
+          transform: "rotate(45deg)",
+        }}
+      />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: S.text }}>Equaliser</p>
+        <button
+          type="button"
+          onClick={() => onToggle(!on)}
+          aria-label="Toggle equaliser"
+          style={{
+            width: 38,
+            height: 22,
+            borderRadius: 999,
+            border: "none",
+            cursor: "pointer",
+            background: on ? EQ_ORANGE : "hsla(210, 20%, 30%, 0.7)",
+            position: "relative",
+            padding: 0,
+          }}
+        >
+          <span
+            style={{
+              position: "absolute",
+              top: 2,
+              left: on ? 18 : 2,
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: on ? "#1a120c" : "hsla(210, 20%, 78%, 0.95)",
+              transition: "left 0.15s ease",
+            }}
+          />
+        </button>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 12, opacity: on ? 1 : 0.45, pointerEvents: on ? "auto" : "none" }}>
+        {EQ_BANDS.map((band, idx) => (
+          <div key={band.label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 10, color: EQ_ORANGE, fontVariantNumeric: "tabular-nums", minHeight: 14 }}>
+              {gains[idx] > 0 ? `+${gains[idx]}` : `${gains[idx]}`}
+            </span>
+            <div style={{ height: 100, width: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <input
+                type="range"
+                min={-12}
+                max={12}
+                step={1}
+                value={gains[idx]}
+                onChange={(e) => onGain(idx, Number(e.target.value))}
+                style={{
+                  width: 100,
+                  height: 18,
+                  transform: "rotate(-90deg)",
+                  accentColor: EQ_ORANGE,
+                  cursor: "pointer",
+                }}
+              />
+            </div>
+            <span style={{ fontSize: 10, color: S.textMuted }}>{band.label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", gap: 6 }}>
+        {["Flat", "Bass", "Vocal", "Treble"].map((name) => {
+          const active = preset === name || (name === "Flat" && preset === "Custom" && gains.every((g) => g === 0));
+          return (
+            <button
+              key={name}
+              type="button"
+              onClick={() => onPreset(name)}
+              style={{
+                flex: 1,
+                padding: "7px 0",
+                borderRadius: 999,
+                border: active ? "none" : `1px solid ${S.border}`,
+                background: active ? EQ_ORANGE : "transparent",
+                color: active ? "#140e0a" : S.text,
+                fontSize: 11,
+                fontWeight: 650,
+                cursor: "pointer",
+              }}
+            >
+              {name}
+            </button>
+          );
+        })}
+      </div>
+      <button type="button" onClick={onClose} style={{ display: "none" }} />
+    </motion.div>
   );
 }

@@ -33,313 +33,451 @@ ${l}`}}if((0,n.U5)("rewriterLogs",r.base))for(let e of s.errors)console.error("o
                     btn.textContent = 'Copied!';
                     setTimeout(() => btn.textContent = 'Copy', 2000);
                 });
+
+                function navigatePete(path) {
+                    if (typeof path !== 'string' || !/^petezah:\\/\\/[a-z0-9][a-z0-9+.-]*(?:[/?#][^\\s]*)?$/i.test(path)) return;
+                    try {
+                        if (window.parent && window.parent !== window) {
+                            window.parent.postMessage({ source: 'pz-scramjet-error', action: 'navigate', url: path }, '*');
+                            return;
+                        }
+                    } catch (e) {}
+                    try {
+                        if (window.top && window.top !== window) {
+                            window.top.postMessage({ source: 'pz-scramjet-error', action: 'navigate', url: path }, '*');
+                            return;
+                        }
+                    } catch (e2) {}
+                }
+                const tryVm = document.getElementById('tryVm');
+                const tryVm2 = document.getElementById('tryVm2');
+                const tryFeedback = document.getElementById('tryFeedback');
+                const goHome = document.getElementById('goHome');
+                if (tryVm) tryVm.addEventListener('click', () => navigatePete('petezah://vm'));
+                if (tryVm2) tryVm2.addEventListener('click', () => navigatePete('petezah://vm'));
+                if (tryFeedback) tryFeedback.addEventListener('click', () => navigatePete('petezah://feedback'));
+                if (goHome) goHome.addEventListener('click', () => navigatePete('petezah://newtab'));
+
         `;return`<!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8" />
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Error - PeteZah</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
-            --bg-primary: #0a1628;
-            --bg-secondary: #132038;
-            --bg-tertiary: #1a2d4d;
-            --text-primary: #ffffff;
-            --text-secondary: #b8c5d6;
-            --accent: #4a90e2;
-            --accent-hover: #5fa3f5;
-            --border: #2a3f5f;
-            --error: #e74c3c;
+            --bg: #020810;
+            --panel: hsla(220, 28%, 12%, 0.42);
+            --elevated: hsla(220, 24%, 16%, 0.5);
+            --border: hsla(210, 30%, 80%, 0.12);
+            --border-focus: hsla(210, 40%, 70%, 0.28);
+            --text: hsla(210, 20%, 96%, 0.95);
+            --muted: hsla(210, 14%, 70%, 0.78);
+            --dim: hsla(210, 12%, 55%, 0.55);
+            --accent: hsla(0, 0%, 96%, 0.92);
+            --accent-dim: hsla(210, 40%, 55%, 0.16);
+            --danger: hsl(0 60% 58%);
+            --ok: hsl(145 45% 52%);
         }
-
-        * {
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body {
+            width: 100%;
+            min-height: 100%;
             margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+            color: var(--text);
+            background: var(--bg);
         }
-
-        body {
-            background: linear-gradient(135deg, #0a1628 0%, #132038 100%);
-            color: var(--text-primary);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow-x: hidden;
-        }
-
-        body::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: radial-gradient(circle at 20% 50%, rgba(74, 144, 226, 0.1) 0%, transparent 50%),
-                        radial-gradient(circle at 80% 80%, rgba(74, 144, 226, 0.05) 0%, transparent 50%);
+        #vanta-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
             pointer-events: none;
         }
-
-        #cover {
+        #vanta-veil {
             position: fixed;
-            width: 100%;
-            height: 100%;
-            background: rgba(10, 22, 40, 0.85);
-            backdrop-filter: blur(10px);
+            inset: 0;
             z-index: 1;
+            pointer-events: none;
+            background: linear-gradient(180deg, hsla(220, 30%, 6%, 0.28), hsla(220, 28%, 5%, 0.62));
         }
-
-        #inner {
+        #cover { display: none; }
+        .shell {
             position: relative;
-            z-index: 100;
-            max-width: 900px;
-            width: 90%;
-            padding: 3rem;
-            background: var(--bg-secondary);
-            border-radius: 16px;
+            z-index: 2;
+            width: 100%;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: clamp(20px, 4vh, 40px) clamp(14px, 3vw, 28px);
+        }
+        #inner {
+            width: min(860px, 100%);
+            margin: 0 auto;
+            background: var(--panel);
             border: 1px solid var(--border);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border-radius: 20px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 24px 80px rgba(0,0,0,0.45), inset 0 1px 0 hsla(210, 40%, 90%, 0.05);
+            overflow: hidden;
+            animation: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
-
-        .header {
-            text-align: center;
-            margin-bottom: 2.5rem;
-            padding-bottom: 2rem;
-            border-bottom: 1px solid var(--border);
+        @keyframes rise {
+            from { opacity: 0; transform: translateY(12px) scale(0.988); filter: blur(5px); }
+            to { opacity: 1; transform: none; filter: blur(0); }
         }
-
+        .scan {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, hsla(0,0%,96%,0.4), transparent);
+            opacity: 0.7;
+        }
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(230px, 0.82fr);
+            min-height: 0;
+        }
+        .left {
+            padding: 20px 18px 18px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border-right: 1px solid var(--border);
+            min-width: 0;
+        }
+        .right {
+            padding: 16px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: hsla(220, 30%, 8%, 0.22);
+            min-width: 0;
+        }
+        .brand-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            width: 100%;
+        }
         .logo {
-            width: 80px;
-            height: 80px;
-            margin-bottom: 1.5rem;
+            display: block;
+            width: 42px;
+            height: 42px;
+            object-fit: contain;
+            flex-shrink: 0;
+            filter: drop-shadow(0 0 12px hsla(0,0%,100%,0.1));
         }
-
-        #errorTitle {
-            font-size: 2.5rem;
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 42px;
+            padding: 0 12px;
+            border-radius: 999px;
+            border: 1px solid hsla(0, 60%, 58%, 0.28);
+            background: hsla(0, 60%, 50%, 0.1);
+            color: var(--danger);
+            font-size: 9px;
             font-weight: 700;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
-
+        .brand-meta {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 2px;
+            padding: 0 4px;
+        }
+        .brand-meta .kicker {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--dim);
+        }
+        .brand-meta .hint {
+            font-size: 11px;
+            color: var(--muted);
+            line-height: 1.35;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #errorTitle {
+            font-size: clamp(1.35rem, 2.6vw, 1.75rem);
+            font-weight: 750;
+            letter-spacing: -0.03em;
+            color: var(--text);
+            line-height: 1.15;
+        }
         .error-subtitle {
-            color: var(--text-secondary);
-            font-size: 1.1rem;
-            margin-top: 0.5rem;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.45;
+            max-width: 46ch;
         }
-
         #fetchedURL {
             color: var(--accent);
             word-break: break-all;
+            font-weight: 600;
         }
-
-        #info {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            margin: 2rem 0;
-        }
-
-        @media (max-width: 768px) {
-            #info {
-                grid-template-columns: 1fr;
-            }
-        }
-
+        #info { flex: 1 1 auto; min-height: 0; display: flex; }
         #errorTrace-wrapper {
             position: relative;
+            flex: 1 1 auto;
+            width: 100%;
+            min-height: 160px;
         }
-
         #errorTrace {
             width: 100%;
-            min-height: 250px;
-            background: var(--bg-primary);
+            height: 100%;
+            min-height: 160px;
+            max-height: 240px;
+            background: hsla(220, 40%, 5%, 0.72);
             border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            color: var(--text-primary);
-            font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
+            border-radius: 12px;
+            padding: 12px;
+            color: hsla(210, 14%, 78%, 0.88);
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 11px;
+            line-height: 1.45;
             resize: vertical;
             outline: none;
         }
-
+        #errorTrace:focus { border-color: var(--border-focus); }
         #copy-button {
             position: absolute;
-            top: 1rem;
-            right: 1rem;
-            background: var(--accent);
-            color: var(--text-primary);
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            opacity: 0;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        #errorTrace-wrapper:hover #copy-button {
-            opacity: 1;
-        }
-
-        #copy-button:hover {
-            background: var(--accent-hover);
-            transform: translateY(-2px);
-        }
-
-        #troubleshooting {
-            background: var(--bg-tertiary);
-            padding: 1.5rem;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-        }
-
-        #troubleshooting h3 {
-            color: var(--text-primary);
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        #troubleshooting ul {
-            list-style: none;
-            margin-bottom: 1.5rem;
-        }
-
-        #troubleshooting li {
-            padding: 0.5rem 0;
-            color: var(--text-secondary);
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        #troubleshooting li::before {
-            content: '\f061';
-            font-family: 'Font Awesome 6 Free';
-            font-weight: 900;
+            top: 8px;
+            right: 8px;
+            background: var(--accent-dim);
             color: var(--accent);
-            font-size: 0.8rem;
+            border: 1px solid var(--border-focus);
+            padding: 4px 9px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: 650;
+            font-size: 10px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
-
+        #errorTrace-wrapper:hover #copy-button { opacity: 1; }
         .actions {
             display: flex;
-            gap: 1rem;
-            justify-content: center;
             flex-wrap: wrap;
-            margin-top: 2rem;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+            margin-top: auto;
+            padding-top: 6px;
         }
-
         button {
-            background: var(--bg-tertiary);
-            color: var(--text-primary);
+            background: var(--elevated);
+            color: var(--text);
             border: 1px solid var(--border);
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
+            padding: 9px 13px;
+            border-radius: 999px;
             cursor: pointer;
-            font-weight: 600;
-            font-size: 1rem;
-            transition: all 0.3s;
+            font-weight: 650;
+            font-size: 12px;
+            transition: transform 0.15s, border-color 0.15s, background 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            font-family: inherit;
+        }
+        button:hover {
+            border-color: var(--border-focus);
+            transform: translateY(-1px);
+        }
+        button.primary {
+            background: hsla(0, 0%, 96%, 0.92);
+            border-color: transparent;
+            color: #0a1018;
+        }
+        button.vm {
+            background: hsla(145, 40%, 35%, 0.18);
+            border-color: hsla(145, 40%, 45%, 0.3);
+            color: hsl(145 45% 68%);
+        }
+        .card {
+            border: 1px solid var(--border);
+            background: var(--elevated);
+            border-radius: 14px;
+            padding: 12px 13px;
+            text-align: left;
+            backdrop-filter: blur(10px);
+            transition: border-color 0.2s, transform 0.2s;
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .card:hover { border-color: var(--border-focus); transform: translateY(-1px); }
+        .card h3 {
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 5px;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 7px;
+            color: var(--text);
         }
-
-        button:hover {
-            background: var(--bg-primary);
-            border-color: var(--accent);
-            transform: translateY(-2px);
+        .card p {
+            font-size: 11px;
+            color: var(--muted);
+            line-height: 1.45;
+            margin-bottom: 10px;
+            flex: 1;
         }
-
-        button.primary {
-            background: var(--accent);
-            border-color: var(--accent);
+        .card a, .card button.linkish {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 650;
+            color: var(--accent);
+            text-decoration: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            font-family: inherit;
+            margin-top: auto;
         }
-
-        button.primary:hover {
-            background: var(--accent-hover);
-            border-color: var(--accent-hover);
-        }
-
+        .card a:hover, .card button.linkish:hover { opacity: 0.85; }
         #version-wrapper {
             position: fixed;
-            bottom: 1rem;
-            right: 1rem;
-            background: var(--bg-secondary);
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
+            bottom: 12px;
+            right: 12px;
+            background: var(--panel);
+            padding: 5px 10px;
+            border-radius: 999px;
             border: 1px solid var(--border);
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            z-index: 101;
+            font-size: 10px;
+            color: var(--dim);
+            z-index: 10;
+            backdrop-filter: blur(10px);
         }
-
-        .hostname {
-            color: var(--accent);
-            font-weight: 600;
+        .hostname { color: var(--accent); font-weight: 650; }
+        @media (max-width: 720px) {
+            .layout { grid-template-columns: 1fr; }
+            .left { border-right: none; border-bottom: 1px solid var(--border); }
+            .brand-meta { display: none; }
+            .brand-row { justify-content: flex-start; }
+            #errorTrace { max-height: 150px; min-height: 120px; }
         }
     </style>
 </head>
 <body>
+    <div id="vanta-bg"></div>
+    <div id="vanta-veil"></div>
     <div id="cover"></div>
+    <div class="shell">
     <div id="inner">
-        <div class="header">
-            <img src="/storage/images/logo-png-removebg-preview.png" alt="PeteZah Logo" class="logo">
-            <h1 id="errorTitle">Connection Error</h1>
-            <p class="error-subtitle">We couldn't load <span id="fetchedURL"></span></p>
-        </div>
-
-        <div id="info">
-            <div id="errorTrace-wrapper">
-                <textarea id="errorTrace" readonly></textarea>
-                <button id="copy-button">
-                    <i class="fas fa-copy"></i> Copy
-                </button>
+        <div class="scan"></div>
+        <div class="layout">
+            <div class="left">
+                <div class="brand-row">
+                    <img src="/storage/images/logo-png-removebg-preview.png" alt="PeteZah" class="logo">
+                    <div class="brand-meta">
+                        <div class="kicker">Scramjet proxy</div>
+                        <div class="hint">Site failed to load through the proxy tunnel</div>
+                    </div>
+                    <div class="badge"><i class="fas fa-satellite-dish"></i> Proxy link failed</div>
+                </div>
+                <div>
+                    <h1 id="errorTitle">Connection Error</h1>
+                    <p class="error-subtitle" style="margin-top:8px">We couldn't load <span id="fetchedURL"></span> through Scramjet.</p>
+                </div>
+                <div id="info">
+                    <div id="errorTrace-wrapper">
+                        <textarea id="errorTrace" readonly></textarea>
+                        <button id="copy-button" type="button"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                </div>
             </div>
-            
-            <div id="troubleshooting">
-                <h3><i class="fas fa-tools"></i> Troubleshooting</h3>
-                <ul>
-                    <li>Check your internet connection</li>
-                    <li>Verify the URL is correct</li>
-                    <li>Clear your browser cache</li>
-                    <li>Contact <span class="hostname" id="hostname"></span>'s admin</li>
-                    <li>Check if the server is accessible</li>
-                </ul>
-                
-                <h3><i class="fas fa-server"></i> Server Admins</h3>
-                <ul>
-                    <li>Restart your server</li>
-                    <li>Update Scramjet</li>
-                    <li>Check the <a href="https://github.com/MercuryWorkshop/scramjet" target="_blank" style="color: var(--accent);">GitHub repo</a></li>
-                </ul>
+            <div class="right">
+                <div class="card">
+                    <h3><i class="fas fa-desktop" style="color: var(--ok)"></i> Try the VM</h3>
+                    <p>Some sites break under the proxy. Open the Firefox VM for a fuller browser stack.</p>
+                    <button type="button" class="linkish" id="tryVm"><i class="fas fa-arrow-right"></i> Launch VM</button>
+                </div>
+                <div class="card">
+                    <h3><i class="fab fa-discord" style="color: var(--accent)"></i> Report on Discord</h3>
+                    <p>Tell us the site and what you saw so we can improve proxy coverage.</p>
+                    <a href="https://discord.gg/cYjHFDguxS" target="_blank" rel="noopener noreferrer"><i class="fas fa-external-link-alt"></i> Join Discord</a>
+                </div>
+                <div class="card">
+                    <h3><i class="fas fa-comment-dots" style="color: var(--accent)"></i> Send feedback</h3>
+                    <p>In-app feedback helps us track recurring Scramjet failures.</p>
+                    <button type="button" class="linkish" id="tryFeedback"><i class="fas fa-arrow-right"></i> Open feedback</button>
+                </div>
+                <div class="actions">
+                    <button id="reload" class="primary" type="button"><i class="fas fa-redo"></i> Reload</button>
+                    <button id="tryVm2" class="vm" type="button"><i class="fas fa-desktop"></i> Try VM</button>
+                    <button id="goHome" type="button"><i class="fas fa-home"></i> Home</button>
+                </div>
             </div>
         </div>
-
-        <div class="actions">
-            <button id="reload" class="primary">
-                <i class="fas fa-redo"></i> Reload Page
-            </button>
-        </div>
+        <span id="hostname" class="hostname" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)"></span>
     </div>
-
+    </div>
     <div id="version-wrapper">
-        <i class="fas fa-code"></i> Scramjet v<span id="version"></span> (build <span id="build"></span>)
+        <i class="fas fa-microchip"></i> Scramjet v<span id="version"></span> · <span id="build"></span>
     </div>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="/vendor/vanta.fog.min.js"></script>
+    <script>
+      (function () {
+        try {
+          if (!window.VANTA || !window.THREE) return;
+          var bg = '#020810';
+          try {
+            if (window.parent && window.parent !== window) {
+              var ls = window.parent.localStorage;
+              if (ls) bg = ls.getItem('backgroundColor') || bg;
+            }
+          } catch (e) {}
+          function hex(n) {
+            if (!n || typeof n !== 'string') return 0x020810;
+            n = n.trim();
+            if (n[0] === '#' && n.length === 7) return parseInt(n.slice(1), 16);
+            return 0x020810;
+          }
+          window.__pzVanta = VANTA.FOG({
+            el: '#vanta-bg',
+            THREE: window.THREE,
+            mouseControls: false,
+            touchControls: false,
+            gyroControls: false,
+            minHeight: 200,
+            minWidth: 200,
+            highlightColor: 0x2f5a8a,
+            midtoneColor: 0x14304f,
+            lowlightColor: 0x071022,
+            baseColor: hex(bg),
+            blurFactor: 0.85,
+            speed: 1.1,
+            zoom: 1.2
+          });
+        } catch (e) {}
+      })();
+    </script>
     <script src="${"data:application/javascript,"+encodeURIComponent(r)}"></script>
 </body>
 </html>
-        `}function i(e,t){let r={"content-type":"text/html"};return crossOriginIsolated&&(r["Cross-Origin-Embedder-Policy"]="require-corp"),new Response(n(String(e),t),{status:500,headers:r})}r.d(t,{B:()=>n,v:()=>i})},1403:function(e,t,r){r.d(t,{H:()=>n});class n{handle;origin;syncToken=0;promises={};messageChannel=new MessageChannel;connected=!1;constructor(e,t){this.handle=e,this.origin=t,this.messageChannel.port1.addEventListener("message",e=>{"scramjet$type"in e.data&&("init"===e.data.scramjet$type?this.connected=!0:this.handleMessage(e.data))}),this.messageChannel.port1.start(),this.handle.postMessage({scramjet$type:"init",scramjet$port:this.messageChannel.port2},[this.messageChannel.port2])}handleMessage(e){let t=this.promises[e.scramjet$token];t&&(t(e),delete this.promises[e.scramjet$token])}async fetch(e){let t=this.syncToken++,r={scramjet$type:"fetch",scramjet$token:t,scramjet$request:{url:e.url,body:e.body,headers:Array.from(e.headers.entries()),method:e.method,mode:e.mode,destinitation:e.destination}},n=e.body?[e.body]:[];this.handle.postMessage(r,n);let{scramjet$response:i}=await new Promise(e=>{this.promises[t]=e});return!!i&&new Response(i.body,{headers:i.headers,status:i.status,statusText:i.statusText})}}},5790:function(e,t,r){r.d(t,{Pf:()=>m,V3:()=>S,dT:()=>w});var n=r(5956),i=r(8228),a=r(6684),s=r(1472),o=r(1478),l=r(1427),c=r(37),u=r(4435),d=r(884),h=r(2614),p=r(2015),f=r(8665).A;function g(e){return e.status>=300&&e.status<400}async function m(e,t){try{let r,n,o=new URL(e.url);if(o.pathname===this.config.files.wasm)return fetch(this.config.files.wasm).then(async e=>{let t=await e.arrayBuffer(),r=btoa(new Uint8Array(t).reduce((e,t)=>(e.push(String.fromCharCode(t)),e),[]).join("")),n="";return n+=`if ('document' in self && document.currentScript) { document.currentScript.remove(); }
+`}function i(e,t){let r={"content-type":"text/html"};return crossOriginIsolated&&(r["Cross-Origin-Embedder-Policy"]="require-corp"),new Response(n(String(e),t),{status:500,headers:r})}r.d(t,{B:()=>n,v:()=>i})},1403:function(e,t,r){r.d(t,{H:()=>n});class n{handle;origin;syncToken=0;promises={};messageChannel=new MessageChannel;connected=!1;constructor(e,t){this.handle=e,this.origin=t,this.messageChannel.port1.addEventListener("message",e=>{"scramjet$type"in e.data&&("init"===e.data.scramjet$type?this.connected=!0:this.handleMessage(e.data))}),this.messageChannel.port1.start(),this.handle.postMessage({scramjet$type:"init",scramjet$port:this.messageChannel.port2},[this.messageChannel.port2])}handleMessage(e){let t=this.promises[e.scramjet$token];t&&(t(e),delete this.promises[e.scramjet$token])}async fetch(e){let t=this.syncToken++,r={scramjet$type:"fetch",scramjet$token:t,scramjet$request:{url:e.url,body:e.body,headers:Array.from(e.headers.entries()),method:e.method,mode:e.mode,destinitation:e.destination}},n=e.body?[e.body]:[];this.handle.postMessage(r,n);let{scramjet$response:i}=await new Promise(e=>{this.promises[t]=e});return!!i&&new Response(i.body,{headers:i.headers,status:i.status,statusText:i.statusText})}}},5790:function(e,t,r){r.d(t,{Pf:()=>m,V3:()=>S,dT:()=>w});var n=r(5956),i=r(8228),a=r(6684),s=r(1472),o=r(1478),l=r(1427),c=r(37),u=r(4435),d=r(884),h=r(2614),p=r(2015),f=r(8665).A;function g(e){return e.status>=300&&e.status<400}async function m(e,t){try{let r,n,o=new URL(e.url);if(o.pathname===this.config.files.wasm)return fetch(this.config.files.wasm).then(async e=>{let t=await e.arrayBuffer(),r=btoa(new Uint8Array(t).reduce((e,t)=>(e.push(String.fromCharCode(t)),e),[]).join("")),n="";return n+=`if ('document' in self && document.currentScript) { document.currentScript.remove(); }
 self.WASM = '${r}';`,new Response(n,{headers:{"content-type":"text/javascript"}})});let u="",d={};for(let[e,t]of[...o.searchParams.entries()]){switch(e){case"type":u=t;break;case"dest":break;case"topFrame":r=t;break;case"parentFrame":n=t;break;default:f.warn(`${o.href} extraneous query parameter ${e}. Assuming <form> element`),d[e]=t}o.searchParams.delete(e)}let h=new URL((0,s.v2)(o));for(let[e,t]of Object.entries(d))h.searchParams.set(e,t);let p={origin:h,base:h,topFrameName:r,parentFrameName:n};if(o.pathname.startsWith(`${this.config.prefix}blob:`)||o.pathname.startsWith(`${this.config.prefix}data:`)){let t,r=o.pathname.substring(this.config.prefix.length);r.startsWith("blob:")&&(r=(0,s.$n)(r));let n=await fetch(r,{});n.finalURL=r.startsWith("blob:")?r:"(data url)",n.body&&(t=await b(n,p,e.destination,u,this.cookieStore));let i=Object.fromEntries(n.headers.entries());return crossOriginIsolated&&(i["Cross-Origin-Opener-Policy"]="same-origin",i["Cross-Origin-Embedder-Policy"]="require-corp"),new Response(t,{status:n.status,statusText:n.statusText,headers:i})}let g=this.serviceWorkers.find(e=>e.origin===h.origin);if(g?.connected&&"swruntime"!==o.searchParams.get("from")){let t=await g.fetch(e);if(t)return t}if(h.origin===new URL(e.url).origin)throw Error("attempted to fetch from same origin - this means the site has obtained a reference to the real origin, aborting");let m=new l.u;for(let[t,r]of e.headers.entries())m.set(t,r);if(t&&new URL(t.url).pathname.startsWith(c.$W.prefix)){let e=new URL((0,s.v2)(t.url));e.toString().includes("youtube.com")||(m.set("Referer",e.href),m.set("Origin",e.origin))}let w=this.cookieStore.getCookies(h,!1);w.length&&m.set("Cookie",w);let v=!1;if("iframe"===e.destination&&"navigate"===e.mode&&e.referrer&&"no-referrer"!==e.referrer&&e.referrer!==location.origin+c.$W.prefix+"no-referrer"){let t=e.referrer,r=await self.clients.matchAll({type:"window"});for(;t;){if(!t.includes(c.$W.prefix)){v=!0;break}let e=r.find(e=>e.url===t),n=await (0,a.Yq)(t);if(!n||!n.referrer){e&&t.startsWith(location.origin)&&(v=!0);break}if(e&&"nested"===e.frameType)t=n.referrer;else break}}v?(m.set("Sec-Fetch-Dest","document"),m.set("Sec-Fetch-Mode","navigate")):(m.set("Sec-Fetch-Dest",e.destination||"empty"),m.set("Sec-Fetch-Mode",e.mode));let x="none";if(e.referrer&&""!==e.referrer&&"no-referrer"!==e.referrer&&e.referrer!==location.origin+c.$W.prefix+"no-referrer"&&e.referrer.includes(c.$W.prefix)){let t=(0,s.v2)(e.referrer);if(t){let e=new URL(t);x=await (0,i.ps)(p,e,this.client)}}await (0,a.rj)(h.toString(),e.referrer?(0,s.v2)(e.referrer):null,x),m.set("Sec-Fetch-Site",await (0,a.hU)(h.toString(),x));let E=new S(h,m.headers,e.body,e.method,e.destination,t);this.dispatchEvent(E);let T=await E.response||await this.client.fetch(E.url,{method:E.method,body:E.body,headers:E.requestHeaders,credentials:"omit",mode:"cors"===e.mode?e.mode:"same-origin",cache:e.cache,redirect:"manual",duplex:"half"});return T.finalURL=E.url.href,await y(h,p,u,e.destination,e.mode,T,this.cookieStore,t,this.client,this,e.referrer)}catch(i){let t={message:i.message,url:e.url,destination:e.destination};if(i.stack&&(t.stack=i.stack),console.error("ERROR FROM SERVICE WORKER FETCH: ",t),console.error(i),!["document","iframe"].includes(e.destination))return new Response(void 0,{status:500});let r=Object.entries(t).map(([e,t])=>`${e.charAt(0).toUpperCase()+e.slice(1)}: ${t}`).join("\n\n");return(0,n.v)(r,(0,s.v2)(e.url))}}async function y(e,t,r,n,o,l,d,h,p,f,m){let y,S="navigate"===o&&["document","iframe"].includes(n),v=await (0,u.l)(l.rawHeaders,t,p,{get:a.Yq,set:a.pL});if(S&&v["referrer-policy"]&&m&&await (0,a.pL)(e.href,v["referrer-policy"],m),g(l)){let t=new URL((0,s.v2)(v.location));await (0,a.YH)(e.toString(),t.toString(),v["referrer-policy"]);let n=await (0,i.ps)({origin:t,base:t},e,p);if(await (0,a.hU)(t.toString(),n),r){let e=new URL(v.location);e.searchParams.set("type",r),v.location=e.href}}let x=v["set-cookie"]||[];for(let t in x)if(h){let r=f.dispatch(h,{scramjet$type:"cookie",cookie:t,url:e.href});"document"!==n&&"iframe"!==n&&await r}for(let t in await d.setCookies(x instanceof Array?x:[x],e),v)Array.isArray(v[t])&&(v[t]=v[t][0]);if(function(e,t){if(["document","iframe"].includes(t)){let t=e["content-disposition"];if(t){if("inline"!==t)return!0}else{let t=e["content-type"]?.split(";")[0].trim().toLowerCase();if(t&&!["text/html","text/plain","text/css","text/javascript","text/xml","application/javascript","application/json","application/xml","application/pdf"].includes(t)&&!t.startsWith("text")&&!t.startsWith("image")&&!t.startsWith("font")&&!t.startsWith("video"))return!0}}return!1}(v,n)&&!g(l))if((0,c.U5)("interceptDownloads",e)){if(!h)throw Error("cant find client");let t=null,r=v["content-disposition"];if("string"==typeof r){let e=r.match(/filename=["']?([^"';\n]*)["']?/i);e&&e[1]&&(t=e[1])}let n=v["content-length"],i=await clients.matchAll({});if((i=i.filter(e=>!e.url.includes(c.$W.prefix))).length<1)throw Error("couldn't find a controller client to dispatch download to");let a={filename:t,url:e.href,type:v["content-type"],body:l.body,length:Number(n)};i[0].postMessage({scramjet$type:"download",download:a},[l.body]),await new Promise(()=>{})}else{let e=v["content-disposition"];if(!/\s*?((inline|attachment);\s*?)filename=/i.test(e)){let t=/^\s*?attachment/i.test(e)?"attachment":"inline",[r]=new URL(l.finalURL).pathname.split("/").slice(-1);v["content-disposition"]=`${t}; filename=${JSON.stringify(r)}`}}l.body&&!g(l)&&(y=await b(l,t,n,r,d)),"text/event-stream"===v.accept&&(v["content-type"]="text/event-stream"),delete v["permissions-policy"],crossOriginIsolated&&["document","iframe","worker","sharedworker","style","script"].includes(n)&&(v["Cross-Origin-Embedder-Policy"]="require-corp",v["Cross-Origin-Opener-Policy"]="same-origin");let E=new w(y,v,l.status,l.statusText,n,e,l,h);return f.dispatchEvent(E),g(l)||await (0,a.Sn)(e.toString()),new Response(E.responseBody,{headers:E.responseHeaders,status:E.status,statusText:E.statusText})}async function b(e,t,r,n,i){switch(r){case"iframe":case"document":if(e.headers.get("content-type")?.startsWith("text/html"))return(0,d.Qs)(await e.text(),i,t,!0);return e.body;case"script":return(0,o.o)(new Uint8Array(await e.arrayBuffer()),e.finalURL,t,"module"===n);case"style":return(0,h.s)(await e.text(),t);case"sharedworker":case"worker":return(0,p.i)(new Uint8Array(await e.arrayBuffer()),n,e.finalURL,t);default:return e.body}}class w extends Event{responseBody;responseHeaders;status;statusText;destination;url;rawResponse;client;constructor(e,t,r,n,i,a,s,o){super("handleResponse"),this.responseBody=e,this.responseHeaders=t,this.status=r,this.statusText=n,this.destination=i,this.url=a,this.rawResponse=s,this.client=o}}class S extends Event{url;requestHeaders;body;method;destination;client;constructor(e,t,r,n,i,a){super("request"),this.url=e,this.requestHeaders=t,this.body=r,this.method=n,this.destination=i,this.client=a}response}},7510:function(e,t,r){r.r(t),r.d(t,{FakeServiceWorker:()=>n.H,ScramjetHandleResponseEvent:()=>i.dT,ScramjetRequestEvent:()=>i.V3,ScramjetServiceWorker:()=>d,errorTemplate:()=>u.B,handleFetch:()=>i.Pf,renderError:()=>u.v});var n=r(1403),i=r(5790),a=r(236),s=r(1561),o=r(3831),l=r(6570),c=r(37),u=r(5956);class d extends EventTarget{client;config;syncPool={};synctoken=0;cookieStore=new o.k;serviceWorkers=[];constructor(){super(),this.client=new a.Ay,(async()=>{let e=await (0,l.P2)("$scramjet",1),t=await e.get("cookies","cookies");t&&this.cookieStore.load(t)})(),addEventListener("message",async({data:e})=>{if("scramjet$type"in e){if("scramjet$token"in e){let t=this.syncPool[e.scramjet$token];delete this.syncPool[e.scramjet$token],t(e);return}if("registerServiceWorker"===e.scramjet$type)return void this.serviceWorkers.push(new n.H(e.port,e.origin));if("cookie"===e.scramjet$type){this.cookieStore.setCookies([e.cookie],new URL(e.url));let t=await (0,l.P2)("$scramjet",1);await t.put("cookies",JSON.parse(this.cookieStore.dump()),"cookies")}"loadConfig"===e.scramjet$type&&(this.config=e.config)}})}async dispatch(e,t){let r,n=this.synctoken++,i=new Promise(e=>r=e);return this.syncPool[n]=r,t.scramjet$token=n,e.postMessage(t),await i}async loadConfig(){if(this.config)return;let e=await (0,l.P2)("$scramjet",1);this.config=await e.get("config","config"),this.config&&((0,c.Nk)(this.config),await (0,s.n$)())}route({request:e}){return!!e.url.startsWith(location.origin+this.config.prefix)||!!e.url.startsWith(location.origin+this.config.files.wasm)}async fetch({request:e,clientId:t}){this.config||await this.loadConfig();let r=await self.clients.get(t);return i.Pf.call(this,e,r)}}},236:function(e,t,r){r.d(t,{Ay:()=>S,DD:()=>w});let n=globalThis.fetch,i=globalThis.SharedWorker,a=globalThis.localStorage,s=globalThis.navigator.serviceWorker,o=MessagePort.prototype.postMessage,l={prototype:{send:WebSocket.prototype.send},CLOSED:WebSocket.CLOSED,CLOSING:WebSocket.CLOSING,CONNECTING:WebSocket.CONNECTING,OPEN:WebSocket.OPEN};async function c(){let e=Promise.race([Promise.any((await self.clients.matchAll({type:"window",includeUncontrolled:!0})).map(async e=>{let t,r=await (t=new MessageChannel,new Promise(r=>{e.postMessage({type:"getPort",port:t.port2},[t.port2]),t.port1.onmessage=e=>{r(e.data)}}));return await u(r),r})),new Promise((e,t)=>setTimeout(t,1e3,TypeError("timeout")))]);try{return await e}catch(e){if(e instanceof AggregateError)throw console.error("bare-mux: failed to get a bare-mux SharedWorker MessagePort as all clients returned an invalid MessagePort."),Error("All clients returned an invalid MessagePort.");return console.warn("bare-mux: failed to get a bare-mux SharedWorker MessagePort within 1s, retrying"),await c()}}function u(e){let t=new MessageChannel,r=new Promise((e,r)=>{t.port1.onmessage=t=>{"pong"===t.data.type&&e()},setTimeout(r,1500)});return o.call(e,{message:{type:"ping"},port:t.port2},[t.port2]),r}function d(e,t){let r=new i(e,"bare-mux-worker");return t&&s.addEventListener("message",t=>{if("getPort"===t.data.type&&t.data.port){console.debug("bare-mux: recieved request for port from sw");let r=new i(e,"bare-mux-worker");o.call(t.data.port,r.port,[r.port])}}),r.port}let h=null;class p{constructor(e){this.channel=new BroadcastChannel("bare-mux"),e instanceof MessagePort||e instanceof Promise?this.port=e:this.createChannel(e,!0)}createChannel(e,t){if(self.clients)this.port=c(),this.channel.onmessage=e=>{"refreshPort"===e.data.type&&(this.port=c())};else if(e&&SharedWorker){if(!e.startsWith("/")&&!e.includes("://"))throw Error("Invalid URL. Must be absolute or start at the root.");this.port=d(e,t),console.debug("bare-mux: setting localStorage bare-mux-path to",e),a["bare-mux-path"]=e}else{if(!SharedWorker)throw Error("Unable to get a channel to the SharedWorker.");{let e=a["bare-mux-path"];if(console.debug("bare-mux: got localStorage bare-mux-path:",e),!e)throw Error("Unable to get bare-mux workerPath from localStorage.");this.port=d(e,t)}}}async sendMessage(e,t){this.port instanceof Promise&&(this.port=await this.port);try{await u(this.port)}catch{return console.warn("bare-mux: Failed to get a ping response from the worker within 1.5s. Assuming port is dead."),this.createChannel(),await this.sendMessage(e,t)}let r=new MessageChannel,n=[r.port2,...t||[]],i=new Promise((e,t)=>{r.port1.onmessage=r=>{let n=r.data;"error"===n.type?t(n.error):e(n)}});return o.call(this.port,{message:e,port:r.port2},n),await i}}class f extends EventTarget{constructor(e,t=[],r,n){super(),this.protocols=t,this.readyState=l.CONNECTING,this.url=e.toString(),this.protocols=t;const i=e=>{this.protocols=e,this.readyState=l.OPEN;let t=new Event("open");this.dispatchEvent(t)},a=async e=>{let t=new MessageEvent("message",{data:e});this.dispatchEvent(t)},s=(e,t)=>{this.readyState=l.CLOSED;let r=new CloseEvent("close",{code:e,reason:t});this.dispatchEvent(r)},o=()=>{this.readyState=l.CLOSED;let e=new Event("error");this.dispatchEvent(e)};this.channel=new MessageChannel,this.channel.port1.onmessage=e=>{"open"===e.data.type?i(e.data.args[0]):"message"===e.data.type?a(e.data.args[0]):"close"===e.data.type?s(e.data.args[0],e.data.args[1]):"error"===e.data.type&&o()},r.sendMessage({type:"websocket",websocket:{url:e.toString(),protocols:t,requestHeaders:n,channel:this.channel.port2}},[this.channel.port2])}send(...e){if(this.readyState===l.CONNECTING)throw new DOMException("Failed to execute 'send' on 'WebSocket': Still in CONNECTING state.");let t=e[0];t.buffer&&(t=t.buffer.slice(t.byteOffset,t.byteOffset+t.byteLength)),o.call(this.channel.port1,{type:"data",data:t},t instanceof ArrayBuffer?[t]:[])}close(e,t){o.call(this.channel.port1,{type:"close",closeCode:e,closeReason:t})}}function g(e,t,r){console.error(`error while processing '${r}': `,t),e.postMessage({type:"error",error:t})}let m=["ws:","wss:"],y=[101,204,205,304],b=[301,302,303,307,308];class w{constructor(e){this.worker=new p(e)}async getTransport(){return(await this.worker.sendMessage({type:"get"})).name}async setTransport(e,t,r){await this.setManualTransport(`
 			const { default: BareTransport } = await import("${e}");
 			return [BareTransport, "${e}"];

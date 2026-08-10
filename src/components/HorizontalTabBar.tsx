@@ -8,6 +8,7 @@ function tabMark(tab: Tab) {
   if (url.startsWith("petezah://")) {
     const map: Record<string, string> = {
       "petezah://newtab": "H",
+      "petezah://trending": "TR",
       "petezah://games": "G",
       "petezah://ai": "AI",
       "petezah://apps": "A",
@@ -35,6 +36,7 @@ function tabMark(tab: Tab) {
 function tabLabel(tab: Tab) {
   const url = (tab.url || "").split("?")[0];
   if (url === "petezah://newtab" || !url) return "Home";
+  if (url === "petezah://trending") return "Trending";
   if (tab.title && tab.title !== "New Tab") return tab.title;
   if (url.startsWith("petezah://")) {
     const name = url.replace("petezah://", "");

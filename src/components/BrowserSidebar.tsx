@@ -20,6 +20,7 @@ import {
 import { TabList } from "@/components/TabItem";
 import ObfuscatedText from "@/components/ObfuscatedText";
 import { Tab, Space } from "@/hooks/useBrowserState";
+import { getHomeUrl } from "@/lib/homeUrl";
 import { useEffect, useState } from "react";
 
 interface SidebarProps {
@@ -117,7 +118,7 @@ export default function Sidebar({
             className="flex items-center gap-2 min-w-0"
           >
             <button
-              onClick={() => onNavigate("petezah://newtab")}
+              onClick={() => onNavigate(getHomeUrl())}
               className="p-1 rounded-lg hover:bg-white/5 transition-colors flex-shrink-0"
             >
               <img src="/logo.png" alt="Logo" className="w-6 h-6 object-contain opacity-90" />
@@ -134,7 +135,7 @@ export default function Sidebar({
         <div className={`flex items-center gap-1 ${collapsed ? "flex-col" : ""}`}>
           {collapsed && (
             <button
-              onClick={() => onNavigate("petezah://newtab")}
+              onClick={() => onNavigate(getHomeUrl())}
               className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
             >
               <img src="/logo.png" alt="Logo" className="w-6 h-6 object-contain opacity-90" />

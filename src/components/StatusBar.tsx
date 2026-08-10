@@ -1,9 +1,10 @@
 import { motion } from "framer-motion";
-import { Wifi, Battery, Shield } from "lucide-react";
+import { Wifi, Battery, Shield, Flame } from "lucide-react";
 import { openNativeWindow } from "@/lib/openTabBridge";
 
 interface StatusBarProps {
   tabCount: number;
+  onOpenTrending?: () => void;
 }
 
 const LEGAL_LINKS = [
@@ -22,7 +23,7 @@ function DiscordIcon({ size = 10 }: { size?: number }) {
   );
 }
 
-export default function StatusBar({ tabCount }: StatusBarProps) {
+export default function StatusBar({ tabCount, onOpenTrending }: StatusBarProps) {
   const now = new Date();
   const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
@@ -73,6 +74,19 @@ export default function StatusBar({ tabCount }: StatusBarProps) {
       </div>
 
       <div className="flex items-center gap-3" style={{ fontFamily: "plusjakartasans-obf, ui-sans-serif, system-ui, sans-serif" }}>
+        <button
+          type="button"
+          title="Trending"
+          onClick={() => onOpenTrending?.()}
+          className="flex items-center gap-1.5 bg-transparent border-none p-0 cursor-pointer transition-colors"
+          style={{ color: "hsla(0, 0%, 96%, 0.72)" }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "hsla(0, 0%, 100%, 0.95)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "hsla(0, 0%, 96%, 0.72)"; }}
+        >
+          <Flame size={9} />
+          <span className="text-[9px] tracking-wider">Trending</span>
+        </button>
+        <div className="w-px h-2.5" style={{ background: "hsla(210, 40%, 80%, 0.12)" }} />
         <div className="flex items-center gap-1.5">
           <Shield size={9} style={{ color: "hsla(210, 90%, 70%, 0.75)" }} />
           <span className="text-[9px] tracking-wider" style={{ color: "hsla(0,0%,100%,0.45)" }}>Secure</span>

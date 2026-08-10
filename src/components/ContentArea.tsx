@@ -26,6 +26,7 @@ import {
   Monitor,
   Link2,
   Folder,
+  Flame,
   type LucideIcon,
 } from "lucide-react";
 import { Tab } from "@/hooks/useBrowserState";
@@ -57,9 +58,11 @@ import ToolsPage from "./ToolsPage";
 import ExtensionsPage from "./ExtensionsPage";
 import BookmarksPage from "./BookmarksPage";
 import ProfilePage from "./ProfilePage";
+import TrendingDashboard from "./TrendingDashboard";
 import { recordHistory } from "./HistoryPage";
 import { runExtensionsOnFrame } from "./ExtensionsPage";
 import { requestSyncSoon } from "@/lib/settingsSync";
+import { openTrendingOverlay } from "@/lib/homeUrl";
 
 interface ContentAreaProps {
   tabs: Tab[];
@@ -801,14 +804,14 @@ function NewTabBookmarks({ onNavigate }: { onNavigate: (url: string) => void }) 
 
   return (
     <motion.div
-      className="absolute top-3 left-3 z-[20]"
+      className="absolute top-3 left-3 z-[20] flex flex-col gap-1.5 items-start max-w-[46vw]"
       ref={folderRef}
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.55, ease: [0.22, 1, 0.36, 1] }}
     >
       <div
-        className="flex items-center gap-3 flex-wrap max-w-[46vw] px-3 py-1.5 rounded-xl"
+        className="flex items-center gap-3 flex-wrap w-full px-3 py-1.5 rounded-xl"
         style={{
           background: "hsla(220, 35%, 6%, 0.92)",
           border: "1px solid hsla(210, 40%, 80%, 0.14)",
@@ -893,6 +896,32 @@ function NewTabBookmarks({ onNavigate }: { onNavigate: (url: string) => void }) 
         </span>
       </div>
       </div>
+      <button
+        type="button"
+        onClick={() => openTrendingOverlay()}
+        className="inline-flex items-center justify-center gap-1.5 self-start px-2.5 py-1.5 rounded-xl text-[10px] font-semibold tracking-wide cursor-pointer transition-all duration-200"
+        style={{
+          background: "hsla(220, 35%, 6%, 0.92)",
+          border: "1px solid hsla(210, 40%, 80%, 0.14)",
+          color: "hsla(0, 0%, 96%, 0.9)",
+          backdropFilter: "blur(10px)",
+          width: "fit-content",
+          maxWidth: "100%",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = "hsla(210, 40%, 80%, 0.28)";
+          e.currentTarget.style.background = "hsla(220, 24%, 16%, 0.72)";
+          e.currentTarget.style.color = "hsla(0, 0%, 100%, 0.98)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = "hsla(210, 40%, 80%, 0.14)";
+          e.currentTarget.style.background = "hsla(220, 35%, 6%, 0.92)";
+          e.currentTarget.style.color = "hsla(0, 0%, 96%, 0.9)";
+        }}
+      >
+        <Flame size={11} />
+        Trending
+      </button>
     </motion.div>
   );
 }
@@ -1189,6 +1218,7 @@ function TabPane({
   const isMovies = tab.url === "petezah://movies";
   const isFirefox =
     tab.url === "petezah://vm" || tab.url === "petezah://firefox";
+  const isTrending = tab.url === "petezah://trending";
   const isUserProfile = tab.url.startsWith("petezah://user/");
   const isGameViewer = tab.url.startsWith("petezah://gameviewer");
   const displayUrl = isGameViewer ? "petezah://gameviewer" : tab.url;
@@ -1231,6 +1261,17 @@ function TabPane({
         style={{ display: isVisible ? "block" : "none" }}
       >
         <NewTabPage onNavigate={onNavigate} />
+      </div>
+    );
+  }
+
+  if (isTrending) {
+    return (
+      <div
+        className="absolute inset-0"
+        style={{ display: isVisible ? "block" : "none" }}
+      >
+        <TrendingDashboard variant="page" onNavigate={onNavigate} />
       </div>
     );
   }

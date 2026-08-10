@@ -14,6 +14,7 @@ const SYNC_KEYS = [
   'debugHud',
   'searchEdgeGlow',
   'horizontalTabs',
+  'trendingHomescreen',
   'gameFocusMode',
   'quickRelaunch',
   'lowPowerBg',

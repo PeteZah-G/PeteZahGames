@@ -52,15 +52,25 @@ function viewportSize() {
   return { w: Math.ceil(w + 2), h: Math.ceil(h + 2) };
 }
 
-function fitVantaCanvas(el: HTMLElement | null, effect: any) {
+function fitVantaCanvas(el: HTMLElement | null, effect: any, contained = false) {
   if (!el) return;
-  const { w, h } = viewportSize();
-  el.style.width = `${w}px`;
-  el.style.height = `${h}px`;
+  let w: number;
+  let h: number;
+  if (contained) {
+    const rect = el.getBoundingClientRect();
+    w = Math.max(1, Math.ceil(rect.width || el.clientWidth || 1));
+    h = Math.max(1, Math.ceil(rect.height || el.clientHeight || 1));
+  } else {
+    const size = viewportSize();
+    w = size.w;
+    h = size.h;
+  }
+  el.style.width = contained ? "100%" : `${w}px`;
+  el.style.height = contained ? "100%" : `${h}px`;
   el.style.left = "0";
   el.style.top = "0";
-  el.style.right = "auto";
-  el.style.bottom = "auto";
+  el.style.right = contained ? "0" : "auto";
+  el.style.bottom = contained ? "0" : "auto";
 
   try {
     effect?.resize?.();
@@ -68,8 +78,8 @@ function fitVantaCanvas(el: HTMLElement | null, effect: any) {
 
   const canvas = el.querySelector("canvas") as HTMLCanvasElement | null;
   if (canvas) {
-    canvas.style.width = `${w}px`;
-    canvas.style.height = `${h}px`;
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
     canvas.style.maxWidth = "none";
     canvas.style.maxHeight = "none";
     canvas.style.display = "block";
@@ -78,6 +88,9 @@ function fitVantaCanvas(el: HTMLElement | null, effect: any) {
     canvas.style.top = "0";
     canvas.style.inset = "auto";
     try {
+      if (typeof effect?.renderer?.setSize === "function") {
+        effect.renderer.setSize(w, h, false);
+      }
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const bw = Math.floor(w * dpr);
       const bh = Math.floor(h * dpr);
@@ -93,7 +106,7 @@ function fitVantaCanvas(el: HTMLElement | null, effect: any) {
   } catch {}
 }
 
-export default function VantaBackground() {
+export default function VantaBackground({ contained = false }: { contained?: boolean }) {
   const fogRef = useRef<HTMLDivElement>(null);
   const netRef = useRef<HTMLDivElement>(null);
   const fogEffect = useRef<any>(null);
@@ -162,8 +175,8 @@ export default function VantaBackground() {
     } catch {}
 
     const syncSize = () => {
-      fitVantaCanvas(fogRef.current, fogEffect.current);
-      fitVantaCanvas(netRef.current, netEffect.current);
+      fitVantaCanvas(fogRef.current, fogEffect.current, contained);
+      fitVantaCanvas(netRef.current, netEffect.current, contained);
     };
 
     syncSize();
@@ -180,8 +193,12 @@ export default function VantaBackground() {
     try {
       ro = new ResizeObserver(syncSize);
       if (fogRef.current) ro.observe(fogRef.current);
-      ro.observe(document.documentElement);
-      if (document.body) ro.observe(document.body);
+      if (!contained) {
+        ro.observe(document.documentElement);
+        if (document.body) ro.observe(document.body);
+      } else if (fogRef.current?.parentElement) {
+        ro.observe(fogRef.current.parentElement);
+      }
     } catch {}
 
     return () => {
@@ -196,7 +213,7 @@ export default function VantaBackground() {
         ro?.disconnect();
       } catch {}
     };
-  }, [bg, themeId, bgImage]);
+  }, [bg, themeId, bgImage, contained]);
 
   useEffect(() => {
     if (!network || bgImage) {
@@ -230,9 +247,9 @@ export default function VantaBackground() {
       } else {
         netEffect.current.setOptions?.({ color: site.fog.net });
       }
-      fitVantaCanvas(netRef.current, netEffect.current);
+      fitVantaCanvas(netRef.current, netEffect.current, contained);
     } catch {}
-  }, [network, themeId, bgImage]);
+  }, [network, themeId, bgImage, contained]);
 
   useEffect(() => {
     return () => {
@@ -245,16 +262,26 @@ export default function VantaBackground() {
     };
   }, []);
 
-  const fullBleed: CSSProperties = {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100vw",
-    height: "100dvh",
-    zIndex: 0,
-    pointerEvents: "none",
-    overflow: "hidden",
-  };
+  const fullBleed: CSSProperties = contained
+    ? {
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        zIndex: 0,
+        pointerEvents: "none",
+        overflow: "hidden",
+      }
+    : {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100vw",
+        height: "100dvh",
+        zIndex: 0,
+        pointerEvents: "none",
+        overflow: "hidden",
+      };
 
   if (bgImage) {
     return (

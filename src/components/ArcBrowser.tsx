@@ -13,7 +13,9 @@ import DebugHud from "@/components/DebugHud";
 import HorizontalTabBar from "@/components/HorizontalTabBar";
 import GlobalAnnouncement from "@/components/GlobalAnnouncement";
 import InspectOverlay from "@/components/InspectOverlay";
+import TrendingDashboard from "@/components/TrendingDashboard";
 import { findMatchingShortcut, armTabChord, clearTabChord } from "@/lib/shortcuts";
+import { getHomeUrl } from "@/lib/homeUrl";
 import {
   classifyOpenUrl,
   installParentOpenTrap,
@@ -67,11 +69,18 @@ export default function ArcBrowser() {
   const contentRef = useRef<HTMLDivElement>(null);
   const [openToast, setOpenToast] = useState<string | null>(null);
   const [inspectOpen, setInspectOpen] = useState(false);
+  const [trendingOpen, setTrendingOpen] = useState(false);
   const openToastTimer = useRef<number | null>(null);
 
   const zoomIn = useCallback(() => setZoomLevel((z) => Math.min(z + 10, 200)), []);
   const zoomOut = useCallback(() => setZoomLevel((z) => Math.max(z - 10, 50)), []);
   const resetZoom = useCallback(() => setZoomLevel(100), []);
+
+  useEffect(() => {
+    const open = () => setTrendingOpen(true);
+    window.addEventListener("petezah-open-trending", open);
+    return () => window.removeEventListener("petezah-open-trending", open);
+  }, []);
 
   useEffect(() => {
     if (!mustSetup2fa && !requires2fa) return;
@@ -143,6 +152,14 @@ export default function ArcBrowser() {
   }, [state.tabs, state.focusedTab, state.activeTab]);
 
   useEffect(() => {
+    setOpenToast(null);
+    if (openToastTimer.current) {
+      window.clearTimeout(openToastTimer.current);
+      openToastTimer.current = null;
+    }
+  }, [state.activeTabId]);
+
+  useEffect(() => {
     installParentOpenTrap();
 
     const openFromDetail = (detail: OpenTabRequest) => {
@@ -168,6 +185,14 @@ export default function ArcBrowser() {
     };
     const onMessage = (e: MessageEvent) => {
       const d = e.data;
+      if (d && d.source === "pz-scramjet-error" && d.action === "navigate" && typeof d.url === "string") {
+        let url = d.url.trim();
+        if (/^petezah:\/\/[a-z0-9][a-z0-9+.-]*(?:[/?#][^\s]*)?$/i.test(url)) {
+          if (url === "petezah://newtab") url = getHomeUrl();
+          state.navigateToUrl(url);
+        }
+        return;
+      }
       if (!d || d.source !== "pz-open-trap" || typeof d.url !== "string") return;
       openFromDetail({
         url: d.url,
@@ -183,7 +208,7 @@ export default function ArcBrowser() {
       window.removeEventListener("message", onMessage);
       if (openToastTimer.current) window.clearTimeout(openToastTimer.current);
     };
-  }, [state.addTab]);
+  }, [state.addTab, state.navigateToUrl]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -365,7 +390,10 @@ export default function ArcBrowser() {
             contentRef={contentRef}
           />
           <div style={{ opacity: dimChrome ? 0.45 : 1, transition: "opacity 0.25s ease" }}>
-            <StatusBar tabCount={state.tabs.length} />
+            <StatusBar
+              tabCount={state.tabs.length}
+              onOpenTrending={() => setTrendingOpen(true)}
+            />
           </div>
         </main>
       </div>
@@ -377,6 +405,15 @@ export default function ArcBrowser() {
         url={state.focusedTab?.url || state.activeTab?.url}
         title={state.focusedTab?.title || state.activeTab?.title}
       />
+      <AnimatePresence>
+        {trendingOpen && (
+          <TrendingDashboard
+            variant="overlay"
+            onClose={() => setTrendingOpen(false)}
+            onNavigate={state.navigateToUrl}
+          />
+        )}
+      </AnimatePresence>
       <AnimatePresence>
         {openToast && (
           <motion.div
