@@ -6,6 +6,7 @@ const ACLIB_SRC = "https://acscdn.com/script/aclib.js";
 const CONTENT_URL =
   "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
 const AD_MAX_MS = 15000;
+const SKIP_AFTER_MS = 10000;
 const FILL_WAIT_MS = 8000;
 const WINDOW_MS = 5 * 60 * 1000;
 const MAX_PER_WINDOW = 2;
@@ -260,11 +261,11 @@ function mountStage(videoId: string) {
   skip.type = "button";
   skip.textContent = "Skip ad";
   skip.style.cssText =
-    "position:absolute;top:10px;right:10px;z-index:8;border:1px solid hsla(210,30%,80%,0.22);background:hsla(220,28%,10%,0.92);color:hsla(0,0%,96%,0.95);border-radius:999px;padding:7px 12px;font:650 12px/1 ui-sans-serif,system-ui,sans-serif;cursor:pointer";
+    "position:absolute;left:10px;bottom:10px;z-index:8;display:none;border:1px solid hsla(210,30%,80%,0.22);background:hsla(220,28%,10%,0.92);color:hsla(0,0%,96%,0.95);border-radius:999px;padding:7px 12px;font:650 12px/1 ui-sans-serif,system-ui,sans-serif;cursor:pointer";
 
   const timerLabel = document.createElement("div");
   timerLabel.style.cssText =
-    "position:absolute;left:10px;bottom:10px;z-index:8;padding:5px 9px;border-radius:999px;background:hsla(220,28%,8%,0.8);color:hsla(0,0%,96%,0.78);font:650 11px/1 ui-sans-serif,system-ui,sans-serif";
+    "position:absolute;right:10px;bottom:10px;z-index:8;padding:5px 9px;border-radius:999px;background:hsla(220,28%,8%,0.8);color:hsla(0,0%,96%,0.78);font:650 11px/1 ui-sans-serif,system-ui,sans-serif";
   timerLabel.textContent = "Ad · 15s";
 
   frame.appendChild(video);
@@ -472,6 +473,7 @@ function playSession(myGen: number): Promise<"done" | "skip" | "error"> {
       if (settled) return;
       settled = true;
       clearTimeout(hard);
+      clearTimeout(skipAt);
       clearInterval(tick);
       if (playGen === myGen) {
         try {
@@ -491,6 +493,9 @@ function playSession(myGen: number): Promise<"done" | "skip" | "error"> {
       timerLabel.textContent = left ? `Ad · ${left}s` : "Ad";
     }, 200);
     const hard = window.setTimeout(() => finish("skip"), AD_MAX_MS);
+    const skipAt = window.setTimeout(() => {
+      skip.style.display = "inline-block";
+    }, SKIP_AFTER_MS);
     skip.addEventListener("click", () => finish("skip"));
 
     try {

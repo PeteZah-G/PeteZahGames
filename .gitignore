@@ -245,3 +245,6 @@ ssh-keygen
 public/firefox-wasm/gecko.wasm.zst
 public/firefox-wasm/chrome-assets.tar.zst
 .tmp-firefox-wasm/
+.tmp-ag-assets/
+.tmp-ag-dist
+.tmp-ag-dist-*

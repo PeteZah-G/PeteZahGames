@@ -491,6 +491,9 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
   const [adminOk, setAdminOk] = useState(false);
   const [adminBusy, setAdminBusy] = useState(false);
   const [recentTick, setRecentTick] = useState(0);
+  const [showRecentPlays, setShowRecentPlays] = useState(
+    () => localStorage.getItem("recentPlays") === "true"
+  );
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const isAdminMode = adminEdit && adminOk;
 
@@ -515,6 +518,19 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
       cancelled = true;
     };
   }, [adminEdit]);
+
+  useEffect(() => {
+    const sync = () => {
+      setShowRecentPlays(localStorage.getItem("recentPlays") === "true");
+      setRecentTick((n) => n + 1);
+    };
+    window.addEventListener("petezah-settings-updated", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("petezah-settings-updated", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -618,7 +634,7 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
       .filter((g) => g.categories.some((c) => /action|racing|shooting/i.test(c)))
       .slice(0, 16);
     const shelves: { title: string; games: Game[] }[] = [];
-    if (recentlyPlayed.length) shelves.push({ title: "Recently Played", games: recentlyPlayed.slice(0, 16) });
+    if (showRecentPlays && recentlyPlayed.length) shelves.push({ title: "Recently Played", games: recentlyPlayed.slice(0, 16) });
     if (topGames.length) shelves.push({ title: "Top Games", games: topGames });
     else shelves.push({ title: "Top Games", games: allGames.slice(0, 16) });
     if (sports.length) shelves.push({ title: "Sports", games: sports });

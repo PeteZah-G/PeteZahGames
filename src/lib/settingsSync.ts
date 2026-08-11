@@ -17,6 +17,7 @@ const SYNC_KEYS = [
   'trendingHomescreen',
   'gameFocusMode',
   'quickRelaunch',
+  'recentPlays',
   'lowPowerBg',
   'searchEngine',
   'browserIdentity',

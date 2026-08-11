@@ -645,7 +645,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   const loadLocalSettings = useCallback(() => {
     const keys = [
       "theme","siteTitle","siteLogo","panicKey","panicUrl","beforeUnload","disableRightClick","autocloak",
-      "backgroundColor","backgroundImage","bgNetwork","debugHud","searchEdgeGlow","horizontalTabs","trendingHomescreen","gameFocusMode","quickRelaunch","lowPowerBg",
+      "backgroundColor","backgroundImage","bgNetwork","debugHud","searchEdgeGlow","horizontalTabs","trendingHomescreen","gameFocusMode","quickRelaunch","recentPlays","lowPowerBg",
       "searchEngine","browserIdentity","uaPreset","customUserAgent","proxServer","extensionsEnabled","stripTrackers","preferHttps",
     ];
     const loaded: Record<string,string> = {};
@@ -1496,7 +1496,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
         const loaded: Record<string, string> = {};
         [
           "theme","siteTitle","siteLogo","panicKey","panicUrl","beforeUnload","disableRightClick","autocloak",
-          "backgroundColor","backgroundImage","bgNetwork","debugHud","searchEdgeGlow","horizontalTabs","trendingHomescreen","gameFocusMode","quickRelaunch","lowPowerBg",
+          "backgroundColor","backgroundImage","bgNetwork","debugHud","searchEdgeGlow","horizontalTabs","trendingHomescreen","gameFocusMode","quickRelaunch","recentPlays","lowPowerBg",
           "searchEngine","browserIdentity","uaPreset","customUserAgent","proxServer","extensionsEnabled","stripTrackers","preferHttps",
         ].forEach(k => {
           const v = localStorage.getItem(k);

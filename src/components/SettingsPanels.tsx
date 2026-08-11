@@ -573,6 +573,20 @@ export function BehaviorSettings(props: Props) {
             onChange={() => toggle("quickRelaunch")}
           />
         </div>
+        <div style={{ borderBottom: `1px solid ${C.border}` }}>
+          <ToggleRow
+            C={C}
+            label="Recent plays"
+            desc="Show recently played games on the games page"
+            checked={s.recentPlays === "true"}
+            onChange={() => {
+              const next = s.recentPlays === "true" ? "false" : "true";
+              const ns = { ...s, recentPlays: next };
+              setS(ns);
+              applySettingsNow(ns);
+            }}
+          />
+        </div>
         <ToggleRow
           C={C}
           label="Low-power backdrop"

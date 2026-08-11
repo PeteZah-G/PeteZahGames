@@ -440,7 +440,9 @@ if (IS_DEV) {
 } else {
   const distPath = path.join(__dirname, '../dist');
   const indexPath = path.join(distPath, 'index.html');
-  const storageAgPath = path.join(distPath, 'storage', 'ag');
+  const storageAgPublic = path.join(__dirname, '../public/storage/ag');
+  const storageAgDist = path.join(distPath, 'storage', 'ag');
+  const storageAgPath = fs.existsSync(storageAgPublic) ? storageAgPublic : storageAgDist;
   let indexCache = { mtime: 0, html: '' };
   function readIndexHtml() {
     try {
