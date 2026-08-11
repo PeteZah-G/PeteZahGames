@@ -104,6 +104,8 @@ import { elevated2faGate } from './middleware/elevated-2fa-gate.js';
 import {
   adsGateLimiter,
   adsGateHandler,
+  adsVastLimiter,
+  adsVastHandler,
 } from './api/ads.js';
 import {
   getMyAchievementsHandler,
@@ -347,6 +349,7 @@ app.post('/api/links/claim', linksClaimLimiter, claimLinkHandler);
 app.get('/api/admin/link-stats', getAdminLinkStatsHandler);
 
 app.post('/api/ads/gate', adsGateLimiter, adsGateHandler);
+app.get('/api/ads/vast', adsVastLimiter, adsVastHandler);
 
 app.get('/api/settings', getSettingsHandler);
 app.put('/api/settings', localStorageLimiter, saveSettingsHandler);

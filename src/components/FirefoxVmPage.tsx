@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Lock, Monitor, ExternalLink, Loader2, Sparkles, Maximize2 } from "lucide-react";
 import { setPendingAuth } from "@/lib/authPending";
-import { runInterstitial } from "@/lib/applixir";
+import { runInterstitial } from "@/lib/adcash";
 
 export default function FirefoxVmPage({ onNavigate }: { onNavigate: (url: string) => void }) {
   const [authed, setAuthed] = useState(false);
@@ -48,15 +48,7 @@ export default function FirefoxVmPage({ onNavigate }: { onNavigate: (url: string
     if (!ready || launching) return;
     setLaunching(true);
     try {
-      let userId: string | undefined;
-      try {
-        const me = await fetch("/api/me", { credentials: "include" });
-        if (me.ok) {
-          const d = await me.json();
-          if (d?.user?.id) userId = String(d.user.id);
-        }
-      } catch {}
-      await runInterstitial("vm", userId);
+      await runInterstitial("vm");
     } catch {}
     try {
       sessionStorage.setItem("pz-vm-return", "1");

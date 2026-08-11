@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
-import { requestAdGate, playApplixirAd } from "@/lib/applixir";
+import { requestAdGate, playVideoAd, stopVideoAd } from "@/lib/adcash";
 import {
   AdBanner320,
   AdBanner728,
@@ -35,25 +35,16 @@ export function useInterstitialUnlock(context: Context, enabled = true) {
 
     (async () => {
       try {
-        let userId: string | undefined;
-        try {
-          const me = await fetch("/api/me", { credentials: "include" });
-          if (me.ok) {
-            const d = await me.json();
-            if (d?.user?.id) userId = String(d.user.id);
-          }
-        } catch {}
-
         const gate = await requestAdGate(context);
         if (cancelled) return;
 
         if (gate.show) {
           setPhase("ad");
           setShowBanner(true);
-          await playApplixirAd(gate.apiKey, userId);
+          await playVideoAd();
         } else {
           const reason = gate.reason;
-          if (reason === "disabled" || reason === "network" || reason === "skip") {
+          if (reason === "disabled" || reason === "network") {
             setPhase("ad");
             setShowBanner(true);
             await playLoaderNetworkAds(LOADER_AD_MS);
@@ -82,6 +73,9 @@ export function useInterstitialUnlock(context: Context, enabled = true) {
 
     return () => {
       cancelled = true;
+      try {
+        stopVideoAd();
+      } catch {}
       try {
         scrubAdsterraLoadingArtifacts();
       } catch {}

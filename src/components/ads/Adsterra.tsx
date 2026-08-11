@@ -174,7 +174,7 @@ export function scrubAdsterraLoadingArtifacts() {
 
   try {
     for (const el of Array.from(document.body.children)) {
-      if (el.id === "root" || el.id === "app" || el.id === "pz-applixir-root") continue;
+      if (el.id === "root" || el.id === "app" || el.id === "pz-adcash-root") continue;
       if (el.id === LOADING_HOST_ID || el.id === MONETAG_HOST_ID) {
         try {
           el.remove();
@@ -260,7 +260,7 @@ function teardownSandboxedAd(
   try {
     for (const el of Array.from(document.body.children)) {
       if (preserved.has(el)) continue;
-      if (el.id === "root" || el.id === "app" || el.id === "pz-applixir-root") continue;
+      if (el.id === "root" || el.id === "app" || el.id === "pz-adcash-root") continue;
       try {
         el.remove();
       } catch {}

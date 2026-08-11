@@ -790,7 +790,7 @@ function NewTabBookmarks({ onNavigate }: { onNavigate: (url: string) => void }) 
         )}
       </button>
       <span
-        className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1.5 px-2 py-0.5 rounded-md text-[9px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-20"
+        className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1.5 px-2 py-0.5 rounded-md text-[9px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-[80]"
         style={{
           background: "hsla(220, 35%, 5%, 0.95)",
           border: "1px solid hsla(210, 40%, 80%, 0.14)",
@@ -811,7 +811,7 @@ function NewTabBookmarks({ onNavigate }: { onNavigate: (url: string) => void }) 
       transition={{ duration: 0.5, delay: 0.55, ease: [0.22, 1, 0.36, 1] }}
     >
       <div
-        className="flex items-center gap-3 flex-wrap w-full px-3 py-1.5 rounded-xl"
+        className="relative z-30 flex items-center gap-3 flex-wrap w-full px-3 py-1.5 rounded-xl overflow-visible"
         style={{
           background: "hsla(220, 35%, 6%, 0.92)",
           border: "1px solid hsla(210, 40%, 80%, 0.14)",
@@ -885,13 +885,13 @@ function NewTabBookmarks({ onNavigate }: { onNavigate: (url: string) => void }) 
           <Plus size={10} />
         </button>
         <span
-          className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1.5 px-2 py-0.5 rounded-md text-[9px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-20"
-          style={{
-            background: "hsla(220, 35%, 5%, 0.95)",
-            border: "1px solid hsla(210, 40%, 80%, 0.14)",
-            color: "hsla(0,0%,100%,0.88)",
-          }}
-        >
+        className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1.5 px-2 py-0.5 rounded-md text-[9px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-[80]"
+        style={{
+          background: "hsla(220, 35%, 5%, 0.95)",
+          border: "1px solid hsla(210, 40%, 80%, 0.14)",
+          color: "hsla(0,0%,100%,0.88)",
+        }}
+      >
           Bookmarks
         </span>
       </div>
@@ -899,7 +899,7 @@ function NewTabBookmarks({ onNavigate }: { onNavigate: (url: string) => void }) 
       <button
         type="button"
         onClick={() => openTrendingOverlay()}
-        className="inline-flex items-center justify-center gap-1.5 self-start px-2.5 py-1.5 rounded-xl text-[10px] font-semibold tracking-wide cursor-pointer transition-all duration-200"
+        className="relative z-10 inline-flex items-center justify-center gap-1.5 self-start px-2.5 py-1.5 rounded-xl text-[10px] font-semibold tracking-wide cursor-pointer transition-all duration-200"
         style={{
           background: "hsla(220, 35%, 6%, 0.92)",
           border: "1px solid hsla(210, 40%, 80%, 0.14)",
