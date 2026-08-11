@@ -106,6 +106,7 @@ import {
   adsGateHandler,
   adsVastLimiter,
   adsVastHandler,
+  adsShownHandler,
 } from './api/ads.js';
 import {
   getMyAchievementsHandler,
@@ -349,6 +350,7 @@ app.post('/api/links/claim', linksClaimLimiter, claimLinkHandler);
 app.get('/api/admin/link-stats', getAdminLinkStatsHandler);
 
 app.post('/api/ads/gate', adsGateLimiter, adsGateHandler);
+app.post('/api/ads/shown', adsGateLimiter, adsShownHandler);
 app.get('/api/ads/vast', adsVastLimiter, adsVastHandler);
 
 app.get('/api/settings', getSettingsHandler);

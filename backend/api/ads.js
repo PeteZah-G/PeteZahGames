@@ -169,7 +169,6 @@ export async function adsGateHandler(req, res) {
     });
   }
 
-  stamps.push(now);
   lastShown.set(key, stamps);
 
   return res.json({
@@ -178,6 +177,19 @@ export async function adsGateHandler(req, res) {
     cooldownMs: WINDOW_MS,
     maxMs: 15000,
   });
+}
+
+export async function adsShownHandler(req, res) {
+  if (!isAdcashEnabled()) {
+    return res.json({ ok: true });
+  }
+  prune();
+  const key = subjectKey(req);
+  const now = Date.now();
+  const stamps = (lastShown.get(key) || []).filter((t) => now - t < WINDOW_MS);
+  if (stamps.length < MAX_PER_WINDOW) stamps.push(now);
+  lastShown.set(key, stamps);
+  return res.json({ ok: true });
 }
 
 export async function adsVastHandler(_req, res) {
