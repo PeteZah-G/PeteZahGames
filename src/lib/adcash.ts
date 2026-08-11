@@ -25,6 +25,7 @@ declare global {
 let playerAssets: Promise<void> | null = null;
 let playGen = 0;
 let activePlayer: any = null;
+let activeContext: "game" | "app" | "vm" = "game";
 let activeAdsManager: any = null;
 let activeAdsLoader: any = null;
 
@@ -57,7 +58,7 @@ function markShown() {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: "{}",
+    body: JSON.stringify({ context: activeContext }),
   }).catch(() => {});
 }
 
@@ -210,6 +211,7 @@ export type AdGateResult =
 export async function requestAdGate(
   context: "game" | "app" | "vm"
 ): Promise<AdGateResult> {
+  activeContext = context;
   if (!clientCanPlay()) {
     return { show: false, reason: "cooldown" };
   }
@@ -517,7 +519,8 @@ function playSession(myGen: number): Promise<"done" | "skip" | "error"> {
   });
 }
 
-export function playVideoAd(): Promise<"done" | "skip" | "error"> {
+export function playVideoAd(context?: "game" | "app" | "vm"): Promise<"done" | "skip" | "error"> {
+  if (context) activeContext = context;
   const myGen = ++playGen;
   destroyPlayer();
   return new Promise(async (resolve) => {

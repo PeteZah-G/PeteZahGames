@@ -941,7 +941,7 @@ export default function MusicPage({
     try {
       await navigator.clipboard.writeText(url);
       setShareMsg("Link copied");
-    } catch {
+      } catch {
       setShareMsg(url);
     }
     setTimeout(() => setShareMsg(""), 2200);

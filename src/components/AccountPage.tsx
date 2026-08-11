@@ -7,6 +7,7 @@ import {
   UserCog, Users, Ban, UserMinus, ShieldCheck, ShieldOff, Plus, ExternalLink, Image,
   Music2, MapPin, Link2, Heart, Globe2, Radio, Monitor, BarChart3, Copy, Trophy, Gamepad2, Pencil,
   LayoutDashboard, Cpu, Database, Activity, Power, ShieldAlert, Server, Network, Info, X as XIcon, Keyboard,
+  TrendingUp,
 } from "lucide-react";
 import { BadgeChip, BadgeRow, type BadgeInfo } from "./BadgeChip";
 import {
@@ -20,6 +21,7 @@ import { consumePendingAuth } from "@/lib/authPending";
 import { applyVpnRegion } from "@/lib/vpn";
 import { themeById, applyBrowserIdentity } from "@/lib/siteThemes";
 import { AppearanceSettings, BehaviorSettings, ProxySettings, ShortcutsSettings } from "./SettingsPanels";
+import { AdReportsPanel } from "./AdReportsPanel";
 import { createPortal } from "react-dom";
 
 interface AuthUser {
@@ -54,7 +56,7 @@ const SITE_PRESETS = [
   { id: "petezah",   label: "PeteZah",           favicon: "/logo.png" },
 ];
 
-type Section = "profile" | "proxy" | "get-links" | "achievements" | "appearance" | "cloaking" | "behavior" | "shortcuts" | "data" | "admin" | "users" | "live" | "firefox-vm" | "game-stats" | "link-stats" | "updates" | "ai-prompts";
+type Section = "profile" | "proxy" | "get-links" | "achievements" | "appearance" | "cloaking" | "behavior" | "shortcuts" | "data" | "admin" | "users" | "live" | "firefox-vm" | "game-stats" | "link-stats" | "ad-reports" | "updates" | "ai-prompts";
 
 function applySettingsNow(s: Record<string, string>) {
   if (s.theme) {
@@ -108,7 +110,7 @@ function applySettingsNow(s: Record<string, string>) {
     const tc = themeById(s.theme);
     localStorage.setItem("backgroundColor", tc.bg);
     document.body.style.backgroundColor = tc.bg;
-    document.body.style.backgroundImage = "none";
+      document.body.style.backgroundImage = "none";
     document.body.style.color = tc.text;
   }
   if (!s.backgroundImage) {
@@ -364,6 +366,7 @@ const NAV: { id: Section; label: string; icon: any; adminOnly?: boolean }[] = [
   { id: "game-stats", label: "Game Stats",  icon: Gamepad2, adminOnly: true },
   { id: "link-stats", label: "Link Stats",  icon: BarChart3, adminOnly: true },
   { id: "ai-prompts", label: "AI Prompts", icon: MessageSquare, adminOnly: true },
+  { id: "ad-reports", label: "Ad reports", icon: TrendingUp, adminOnly: true },
   { id: "updates",    label: "Updates", icon: Megaphone, adminOnly: true },
 ];
 
@@ -1640,31 +1643,31 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
         className="no-obfuscate"
         style={{ height: "100%", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", overflow: "hidden" }}
       >
-        <motion.div
+      <motion.div
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
-          style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "320px", padding: "0 20px" }}
-        >
-          <div style={{
-            background: "hsla(216, 32%, 7%, 0.75)", backdropFilter: "blur(20px)",
-            border: `1px solid ${C.border}`, borderRadius: "14px", padding: "28px 24px",
-            boxShadow: "0 24px 48px hsla(216, 50%, 4%, 0.5)",
-          }}>
+        style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "320px", padding: "0 20px" }}
+      >
+        <div style={{
+          background: "hsla(216, 32%, 7%, 0.75)", backdropFilter: "blur(20px)",
+          border: `1px solid ${C.border}`, borderRadius: "14px", padding: "28px 24px",
+          boxShadow: "0 24px 48px hsla(216, 50%, 4%, 0.5)",
+        }}>
             <div style={{ textAlign: "center", marginBottom: "20px" }}>
-              <div style={{
-                width: "40px", height: "40px", borderRadius: "10px", margin: "0 auto 12px",
-                background: C.accentDim, border: `1px solid ${C.borderFocus}`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
+            <div style={{
+              width: "40px", height: "40px", borderRadius: "10px", margin: "0 auto 12px",
+              background: C.accentDim, border: `1px solid ${C.borderFocus}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
                 <ShieldCheck size={18} color={C.accent} />
-              </div>
-              <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: "0 0 3px" }}>
+            </div>
+            <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: "0 0 3px" }}>
                 Two-factor authentication
-              </h2>
-              <p style={{ fontSize: "11px", color: C.textSub, margin: 0 }}>
+            </h2>
+            <p style={{ fontSize: "11px", color: C.textSub, margin: 0 }}>
                 Staff accounts require an authenticator code
                 {login2fa.email ? ` for ${login2fa.email}` : ""}.
-              </p>
-            </div>
+            </p>
+          </div>
             {authErr && (
               <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", borderRadius: "7px", marginBottom: "14px",
                 background: "hsl(0 60% 50% / 0.08)", border: "1px solid hsl(0 60% 50% / 0.2)", color: "hsl(0 60% 68%)", fontSize: "11px" }}>
@@ -1873,22 +1876,22 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
           </motion.div>
         </AnimatePresence>
 
-        <AnimatePresence mode="wait">
-          {authErr && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+          <AnimatePresence mode="wait">
+            {authErr && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
               style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 9, marginBottom: 12,
                 background: "hsl(0 60% 50% / 0.1)", border: "1px solid hsl(0 60% 50% / 0.22)", color: "hsl(0 60% 70%)", fontSize: 11 }}>
-              <AlertCircle size={11} style={{ flexShrink: 0 }} />{authErr}
-            </motion.div>
-          )}
-          {authOk && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+                <AlertCircle size={11} style={{ flexShrink: 0 }} />{authErr}
+              </motion.div>
+            )}
+            {authOk && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
               style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 9, marginBottom: 12,
                 background: "hsl(145 50% 42% / 0.1)", border: "1px solid hsl(145 50% 42% / 0.25)", color: "hsl(145 50% 60%)", fontSize: 11 }}>
-              <Check size={11} style={{ flexShrink: 0 }} />{authOk}
-            </motion.div>
-          )}
-        </AnimatePresence>
+                <Check size={11} style={{ flexShrink: 0 }} />{authOk}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
         <form onSubmit={handleAuth} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {authMode === "signup" && (
@@ -2011,10 +2014,10 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
               opacity: authLoading || (authMode === "signup" && !acceptedLegal) ? 0.65 : 1,
             }}
           >
-            {authLoading && <Loader2 size={13} className="animate-spin" />}
-            {authMode === "signin" ? "Sign In" : "Create Account"}
+              {authLoading && <Loader2 size={13} className="animate-spin" />}
+              {authMode === "signin" ? "Sign In" : "Create Account"}
           </motion.button>
-        </form>
+          </form>
 
         <p style={{ margin: "14px 0 0", textAlign: "center", fontSize: 12, color: C.textSub }}>
           {authMode === "signin" ? "Don't have an account? " : "Already have an account? "}
@@ -2170,10 +2173,10 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
               <div style={{ maxWidth: "520px" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 3 }}>
                   <div>
-                    <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: "0 0 3px" }}>Profile</h2>
+                <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: "0 0 3px" }}>Profile</h2>
                     <p style={{ fontSize: "11px", color: C.textSub, margin: 0 }}>
-                      {user.created_at ? `Member since ${new Date(user.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })}` : "Manage your profile"}
-                    </p>
+                  {user.created_at ? `Member since ${new Date(user.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })}` : "Manage your profile"}
+                </p>
                   </div>
                   <button
                     type="button"
@@ -2478,7 +2481,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                         const pct = progress && progress.target > 0
                           ? Math.min(100, Math.round((progress.current / progress.target) * 100))
                           : locked ? 0 : 100;
-                        return (
+                    return (
                           <div key={a.id} style={{
                             display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 12px", borderRadius: 10,
                             background: C.surface, border: `1px solid ${C.border}`, opacity: locked ? 0.78 : 1,
@@ -2526,9 +2529,9 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                               ) : null}
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
+                    );
+                  })}
+                </div>
                   </>
                 )}
               </div>
@@ -2544,7 +2547,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                 {linksLoading && !linksStatus ? (
                   <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
                     <Loader2 size={18} className="animate-spin" style={{ color: C.accent }} />
-                  </div>
+                        </div>
                 ) : (
                   <>
                     <div style={{
@@ -2562,13 +2565,13 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                         <span style={{ color: C.text, fontWeight: 600 }}>
                           {linksStatus?.remaining ?? 0} / {linksStatus?.weeklyLimit ?? 2}
                         </span>
-                      </div>
+                    </div>
                       {linksStatus?.weekEndsAt ? (
                         <p style={{ margin: 0, fontSize: 10, color: C.textMuted }}>
                           Week resets {new Date(linksStatus.weekEndsAt).toLocaleString()}
                         </p>
                       ) : null}
-                    </div>
+                  </div>
 
                     {!linksStatus?.emailVerified && (
                       <div style={{
@@ -2632,7 +2635,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                         >
                           Disable 2FA
                         </button>
-                      </div>
+                    </div>
                     ) : totpSetup ? (
                       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
                         <img src={totpSetup.qrDataUrl} alt="2FA QR" style={{ width: 160, height: 160, borderRadius: 10, alignSelf: "flex-start", background: "#fff" }} />
@@ -2661,7 +2664,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                           >
                             Cancel
                           </button>
-                        </div>
+                      </div>
                       </div>
                     ) : (
                       <button
@@ -2720,7 +2723,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                         {claimBusy ? <Loader2 size={12} className="animate-spin" /> : <Link2 size={12} />}
                         Get link
                       </button>
-                    </div>
+                </div>
 
                     {(linksErr || linksMsg) && (
                       <p style={{ fontSize: 11, margin: "0 0 14px", color: linksErr ? C.danger : C.success }}>
@@ -3444,8 +3447,8 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                 </>
                 )}
                 {typeof document !== "undefined" && createPortal(
-                  <AnimatePresence>
-                    {(selectedUser || detailLoading) && (
+                <AnimatePresence>
+                  {(selectedUser || detailLoading) && (
                       <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -3477,12 +3480,12 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                             boxShadow: "0 28px 80px rgba(0,0,0,0.55)",
                           }}
                         >
-                          {detailLoading ? (
+                        {detailLoading ? (
                             <div style={{ display: "flex", justifyContent: "center", padding: 28 }}>
-                              <Loader2 size={20} className="animate-spin" style={{ color: C.accent }} />
-                            </div>
-                          ) : selectedUser && (
-                            <>
+                            <Loader2 size={20} className="animate-spin" style={{ color: C.accent }} />
+                          </div>
+                        ) : selectedUser && (
+                          <>
                               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
                                 <div>
                                   <h3 style={{ fontSize: 16, fontWeight: 720, color: C.text, margin: "0 0 4px", letterSpacing: "-0.02em" }}>
@@ -3506,9 +3509,9 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                                 display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14,
                               }}>
                                 {[
-                                  ["Role", roleLabel(selectedUser.is_admin ?? 0, selectedUser.is_owner)],
-                                  ["Verified", selectedUser.email_verified ? "Yes" : "No"],
-                                  ["Banned", selectedUser.banned ? "Yes" : "No"],
+                                ["Role", roleLabel(selectedUser.is_admin ?? 0, selectedUser.is_owner)],
+                                ["Verified", selectedUser.email_verified ? "Yes" : "No"],
+                                ["Banned", selectedUser.banned ? "Yes" : "No"],
                                   ["Joined", selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString() : "—"],
                                 ].map(([label, val]) => (
                                   <div key={label} style={{
@@ -3521,18 +3524,18 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                               </div>
                               <div style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 11 }}>
                                 {[
-                                  ["IP", selectedUser.ip || "—"],
-                                  ["School", selectedUser.school || "—"],
-                                  ["Age", selectedUser.age != null ? String(selectedUser.age) : "—"],
-                                  ["Bio", selectedUser.bio || "—"],
-                                  ["ID", selectedUser.id],
-                                ].map(([label, val]) => (
+                                ["IP", selectedUser.ip || "—"],
+                                ["School", selectedUser.school || "—"],
+                                ["Age", selectedUser.age != null ? String(selectedUser.age) : "—"],
+                                ["Bio", selectedUser.bio || "—"],
+                                ["ID", selectedUser.id],
+                              ].map(([label, val]) => (
                                   <div key={label} style={{ display: "flex", gap: 8 }}>
                                     <span style={{ color: C.textMuted, minWidth: 52, flexShrink: 0 }}>{label}</span>
-                                    <span style={{ color: C.text, wordBreak: "break-all" }}>{val}</span>
-                                  </div>
-                                ))}
-                              </div>
+                                  <span style={{ color: C.text, wordBreak: "break-all" }}>{val}</span>
+                                </div>
+                              ))}
+                            </div>
                               {!!selectedUser.achievements?.length && (
                                 <div style={{ marginTop: 16 }}>
                                   <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted }}>
@@ -3552,8 +3555,8 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                                 </button>
                                 <button onClick={() => { setSelectedUser(null); setBadgeManageOpen(false); }}
                                   style={{ flex: 1, padding: "9px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.elevated, color: C.text, fontSize: 12, cursor: "pointer" }}>
-                                  Close
-                                </button>
+                              Close
+                            </button>
                               </div>
                               {badgeManageOpen && (
                                 <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
@@ -3591,11 +3594,11 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                                   </div>
                                 </div>
                               )}
-                            </>
-                          )}
-                        </motion.div>
+                          </>
+                        )}
                       </motion.div>
-                    )}
+                    </motion.div>
+                  )}
                   </AnimatePresence>,
                   document.body
                 )}
@@ -4020,6 +4023,8 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                 )}
               </div>
             )}
+
+            {section === "ad-reports" && isAdmin && <AdReportsPanel C={C} />}
 
             {section === "updates" && isAdmin && (
               <div style={{ maxWidth: "520px" }}>

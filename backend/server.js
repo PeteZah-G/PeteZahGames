@@ -108,6 +108,7 @@ import {
   adsVastHandler,
   adsShownHandler,
 } from './api/ads.js';
+import { adReportsLimiter, getAdminAdReportsHandler } from './api/ad-reports.js';
 import {
   getMyAchievementsHandler,
   achievementHeartbeatHandler,
@@ -352,6 +353,7 @@ app.get('/api/admin/link-stats', getAdminLinkStatsHandler);
 app.post('/api/ads/gate', adsGateLimiter, adsGateHandler);
 app.post('/api/ads/shown', adsGateLimiter, adsShownHandler);
 app.get('/api/ads/vast', adsVastLimiter, adsVastHandler);
+app.get('/api/admin/ad-reports', adReportsLimiter, getAdminAdReportsHandler);
 
 app.get('/api/settings', getSettingsHandler);
 app.put('/api/settings', localStorageLimiter, saveSettingsHandler);

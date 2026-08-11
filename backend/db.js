@@ -291,6 +291,25 @@ try {
 
 try {
   db.exec(`
+    CREATE TABLE IF NOT EXISTS ad_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts INTEGER NOT NULL,
+      day TEXT NOT NULL,
+      hour INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      context TEXT NOT NULL,
+      visitor TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_ad_events_day_kind ON ad_events(day, kind);
+    CREATE INDEX IF NOT EXISTS idx_ad_events_ts ON ad_events(ts);
+    CREATE INDEX IF NOT EXISTS idx_ad_events_visitor_day ON ad_events(visitor, day);
+  `);
+} catch (e) {
+  console.error('ad_events migration error:', e);
+}
+
+try {
+  db.exec(`
     CREATE TABLE IF NOT EXISTS ai_conversations (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,

@@ -1,5 +1,7 @@
+import { createHash } from 'crypto';
 import rateLimit from 'express-rate-limit';
 import fetch from 'node-fetch';
+import db from '../db.js';
 import { getClientIP } from '../utils/client-ip.js';
 import { toIPv4 } from '../middleware/security.js';
 
@@ -49,6 +51,29 @@ function subjectKey(req) {
   if (req.sessionID) return `s:${req.sessionID}`;
   const ip = getClientIP(req) || toIPv4(null, req) || 'anon';
   return `i:${ip}`;
+}
+
+function visitorHash(key) {
+  const pepper = String(process.env.SESSION_SECRET || process.env.TOKEN_SECRET || 'pz').slice(0, 64);
+  return createHash('sha256').update(`${pepper}\0${key}`).digest('hex').slice(0, 24);
+}
+
+function recordAdEvent(kind, context, visitor) {
+  try {
+    const now = Date.now();
+    const day = new Date(now).toISOString().slice(0, 10);
+    const hour = new Date(now).getUTCHours();
+    const k = kind === 'shown' ? 'shown' : 'attempt';
+    const ctx = CONTEXTS.has(context) ? context : 'game';
+    const vis = typeof visitor === 'string' && visitor.length === 24 ? visitor : 'anon';
+    db.prepare(
+      'INSERT INTO ad_events (ts, day, hour, kind, context, visitor) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(now, day, hour, k, ctx, vis);
+    if (Math.random() < 0.02) {
+      const cutoff = now - 120 * 24 * 60 * 60 * 1000;
+      db.prepare('DELETE FROM ad_events WHERE ts < ?').run(cutoff);
+    }
+  } catch {}
 }
 
 function isAdcashEnabled() {
@@ -170,6 +195,7 @@ export async function adsGateHandler(req, res) {
   }
 
   lastShown.set(key, stamps);
+  recordAdEvent('attempt', context, visitorHash(key));
 
   return res.json({
     show: true,
@@ -189,6 +215,10 @@ export async function adsShownHandler(req, res) {
   const stamps = (lastShown.get(key) || []).filter((t) => now - t < WINDOW_MS);
   if (stamps.length < MAX_PER_WINDOW) stamps.push(now);
   lastShown.set(key, stamps);
+  const context = typeof req.body?.context === 'string'
+    ? req.body.context.trim().toLowerCase()
+    : 'game';
+  recordAdEvent('shown', CONTEXTS.has(context) ? context : 'game', visitorHash(key));
   return res.json({ ok: true });
 }
 
