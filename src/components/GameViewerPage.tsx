@@ -151,7 +151,7 @@ export default function GameViewerPage({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [muted, setMuted] = useState(false);
-  const { unlocked, phase, showBanner } = useInterstitialUnlock("game");
+  const { unlocked, phase, showBanner, finishLoading } = useInterstitialUnlock("game");
   const useProxy = needsScramjetProxy(url);
   const displayTitle = title?.trim() || "Game";
 
@@ -304,7 +304,12 @@ export default function GameViewerPage({
           )}
         </div>
 
-        <InterstitialOverlay phase={phase} showBanner={showBanner} />
+        <InterstitialOverlay
+          phase={phase}
+          showBanner={showBanner}
+          title={displayTitle}
+          onLoadingDone={finishLoading}
+        />
 
         <AnimatePresence>
           {controlsVisible && (

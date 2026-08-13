@@ -201,7 +201,7 @@ export async function adsGateHandler(req, res) {
     show: true,
     context,
     cooldownMs: WINDOW_MS,
-    maxMs: 15000,
+    maxMs: 60000,
   });
 }
 

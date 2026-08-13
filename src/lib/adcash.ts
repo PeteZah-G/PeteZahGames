@@ -1,13 +1,21 @@
 import { playLoaderNetworkAds, scrubAdsterraLoadingArtifacts } from "@/components/ads/Adsterra";
 
 const CONTAINER_ID = "pz-adcash-root";
-const VAST_URL = "https://youradexchange.com/video/select.php?r=11946186";
-const ACLIB_SRC = "https://acscdn.com/script/aclib.js";
+const VAST_ZONE = "11946186";
+const VAST_HOSTS = [
+  "https://youradexchange.com/video/select.php",
+  "https://www.youradexchange.com/video/select.php",
+];
+const AUTOTAG_ZONE = "tppnjjrirm";
+const AUTOTAG_HOST_ID = "pz-ac-autotag-host";
+const AUTOTAG_BLEED_RE =
+  /acscdn\.com|adbpage\.com|adcash|youradexchange|pz-media-kit|aclib|tppnjjrirm/i;
 const CONTENT_URL =
-  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-const AD_MAX_MS = 15000;
-const SKIP_AFTER_MS = 10000;
-const FILL_WAIT_MS = 8000;
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+const AD_MIN_MS = 30000;
+const AD_MAX_MS = 60000;
+const FILL_WAIT_MS = 12000;
+const VAST_RETRIES = 2;
 const WINDOW_MS = 5 * 60 * 1000;
 const MAX_PER_WINDOW = 2;
 const PLAYS_KEY = "pz-video-ad-ok";
@@ -28,6 +36,7 @@ let activePlayer: any = null;
 let activeContext: "game" | "app" | "vm" = "game";
 let activeAdsManager: any = null;
 let activeAdsLoader: any = null;
+let autotagLive = false;
 
 function readPlays(): number[] {
   try {
@@ -62,6 +71,23 @@ function markShown() {
   }).catch(() => {});
 }
 
+function pickDurationMs() {
+  return AD_MIN_MS + Math.floor(Math.random() * (AD_MAX_MS - AD_MIN_MS + 1));
+}
+
+function buildVastUrl(host: string) {
+  const u = new URL(host);
+  u.searchParams.set("r", VAST_ZONE);
+  u.searchParams.set("cb", String(Date.now()));
+  u.searchParams.set("correlator", String(Math.floor(Math.random() * 1e12)));
+  try {
+    u.searchParams.set("url", location.href.slice(0, 500));
+    u.searchParams.set("pageurl", location.href.slice(0, 500));
+    u.searchParams.set("referrer", (document.referrer || location.origin).slice(0, 500));
+  } catch {}
+  return u.toString();
+}
+
 function loadCss(href: string) {
   if (document.querySelector(`link[data-pz-ad="${href}"]`)) return Promise.resolve();
   return new Promise<void>((resolve) => {
@@ -80,14 +106,13 @@ function loadScript(src: string, id?: string) {
     ? (document.getElementById(id) as HTMLScriptElement | null)
     : (document.querySelector(`script[data-pz-ad="${src}"]`) as HTMLScriptElement | null);
   if (existing) {
-    if ((id === "aclib" && window.aclib) || (!id && existing.dataset.pzAdLoaded === "1")) {
-      return Promise.resolve();
-    }
-    return new Promise<void>((resolve) => {
-      const done = () => resolve();
-      existing.addEventListener("load", done, { once: true });
-      existing.addEventListener("error", done, { once: true });
-      window.setTimeout(done, 4000);
+    if (existing.dataset.pzAdLoaded === "1") return Promise.resolve();
+    return new Promise<void>((resolve, reject) => {
+      const ok = () => resolve();
+      const bad = () => reject(new Error(src));
+      existing.addEventListener("load", ok, { once: true });
+      existing.addEventListener("error", bad, { once: true });
+      window.setTimeout(() => (existing.dataset.pzAdLoaded === "1" ? ok() : bad()), 5000);
     });
   }
   return new Promise<void>((resolve, reject) => {
@@ -105,26 +130,132 @@ function loadScript(src: string, id?: string) {
   });
 }
 
-function loadAclib(): Promise<void> {
-  if (window.aclib) return Promise.resolve();
-  const existing = document.getElementById("aclib") as HTMLScriptElement | null;
-  if (existing) {
-    if (document.readyState === "complete") return Promise.resolve();
-    return new Promise((resolve) => {
-      const done = () => resolve();
-      existing.addEventListener("load", done, { once: true });
-      existing.addEventListener("error", done, { once: true });
-      window.setTimeout(done, 1500);
-    });
+function destroyAutotagBehindAd() {
+  autotagLive = false;
+  try {
+    const host = document.getElementById(AUTOTAG_HOST_ID);
+    if (host) {
+      const frame = host.querySelector("iframe");
+      if (frame) {
+        try {
+          (frame as HTMLIFrameElement).srcdoc = "<!DOCTYPE html><html><body></body></html>";
+          (frame as HTMLIFrameElement).src = "about:blank";
+        } catch {}
+      }
+      host.remove();
+    }
+  } catch {}
+
+  try {
+    for (const el of Array.from(document.body.children)) {
+      if (el.id === "root" || el.id === "app" || el.id === CONTAINER_ID) continue;
+      if (el.id === AUTOTAG_HOST_ID) {
+        try {
+          el.remove();
+        } catch {}
+        continue;
+      }
+      const tag = el.tagName;
+      if (tag === "SCRIPT") {
+        const src = (el as HTMLScriptElement).src || "";
+        if (AUTOTAG_BLEED_RE.test(src) && !src.includes("ima3") && !src.includes("video")) {
+          try {
+            el.remove();
+          } catch {}
+        }
+        continue;
+      }
+      if (tag !== "IFRAME" && tag !== "DIV" && tag !== "INS" && tag !== "SECTION") continue;
+      const html = (el as HTMLElement).outerHTML?.slice(0, 2500) || "";
+      const src = tag === "IFRAME" ? (el as HTMLIFrameElement).src || "" : "";
+      if (!AUTOTAG_BLEED_RE.test(html) && !AUTOTAG_BLEED_RE.test(src)) continue;
+      try {
+        const style = window.getComputedStyle(el);
+        const fixed =
+          style.position === "fixed" ||
+          style.position === "sticky" ||
+          el.parentElement === document.body;
+        if (fixed) el.remove();
+      } catch {
+        try {
+          el.remove();
+        } catch {}
+      }
+    }
+  } catch {}
+}
+
+function startAutotagBehindAd() {
+  if (autotagLive) return;
+  destroyAutotagBehindAd();
+  autotagLive = true;
+
+  const vendor = `${location.origin}/vendor/pz-media-kit.js`;
+  const remote = "https://acscdn.com/script/aclib.js";
+  const zone = AUTOTAG_ZONE;
+
+  const host = document.createElement("div");
+  host.id = AUTOTAG_HOST_ID;
+  host.style.cssText =
+    "position:fixed;inset:0;z-index:2147483645;pointer-events:none;overflow:hidden;background:transparent;";
+
+  const frame = document.createElement("iframe");
+  frame.title = "Advertisement";
+  frame.setAttribute(
+    "sandbox",
+    "allow-scripts allow-popups allow-popups-to-escape-sandbox"
+  );
+  frame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+  frame.style.cssText =
+    "position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:auto;background:transparent;";
+  frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden}</style></head><body>
+<script>
+(function(){
+  var zone=${JSON.stringify(zone)};
+  var sources=${JSON.stringify([vendor, remote])};
+  var i=0;
+  function run(){
+    var lib=window.aclib;
+    if(!lib)return false;
+    var names=["runAutoTag","runVideoSlider","runInterstitial","runPop"];
+    for(var n=0;n<names.length;n++){
+      var fn=lib[names[n]];
+      if(typeof fn!=="function")continue;
+      try{fn.call(lib,{zoneId:zone});return true;}catch(e){}
+      try{fn({zoneId:zone});return true;}catch(e){}
+    }
+    try{
+      for(var k in lib){
+        if(!/auto|video|tag|slider|interstitial/i.test(k))continue;
+        if(typeof lib[k]!=="function")continue;
+        try{lib[k].call(lib,{zoneId:zone});return true;}catch(e){}
+        try{lib[k]({zoneId:zone});return true;}catch(e){}
+      }
+    }catch(e){}
+    return false;
   }
-  return loadScript(ACLIB_SRC, "aclib").catch(() => {});
+  function next(){
+    if(run())return;
+    if(i>=sources.length)return;
+    var s=document.createElement("script");
+    s.src=sources[i++];
+    s.onload=function(){ if(!run()) setTimeout(next,40); };
+    s.onerror=function(){ next(); };
+    document.head.appendChild(s);
+  }
+  next();
+})();
+<\/script>
+</body></html>`;
+
+  host.appendChild(frame);
+  document.body.appendChild(host);
 }
 
 function loadPlayerStack(): Promise<void> {
   if (window.google?.ima) return Promise.resolve();
   if (playerAssets) return playerAssets;
   playerAssets = (async () => {
-    void loadAclib();
     await Promise.all([
       loadCss("https://cdn.jsdelivr.net/npm/video.js@8.21.0/dist/video-js.min.css"),
       loadCss("https://cdn.jsdelivr.net/npm/videojs-contrib-ads@7.5.2/dist/videojs.ads.min.css"),
@@ -145,9 +276,9 @@ function loadPlayerStack(): Promise<void> {
 }
 
 function slotSize() {
-  const maxW = Math.min(PLAYER_W * 1.4, Math.floor(window.innerWidth * 0.92));
-  const w = Math.max(320, maxW);
-  const h = Math.max(180, Math.round((w * PLAYER_H) / PLAYER_W));
+  const maxW = Math.min(PLAYER_W * 1.45, Math.floor(window.innerWidth * 0.94));
+  const w = Math.max(360, maxW);
+  const h = Math.max(200, Math.round((w * PLAYER_H) / PLAYER_W));
   return { w, h };
 }
 
@@ -171,6 +302,9 @@ function destroyPlayer() {
     activeAdsManager?.destroy?.();
   } catch {}
   try {
+    activeAdsLoader?.contentComplete?.();
+  } catch {}
+  try {
     activeAdsLoader?.destroy?.();
   } catch {}
   try {
@@ -186,6 +320,7 @@ function destroyPlayer() {
 
 function clearContainer() {
   destroyPlayer();
+  destroyAutotagBehindAd();
   const el = document.getElementById(CONTAINER_ID);
   if (el) {
     el.querySelectorAll("video").forEach((v) => {
@@ -232,7 +367,7 @@ export async function requestAdGate(
   }
 }
 
-function mountStage(videoId: string) {
+function mountStage(videoId: string, durationMs: number) {
   const { w, h } = slotSize();
   const root = ensureContainer();
   root.innerHTML = "";
@@ -241,7 +376,7 @@ function mountStage(videoId: string) {
   stage.style.cssText = `position:relative;width:${w}px;height:${h}px;max-width:94vw;background:#000;border:1px solid hsla(210,30%,80%,0.14);border-radius:16px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.55)`;
 
   const frame = document.createElement("div");
-  frame.style.cssText = `width:100%;height:100%;position:relative`;
+  frame.style.cssText = "width:100%;height:100%;position:relative";
 
   const video = document.createElement("video");
   video.id = videoId;
@@ -259,25 +394,18 @@ function mountStage(videoId: string) {
   adLayer.id = `${videoId}-ad`;
   adLayer.style.cssText = "position:absolute;inset:0;z-index:2";
 
-  const skip = document.createElement("button");
-  skip.type = "button";
-  skip.textContent = "Skip ad";
-  skip.style.cssText =
-    "position:absolute;left:10px;bottom:10px;z-index:8;display:none;border:1px solid hsla(210,30%,80%,0.22);background:hsla(220,28%,10%,0.92);color:hsla(0,0%,96%,0.95);border-radius:999px;padding:7px 12px;font:650 12px/1 ui-sans-serif,system-ui,sans-serif;cursor:pointer";
-
   const timerLabel = document.createElement("div");
   timerLabel.style.cssText =
     "position:absolute;right:10px;bottom:10px;z-index:8;padding:5px 9px;border-radius:999px;background:hsla(220,28%,8%,0.8);color:hsla(0,0%,96%,0.78);font:650 11px/1 ui-sans-serif,system-ui,sans-serif";
-  timerLabel.textContent = "Ad · 15s";
+  timerLabel.textContent = `Ad · ${Math.ceil(durationMs / 1000)}s`;
 
   frame.appendChild(video);
   frame.appendChild(adLayer);
   stage.appendChild(frame);
-  stage.appendChild(skip);
   stage.appendChild(timerLabel);
   root.appendChild(stage);
 
-  return { root, video, adLayer, skip, timerLabel, w, h };
+  return { root, video, adLayer, timerLabel, w, h };
 }
 
 function playViaImaSdk(
@@ -285,7 +413,8 @@ function playViaImaSdk(
   video: HTMLVideoElement,
   adLayer: HTMLElement,
   w: number,
-  h: number
+  h: number,
+  vastUrl: string
 ): Promise<"done" | "skip" | "error"> {
   return new Promise((resolve) => {
     const ima = window.google?.ima;
@@ -299,6 +428,7 @@ function playViaImaSdk(
     const finish = (result: "done" | "skip" | "error") => {
       if (settled) return;
       settled = true;
+      clearTimeout(fillWait);
       if (playGen === myGen) {
         try {
           activeAdsManager?.stop?.();
@@ -312,9 +442,14 @@ function playViaImaSdk(
       resolve(result);
     };
 
+    const fillWait = window.setTimeout(() => {
+      if (!started) finish("error");
+    }, FILL_WAIT_MS);
+
     try {
       ima.settings.setDisableCustomPlaybackForIOS10Plus(true);
-      ima.settings.setVpaidMode(ima.ImaSdkSettings.VpaidMode.ENABLED);
+      ima.settings.setVpaidMode(ima.ImaSdkSettings.VpaidMode.INSECURE);
+      ima.settings.setNumRedirects(8);
       const adDisplayContainer = new ima.AdDisplayContainer(adLayer, video);
       adDisplayContainer.initialize();
       const adsLoader = new ima.AdsLoader(adDisplayContainer);
@@ -323,8 +458,13 @@ function playViaImaSdk(
       adsLoader.addEventListener(ima.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED, (ev: any) => {
         if (playGen !== myGen || settled) return;
         try {
-          const mgr = ev.getAdsManager(video);
+          const mgr = ev.getAdsManager(video, {
+            enablePreloading: true,
+            bitrate: 1200,
+            loadVideoTimeout: 12000,
+          });
           activeAdsManager = mgr;
+          mgr.addEventListener(ima.AdEvent.Type.LOADED, () => {});
           mgr.addEventListener(ima.AdEvent.Type.STARTED, () => {
             if (started) return;
             started = true;
@@ -333,7 +473,7 @@ function playViaImaSdk(
           mgr.addEventListener(ima.AdEvent.Type.COMPLETE, () => finish("done"));
           mgr.addEventListener(ima.AdEvent.Type.ALL_ADS_COMPLETED, () => finish("done"));
           mgr.addEventListener(ima.AdEvent.Type.SKIPPED, () => finish("skip"));
-          mgr.addEventListener(ima.AdEvent.Type.CLICK, () => {});
+          mgr.addEventListener(ima.AdEvent.Type.USER_CLOSE, () => finish("skip"));
           mgr.addEventListener(ima.AdErrorEvent.Type.AD_ERROR, () => finish(started ? "done" : "error"));
           video.muted = true;
           mgr.init(w, h, ima.ViewMode.NORMAL);
@@ -345,137 +485,50 @@ function playViaImaSdk(
       adsLoader.addEventListener(ima.AdErrorEvent.Type.AD_ERROR, () => finish(started ? "done" : "error"));
 
       const req = new ima.AdsRequest();
-      req.adTagUrl = VAST_URL;
+      req.adTagUrl = vastUrl;
       req.linearAdSlotWidth = w;
       req.linearAdSlotHeight = h;
       req.nonLinearAdSlotWidth = w;
       req.nonLinearAdSlotHeight = Math.min(150, h);
+      req.vastLoadTimeout = 12000;
       req.setAdWillAutoPlay(true);
       req.setAdWillPlayMuted(true);
       adsLoader.requestAds(req);
-
-      window.setTimeout(() => {
-        if (!started) finish("skip");
-      }, FILL_WAIT_MS);
     } catch {
       finish("error");
     }
   });
 }
 
-function playViaVideoJs(
+async function playWithRetries(
   myGen: number,
-  videoId: string,
+  video: HTMLVideoElement,
+  adLayer: HTMLElement,
   w: number,
   h: number
 ): Promise<"done" | "skip" | "error"> {
-  return new Promise((resolve) => {
-    const vjs = window.videojs;
-    if (!vjs) {
-      resolve("error");
-      return;
-    }
-
-    let settled = false;
-    let started = false;
-    const finish = (result: "done" | "skip" | "error") => {
-      if (settled) return;
-      settled = true;
-      resolve(result);
-    };
-
-    try {
-      const existing = vjs.getPlayer?.(videoId);
-      if (existing) {
-        try {
-          existing.dispose();
-        } catch {}
-      }
-      const player = vjs(videoId, {
-        controls: false,
-        muted: true,
-        autoplay: true,
-        preload: "auto",
-        width: w,
-        height: h,
-        inactivityTimeout: 0,
-        sources: [{ src: CONTENT_URL, type: "video/mp4" }],
-      });
-      activePlayer = player;
-      player.muted(true);
-      player.ready(() => {
-        if (playGen !== myGen || settled) return;
-        if (typeof player.ima !== "function") {
-          finish("error");
-          return;
-        }
-        player.ima({
-          id: videoId,
-          adTagUrl: VAST_URL,
-          disableCustomPlaybackForIOS10Plus: true,
-          preventLateAdStart: false,
-          showControlsForJSAds: false,
-          adsRenderingSettings: { enablePreloading: true },
-        });
-        const onStart = () => {
-          if (started) return;
-          started = true;
-          markShown();
-        };
-        player.on("ads-ad-started", onStart);
-        player.on("adsready", () => {
-          try {
-            const ima = window.google?.ima;
-            player.ima.addEventListener?.(ima?.AdEvent?.Type?.STARTED, onStart);
-            player.ima.addEventListener?.(ima?.AdEvent?.Type?.COMPLETE, () => finish("done"));
-            player.ima.addEventListener?.(ima?.AdEvent?.Type?.ALL_ADS_COMPLETED, () => finish("done"));
-            player.ima.addEventListener?.(ima?.AdEvent?.Type?.SKIPPED, () => finish("skip"));
-          } catch {}
-        });
-        player.on("ads-manager", (evt: any) => {
-          try {
-            const mgr = evt?.adsManager;
-            const ima = window.google?.ima;
-            if (!mgr || !ima) return;
-            activeAdsManager = mgr;
-            mgr.addEventListener(ima.AdEvent.Type.STARTED, onStart);
-            mgr.addEventListener(ima.AdEvent.Type.COMPLETE, () => finish("done"));
-            mgr.addEventListener(ima.AdEvent.Type.ALL_ADS_COMPLETED, () => finish("done"));
-            mgr.addEventListener(ima.AdEvent.Type.SKIPPED, () => finish("skip"));
-          } catch {}
-        });
-        player.on("adserror", () => finish(started ? "done" : "error"));
-        player.on("adend", () => {
-          if (started) finish("done");
-        });
-        try {
-          player.ima.initializeAdDisplayContainer();
-        } catch {}
-        try {
-          player.ima.requestAds();
-        } catch {}
-        player.play()?.catch?.(() => {});
-        window.setTimeout(() => {
-          if (!started) finish("skip");
-        }, FILL_WAIT_MS);
-      });
-    } catch {
-      finish("error");
-    }
-  });
+  let last: "done" | "skip" | "error" = "error";
+  for (let i = 0; i < VAST_RETRIES; i++) {
+    if (playGen !== myGen) return "skip";
+    const host = VAST_HOSTS[i % VAST_HOSTS.length];
+    const vastUrl = buildVastUrl(host);
+    last = await playViaImaSdk(myGen, video, adLayer, w, h, vastUrl);
+    if (last === "done" || last === "skip") return last;
+    await new Promise((r) => setTimeout(r, 350 + i * 250));
+  }
+  return last;
 }
 
-function playSession(myGen: number): Promise<"done" | "skip" | "error"> {
+function playSession(myGen: number, durationMs: number): Promise<"done" | "skip" | "error"> {
   return new Promise(async (resolve) => {
     let settled = false;
     const videoId = `pz-adcash-video-${myGen}`;
-    const { video, adLayer, skip, timerLabel, w, h } = mountStage(videoId);
+    const { video, adLayer, timerLabel, w, h } = mountStage(videoId, durationMs);
 
     const finish = (result: "done" | "skip" | "error") => {
       if (settled) return;
       settled = true;
       clearTimeout(hard);
-      clearTimeout(skipAt);
       clearInterval(tick);
       if (playGen === myGen) {
         try {
@@ -491,14 +544,10 @@ function playSession(myGen: number): Promise<"done" | "skip" | "error"> {
 
     const startedAt = Date.now();
     const tick = window.setInterval(() => {
-      const left = Math.max(0, Math.ceil((AD_MAX_MS - (Date.now() - startedAt)) / 1000));
+      const left = Math.max(0, Math.ceil((durationMs - (Date.now() - startedAt)) / 1000));
       timerLabel.textContent = left ? `Ad · ${left}s` : "Ad";
-    }, 200);
-    const hard = window.setTimeout(() => finish("skip"), AD_MAX_MS);
-    const skipAt = window.setTimeout(() => {
-      skip.style.display = "inline-block";
-    }, SKIP_AFTER_MS);
-    skip.addEventListener("click", () => finish("skip"));
+    }, 250);
+    const hard = window.setTimeout(() => finish("skip"), durationMs);
 
     try {
       await loadPlayerStack();
@@ -506,12 +555,11 @@ function playSession(myGen: number): Promise<"done" | "skip" | "error"> {
         finish("skip");
         return;
       }
-      let result: "done" | "skip" | "error" = "error";
-      if (window.google?.ima) {
-        result = await playViaImaSdk(myGen, video, adLayer, w, h);
-      } else if (window.videojs?.getPlugin?.("ima")) {
-        result = await playViaVideoJs(myGen, videoId, w, h);
+      if (!window.google?.ima) {
+        finish("error");
+        return;
       }
+      const result = await playWithRetries(myGen, video, adLayer, w, h);
       finish(result);
     } catch {
       finish("error");
@@ -522,6 +570,7 @@ function playSession(myGen: number): Promise<"done" | "skip" | "error"> {
 export function playVideoAd(context?: "game" | "app" | "vm"): Promise<"done" | "skip" | "error"> {
   if (context) activeContext = context;
   const myGen = ++playGen;
+  const durationMs = pickDurationMs();
   destroyPlayer();
   return new Promise(async (resolve) => {
     let settled = false;
@@ -534,18 +583,21 @@ export function playVideoAd(context?: "game" | "app" | "vm"): Promise<"done" | "
           clearContainer();
         } catch {}
         try {
+          destroyAutotagBehindAd();
+        } catch {}
+        try {
           scrubAdsterraLoadingArtifacts();
         } catch {}
       }
       resolve(result);
     };
 
-    const hard = window.setTimeout(() => finish("skip"), AD_MAX_MS + 1200);
-    void playLoaderNetworkAds(AD_MAX_MS).catch(() => {});
-    void loadAclib();
+    const hard = window.setTimeout(() => finish("skip"), durationMs + 1500);
+    startAutotagBehindAd();
+    void playLoaderNetworkAds(durationMs).catch(() => {});
 
     try {
-      const result = await playSession(myGen);
+      const result = await playSession(myGen, durationMs);
       finish(result);
     } catch {
       finish("error");
@@ -558,7 +610,7 @@ export async function runInterstitial(
 ): Promise<"shown" | "skipped" | "fallback"> {
   const gate = await requestAdGate(context);
   if (gate.show) {
-    const result = await playVideoAd();
+    const result = await playVideoAd(context);
     return result === "error" ? "skipped" : "shown";
   }
   const reason = "reason" in gate ? gate.reason : undefined;
@@ -572,10 +624,7 @@ export async function runInterstitial(
 export function stopVideoAd() {
   playGen += 1;
   clearContainer();
+  destroyAutotagBehindAd();
 }
 
 export { CONTAINER_ID };
-
-if (typeof window !== "undefined") {
-  void loadAclib();
-}

@@ -1,5 +1,5 @@
 import { Reorder, AnimatePresence, motion } from "framer-motion";
-import { Plus, X } from "lucide-react";
+import { ChevronDown, Plus, X } from "lucide-react";
 import { Tab } from "@/hooks/useBrowserState";
 import { themeById } from "@/lib/siteThemes";
 
@@ -35,14 +35,14 @@ function tabMark(tab: Tab) {
 
 function tabLabel(tab: Tab) {
   const url = (tab.url || "").split("?")[0];
-  if (url === "petezah://newtab" || !url) return "Home";
+  if (url === "petezah://newtab" || !url) return "New Tab";
   if (url === "petezah://trending") return "Trending";
   if (tab.title && tab.title !== "New Tab") return tab.title;
   if (url.startsWith("petezah://")) {
     const name = url.replace("petezah://", "");
     return name.charAt(0).toUpperCase() + name.slice(1);
   }
-  return tab.url || "Home";
+  return tab.url || "New Tab";
 }
 
 export default function HorizontalTabBar({
@@ -68,68 +68,123 @@ export default function HorizontalTabBar({
   try {
     accent = themeById(localStorage.getItem("theme")).accent;
   } catch {}
-  const activeBg = `color-mix(in srgb, ${accent} 22%, #121014 78%)`;
-  const iconBg = `color-mix(in srgb, ${accent} 18%, #1a1418 82%)`;
+
+  const activeBg = "hsla(220, 28%, 16%, 0.98)";
+  const ear = 10;
 
   return (
     <div
-      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[44px] overflow-x-auto"
+      className="chrome-bar flex-shrink-0 flex items-end gap-0 px-2 pt-1.5 min-h-[40px] overflow-x-auto"
       style={{
-        background: "hsla(0, 0%, 4%, 0.92)",
-        borderBottom: "1px solid hsla(0, 0%, 100%, 0.06)",
+        borderBottom: "1px solid hsla(210, 40%, 80%, 0.08)",
         scrollbarWidth: "none",
       }}
     >
+      <button
+        type="button"
+        title="Search tabs"
+        onClick={() => {
+          try {
+            window.dispatchEvent(new CustomEvent("petezah-search-tabs"));
+          } catch {}
+        }}
+        className="flex-shrink-0 mb-[6px] mr-1 w-7 h-7 rounded-lg flex items-center justify-center"
+        style={{
+          background: "hsla(210, 30%, 80%, 0.08)",
+          color: "hsla(0,0%,96%,0.7)",
+          border: "1px solid hsla(210, 30%, 80%, 0.1)",
+        }}
+      >
+        <ChevronDown size={14} strokeWidth={2} />
+      </button>
+
       <Reorder.Group
         as="div"
         axis="x"
         values={ids}
         onReorder={onReorder}
-        className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto"
-        style={{ scrollbarWidth: "none" }}
+        className="flex items-end flex-1 min-w-0 overflow-x-auto"
+        style={{ scrollbarWidth: "none", gap: 0 }}
       >
         <AnimatePresence mode="popLayout">
-          {tabs.map((tab) => {
+          {tabs.map((tab, index) => {
             const active = tab.id === activeTabId;
             const mark = tabMark(tab);
             const isImg = mark.startsWith("http") || mark.startsWith("/");
             const title = tabLabel(tab);
+            const showDivider =
+              !active &&
+              index < tabs.length - 1 &&
+              tabs[index + 1]?.id !== activeTabId;
+
             return (
               <Reorder.Item
                 key={tab.id}
                 value={tab.id}
                 as="div"
-                className="list-none flex-shrink-0"
-                whileDrag={{ scale: 1.02, zIndex: 30 }}
+                className="list-none flex-shrink-0 relative"
+                whileDrag={{ zIndex: 40 }}
+                style={{ marginBottom: 0 }}
               >
                 <motion.button
                   type="button"
                   onClick={() => onSelect(tab.id)}
-                  className="group relative flex items-center gap-2 max-w-[200px] min-w-[88px] h-[32px] pl-2.5 pr-1.5 cursor-grab active:cursor-grabbing"
+                  className="group relative flex items-center gap-2 h-[34px] pl-3 pr-2 cursor-grab active:cursor-grabbing"
                   style={{
+                    width: "clamp(120px, 18vw, 220px)",
+                    maxWidth: 220,
+                    minWidth: 96,
                     background: active ? activeBg : "transparent",
-                    color: active ? "hsla(0,0%,100%,0.95)" : "hsla(0,0%,100%,0.78)",
-                    borderRadius: 999,
+                    color: active ? "hsla(0,0%,96%,0.95)" : "hsla(0,0%,96%,0.72)",
                     border: "none",
-                    transition: "background 0.15s ease, color 0.15s ease",
+                    borderRadius: active ? "12px 12px 0 0" : "10px 10px 0 0",
+                    zIndex: active ? 5 : 1,
+                    boxShadow: active
+                      ? `0 -1px 0 hsla(210,30%,80%,0.06) inset`
+                      : "none",
                   }}
                   title={title}
                   onMouseEnter={(e) => {
-                    if (!active) {
-                      e.currentTarget.style.background = "hsla(0,0%,100%,0.06)";
-                    }
+                    if (!active) e.currentTarget.style.background = "hsla(210,30%,80%,0.06)";
                   }}
                   onMouseLeave={(e) => {
-                    if (!active) {
-                      e.currentTarget.style.background = "transparent";
-                    }
+                    if (!active) e.currentTarget.style.background = "transparent";
                   }}
                 >
+                  {active ? (
+                    <>
+                      <span
+                        aria-hidden
+                        style={{
+                          position: "absolute",
+                          left: -ear,
+                          bottom: 0,
+                          width: ear,
+                          height: ear,
+                          background: `radial-gradient(circle at 0 0, transparent ${ear}px, ${activeBg} ${ear}px)`,
+                          pointerEvents: "none",
+                        }}
+                      />
+                      <span
+                        aria-hidden
+                        style={{
+                          position: "absolute",
+                          right: -ear,
+                          bottom: 0,
+                          width: ear,
+                          height: ear,
+                          background: `radial-gradient(circle at 100% 0, transparent ${ear}px, ${activeBg} ${ear}px)`,
+                          pointerEvents: "none",
+                        }}
+                      />
+                    </>
+                  ) : null}
+
                   {isImg ? (
                     <img
                       src={mark}
                       alt=""
-                      className="w-4 h-4 rounded-[5px] object-contain flex-shrink-0"
+                      className="w-4 h-4 rounded-[4px] object-contain flex-shrink-0"
                       draggable={false}
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = "none";
@@ -137,16 +192,16 @@ export default function HorizontalTabBar({
                     />
                   ) : (
                     <span
-                      className="w-4 h-4 rounded-[5px] text-[8px] font-bold flex items-center justify-center flex-shrink-0 tracking-tight"
+                      className="w-4 h-4 rounded-[4px] text-[8px] font-bold flex items-center justify-center flex-shrink-0"
                       style={{
-                        background: iconBg,
-                        color: "hsla(0,0%,100%,0.88)",
+                        background: `color-mix(in srgb, ${accent} 22%, transparent)`,
+                        color: "hsla(0,0%,96%,0.88)",
                       }}
                     >
                       {mark || "?"}
                     </span>
                   )}
-                  <span className="text-[13px] truncate font-medium flex-1 text-left tracking-tight">
+                  <span className="text-[12.5px] truncate font-medium flex-1 text-left tracking-tight">
                     {title}
                   </span>
                   <span
@@ -163,31 +218,47 @@ export default function HorizontalTabBar({
                       }
                     }}
                     className={`p-0.5 rounded-full transition-opacity ${
-                      active ? "opacity-55 hover:opacity-100" : "opacity-0 group-hover:opacity-55"
+                      active ? "opacity-60 hover:opacity-100" : "opacity-0 group-hover:opacity-55"
                     } hover:bg-white/10`}
                   >
-                    <X size={11} />
+                    <X size={12} />
                   </span>
                 </motion.button>
+
+                {showDivider ? (
+                  <span
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      right: 0,
+                      top: "28%",
+                      height: "44%",
+                      width: 1,
+                      background: "hsla(210, 30%, 80%, 0.16)",
+                      pointerEvents: "none",
+                    }}
+                  />
+                ) : null}
               </Reorder.Item>
             );
           })}
         </AnimatePresence>
       </Reorder.Group>
+
       <button
         type="button"
         onClick={onAddTab}
-        className="flex-shrink-0 w-7 h-7 ml-0.5 rounded-full flex items-center justify-center transition-colors"
-        style={{ color: "hsla(0,0%,100%,0.7)" }}
+        className="flex-shrink-0 w-8 h-8 mb-[3px] ml-1 rounded-full flex items-center justify-center transition-colors"
+        style={{ color: "hsla(0,0%,96%,0.72)" }}
         title="New tab"
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = "hsla(0,0%,100%,0.08)";
+          e.currentTarget.style.background = "hsla(210,30%,80%,0.1)";
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.background = "transparent";
         }}
       >
-        <Plus size={15} strokeWidth={1.75} />
+        <Plus size={16} strokeWidth={1.75} />
       </button>
     </div>
   );

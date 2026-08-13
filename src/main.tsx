@@ -106,27 +106,42 @@ try {
 } catch {}
 applyStoredSettings();
 
-if (
-  localStorage.getItem("autocloak") === "true" &&
-  window === window.top &&
-  !/Firefox/.test(navigator.userAgent)
-) {
+function cloakInAboutBlank(iframeSrc: string): boolean {
+  if (window !== window.top) return false;
+  if (/Firefox/.test(navigator.userAgent)) return false;
   const w = window.open("about:blank", "_blank");
-  if (w && !w.closed) {
-    w.document.title = localStorage.getItem("siteTitle") || "Home";
-    const link = w.document.createElement("link");
-    link.rel = "icon";
-    link.href = localStorage.getItem("siteLogo") || "/logo.png";
-    if (link.href.startsWith("/")) link.href = window.location.origin + link.href;
-    w.document.head.appendChild(link);
-    const iframe = w.document.createElement("iframe");
-    iframe.src = window.location.origin + "/";
-    iframe.setAttribute("allow", "fullscreen; clipboard-read; clipboard-write; display-capture");
-    iframe.style.cssText = "width:100vw;height:100vh;border:none;";
-    w.document.body.style.margin = "0";
-    w.document.body.style.overflow = "hidden";
-    w.document.body.appendChild(iframe);
-    window.location.href = localStorage.getItem("panicUrl") || "https://classroom.google.com";
+  if (!w || w.closed) return false;
+  w.document.title = localStorage.getItem("siteTitle") || "Home";
+  const link = w.document.createElement("link");
+  link.rel = "icon";
+  link.href = localStorage.getItem("siteLogo") || "/logo.png";
+  if (link.href.startsWith("/")) link.href = window.location.origin + link.href;
+  w.document.head.appendChild(link);
+  const iframe = w.document.createElement("iframe");
+  iframe.src = iframeSrc;
+  iframe.setAttribute("allow", "fullscreen; clipboard-read; clipboard-write; display-capture");
+  iframe.style.cssText = "width:100vw;height:100vh;border:none;";
+  w.document.body.style.margin = "0";
+  w.document.body.style.overflow = "hidden";
+  w.document.body.appendChild(iframe);
+  return true;
+}
+
+{
+  const blankHash = (window.location.hash || "").toLowerCase() === "#blank";
+  const autocloak = localStorage.getItem("autocloak") === "true";
+  if (blankHash || autocloak) {
+    const cleanUrl =
+      window.location.origin + window.location.pathname + window.location.search;
+    const iframeSrc = blankHash ? cleanUrl : window.location.origin + "/";
+    if (cloakInAboutBlank(iframeSrc)) {
+      window.location.href =
+        localStorage.getItem("panicUrl") || "https://classroom.google.com";
+    } else if (blankHash && window.location.hash) {
+      try {
+        window.history.replaceState(null, "", cleanUrl);
+      } catch {}
+    }
   }
 }
 

@@ -2809,7 +2809,9 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
 
                 <Divider />
                 <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "14px 0 6px" }}>About:Blank</p>
-                <p style={{ fontSize: "11px", color: C.textSub, margin: "0 0 10px" }}>Open the site disguised inside an about:blank popup</p>
+                <p style={{ fontSize: "11px", color: C.textSub, margin: "0 0 10px" }}>
+                  Open the site disguised inside an about:blank popup. Any PeteZah link ending in <code style={{ fontSize: 10 }}>/#blank</code> does this automatically.
+                </p>
                 <button onClick={openAboutBlank} style={{
                   display: "flex", alignItems: "center", gap: "8px", padding: "9px 16px", borderRadius: "8px", marginBottom: "18px",
                   background: C.accentDim, border: `1px solid ${C.borderFocus}`,

@@ -8,16 +8,16 @@ import {
   playLoaderNetworkAds,
   scrubAdsterraLoadingArtifacts,
 } from "@/components/ads/Adsterra";
+import { GameLaunchSplash } from "@/components/GameLaunchSplash";
 
 type Context = "game" | "app" | "vm";
+export type InterstitialPhase = "checking" | "ad" | "loading" | "ready";
 
 const LOADER_AD_MS = 3600;
 
 export function useInterstitialUnlock(context: Context, enabled = true) {
   const [unlocked, setUnlocked] = useState(!enabled);
-  const [phase, setPhase] = useState<"checking" | "ad" | "ready">(
-    enabled ? "checking" : "ready"
-  );
+  const [phase, setPhase] = useState<InterstitialPhase>(enabled ? "checking" : "ready");
   const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export function useInterstitialUnlock(context: Context, enabled = true) {
         if (gate.show) {
           setPhase("ad");
           setShowBanner(true);
-          await playVideoAd();
+          await playVideoAd(context);
         } else {
           const reason = gate.reason;
           if (reason === "disabled" || reason === "network") {
@@ -64,11 +64,17 @@ export function useInterstitialUnlock(context: Context, enabled = true) {
         scrubAdsterraLoadingArtifacts();
       } catch {}
 
-      if (!cancelled) {
-        setUnlocked(true);
-        setPhase("ready");
+      if (cancelled) return;
+
+      if (context === "game") {
         setShowBanner(false);
+        setPhase("loading");
+        return;
       }
+
+      setUnlocked(true);
+      setPhase("ready");
+      setShowBanner(false);
     })();
 
     return () => {
@@ -82,17 +88,39 @@ export function useInterstitialUnlock(context: Context, enabled = true) {
     };
   }, [context, enabled]);
 
-  return { unlocked, phase, showBanner };
+  const finishLoading = () => {
+    setUnlocked(true);
+    setPhase("ready");
+    setShowBanner(false);
+  };
+
+  return { unlocked, phase, showBanner, finishLoading };
 }
 
 export function InterstitialOverlay({
   phase,
   showBanner = false,
+  title,
+  onLoadingDone,
 }: {
-  phase: "checking" | "ad" | "ready";
+  phase: InterstitialPhase;
   showBanner?: boolean;
+  title?: string;
+  onLoadingDone?: () => void;
 }) {
   if (phase === "ready") return null;
+
+  if (phase === "loading") {
+    return (
+      <GameLaunchSplash
+        title={title}
+        onDone={() => {
+          onLoadingDone?.();
+        }}
+      />
+    );
+  }
+
   return (
     <div
       style={{
@@ -104,13 +132,13 @@ export function InterstitialOverlay({
         alignItems: "center",
         justifyContent: "center",
         gap: 10,
-        background: "hsla(220, 35%, 5%, 0.94)",
-        backdropFilter: "blur(8px)",
+        background: "hsla(220, 35%, 5%, 0.55)",
+        backdropFilter: "blur(6px)",
         padding: 16,
         overflowY: "auto",
       }}
     >
-      <Loader2 size={18} className="animate-spin" style={{ color: "hsla(213,70%,62%,1)" }} />
+      <Loader2 size={18} className="animate-spin" style={{ color: "hsla(0,0%,96%,0.85)" }} />
       <p style={{ margin: 0, fontSize: 12, color: "hsla(0,0%,100%,0.72)" }}>
         {phase === "ad" ? "Loading — thanks for supporting PeteZah" : "Preparing…"}
       </p>
@@ -147,15 +175,22 @@ export function InterstitialOverlay({
 export function InterstitialGate({
   context,
   children,
+  title,
 }: {
   context: Context;
   children: ReactNode;
+  title?: string;
 }) {
-  const { unlocked, phase, showBanner } = useInterstitialUnlock(context);
+  const { unlocked, phase, showBanner, finishLoading } = useInterstitialUnlock(context);
   return (
     <div className="absolute inset-0">
       {unlocked ? children : null}
-      <InterstitialOverlay phase={phase} showBanner={showBanner} />
+      <InterstitialOverlay
+        phase={phase}
+        showBanner={showBanner}
+        title={title}
+        onLoadingDone={finishLoading}
+      />
     </div>
   );
 }
