@@ -27,6 +27,7 @@ import {
   Link2,
   Folder,
   Flame,
+  Code2,
   type LucideIcon,
 } from "lucide-react";
 import { Tab } from "@/hooks/useBrowserState";
@@ -38,6 +39,7 @@ import {
   getBookmarks,
   ensureDefaultBookmarks,
 } from "@/components/BookmarksPage";
+import { isBookmarklet } from "@/lib/bookmarklets";
 import GamesPage from "./GamesPage";
 import GameViewerPage from "./GameViewerPage";
 import AIPage from "./AIPage";
@@ -769,7 +771,7 @@ function NewTabBookmarks({ onNavigate }: { onNavigate: (url: string) => void }) 
     key: string,
     title: string,
     onClick: () => void,
-    opts?: { icon?: string; folder?: boolean }
+    opts?: { icon?: string; folder?: boolean; bookmarklet?: boolean }
   ) => (
     <div key={key} className="relative group">
       <button
@@ -780,6 +782,8 @@ function NewTabBookmarks({ onNavigate }: { onNavigate: (url: string) => void }) 
       >
         {opts?.folder ? (
           <Folder size={10} style={{ color: "hsla(210, 40%, 85%, 0.78)" }} />
+        ) : opts?.bookmarklet ? (
+          <Code2 size={10} style={{ color: "hsla(205, 80%, 70%, 0.9)" }} />
         ) : (
           <img
             src={opts?.icon || ""}
@@ -821,6 +825,7 @@ function NewTabBookmarks({ onNavigate }: { onNavigate: (url: string) => void }) 
       {ungrouped.map((b) =>
         chip(b.id, b.title, () => onNavigate(b.url), {
           icon: b.favicon || "/icons/bookmarks/instagram.svg",
+          bookmarklet: isBookmarklet(b.url),
         })
       )}
       {groups.map((g) => {
@@ -863,7 +868,11 @@ function NewTabBookmarks({ onNavigate }: { onNavigate: (url: string) => void }) 
                         className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-[11px] transition-colors"
                         style={{ color: "hsla(0,0%,100%,0.85)" }}
                       >
-                        <img src={b.favicon || "/icons/bookmarks/instagram.svg"} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                        {isBookmarklet(b.url) ? (
+                          <Code2 size={12} style={{ color: "hsla(205, 80%, 70%, 0.9)", flexShrink: 0 }} />
+                        ) : (
+                          <img src={b.favicon || "/icons/bookmarks/instagram.svg"} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                        )}
                         <span className="truncate">{b.title}</span>
                       </button>
                     ))

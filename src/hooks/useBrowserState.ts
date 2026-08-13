@@ -2,6 +2,8 @@ import { useState, useCallback } from "react";
 import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
 import { ensureProxyEngine } from "@/lib/browserInit";
 import { getHomeUrl } from "@/lib/homeUrl";
+import { isBookmarklet, runBookmarkletOnFrame } from "@/lib/bookmarklets";
+import { toast } from "@/hooks/use-toast";
 
 export interface ProxyFrame {
   frame: HTMLIFrameElement;
@@ -60,6 +62,7 @@ function formatUrl(raw: string): string {
   let trimmed = raw.trim();
   if (!trimmed) return "petezah://newtab";
   if (trimmed.startsWith("petezah://")) return trimmed;
+  if (/^\s*javascript:/i.test(trimmed)) return trimmed.trim();
   try {
     if (localStorage.getItem("preferHttps") === "true" && trimmed.startsWith("http://")) {
       trimmed = "https://" + trimmed.slice(7);
@@ -350,6 +353,22 @@ export function useBrowserState() {
   const navigateToUrl = useCallback(
   (rawUrl: unknown) => {
     if (!rawUrl || typeof rawUrl !== "string" || !rawUrl.trim()) return;
+
+    if (isBookmarklet(rawUrl)) {
+      const tab = tabs.find((t) => t.id === focusedTabId);
+      const iframe = tab?.frame?.frame as HTMLIFrameElement | undefined;
+      const result = runBookmarkletOnFrame(iframe, rawUrl.trim());
+      if (!result.ok) {
+        toast({
+          title: "Bookmarklet",
+          description: result.reason,
+        });
+      }
+      setUrlInput("");
+      setIsUrlFocused(false);
+      return;
+    }
+
     const url = formatUrl(rawUrl);
     const targetId = focusedTabId;
 
@@ -440,7 +459,7 @@ export function useBrowserState() {
     setUrlInput("");
     setIsUrlFocused(false);
   },
-  [focusedTabId]
+  [focusedTabId, tabs]
 );
 
   const updateTabMeta = useCallback(

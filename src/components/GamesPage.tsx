@@ -739,91 +739,9 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
   };
 
   return (
-    <div className="absolute inset-0 flex flex-col overflow-hidden">
-
-      <div
-        className="flex-shrink-0 relative z-10 px-6 pt-5 pb-3 games-toolbar"
-        style={{
-          backdropFilter: "blur(24px)",
-          WebkitBackdropFilter: "blur(24px)",
-          background: "rgba(5, 10, 20, 0.35)",
-          borderBottom: "1px solid rgba(255,255,255,0.05)",
-        }}
-      >
-        <div className="max-w-4xl mx-auto">
-          {isAdminMode && (
-            <div className="mb-3 flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10">
-              <p className="text-[11px] text-amber-100/90 font-medium">
-                Admin edit mode — deletes are global · adds are global for everyone
-              </p>
-              <button
-                type="button"
-                onClick={() => onNavigate?.("petezah://account")}
-                className="text-[10px] px-2 py-1 rounded-lg border border-white/10 text-muted-foreground hover:text-foreground"
-              >
-                Exit
-              </button>
-            </div>
-          )}
-          {adminEdit && !adminOk && listReady && (
-            <div className="mb-3 px-3 py-2 rounded-xl border border-destructive/30 bg-destructive/10 text-[11px] text-destructive">
-              Admin access required for Edit Games.
-            </div>
-          )}
-          <div className="flex items-center gap-2 mb-3">
-            <button
-              onClick={randomGame}
-              className="flex items-center justify-center w-9 h-9 rounded-xl bg-accent/40 border border-white/8 hover:border-white/20 hover:bg-accent/60 text-muted-foreground hover:text-foreground transition-all flex-shrink-0"
-              title="Random game"
-            >
-              <Dices size={14} />
-            </button>
-
-            <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-accent/40 border border-white/8 focus-within:border-white/25 focus-within:bg-accent/60 transition-all">
-              <Search size={13} className="text-muted-foreground flex-shrink-0" />
-              <input
-                value={search}
-                onChange={e => { setSearch(e.target.value); setPage(1); }}
-                placeholder="Search games..."
-                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
-              />
-              {search && (
-                <button onClick={() => setSearch("")} className="text-muted-foreground hover:text-foreground transition-colors">
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-
-            <button
-              onClick={() => setShowAdd(true)}
-              className="flex items-center justify-center w-9 h-9 rounded-xl bg-accent/40 border border-white/8 hover:border-white/20 hover:bg-accent/60 text-muted-foreground hover:text-foreground transition-all flex-shrink-0"
-              title="Add custom game"
-            >
-              <Plus size={14} />
-            </button>
-          </div>
-
-          <div className="flex gap-1.5 justify-center overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
-            {CATEGORIES.map(cat => (
-              <button
-                key={cat}
-                onClick={() => { setActiveCategory(cat); setPage(1); }}
-                className="flex-shrink-0 px-3 py-1 rounded-full text-[11px] font-medium transition-all duration-150"
-                style={{
-                  background: activeCategory === cat ? "rgba(255,255,255,0.12)" : "transparent",
-                  color: activeCategory === cat ? "var(--foreground)" : "var(--muted-foreground)",
-                  border: `1px solid ${activeCategory === cat ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.06)"}`,
-                }}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto relative z-0" style={{ scrollbarWidth: "none" }}>
-        <div className="px-6 py-4 games-scroll">
+    <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+        <div className="px-6 games-scroll" style={{ paddingTop: 108, paddingBottom: 32 }}>
           {!listReady ? (
             <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
               <div className="w-4 h-4 rounded-full border border-white/10 border-t-white/40 animate-spin mb-3" />
@@ -884,6 +802,84 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
               {!hasMore && <div style={{ paddingBottom: 32 }} />}
             </>
           )}
+        </div>
+      </div>
+
+      <div
+        className="absolute top-0 left-0 right-0 z-20 px-6 pt-5 pb-3 games-toolbar pointer-events-none"
+        style={{
+          background: "linear-gradient(to bottom, hsla(220,35%,6%,0.55) 0%, hsla(220,35%,6%,0.18) 70%, transparent 100%)",
+        }}
+      >
+        <div className="max-w-4xl mx-auto pointer-events-auto">
+          {isAdminMode && (
+            <div className="mb-3 flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10">
+              <p className="text-[11px] text-amber-100/90 font-medium">
+                Admin edit mode — deletes are global · adds are global for everyone
+              </p>
+              <button
+                type="button"
+                onClick={() => onNavigate?.("petezah://account")}
+                className="text-[10px] px-2 py-1 rounded-lg border border-white/10 text-muted-foreground hover:text-foreground"
+              >
+                Exit
+              </button>
+            </div>
+          )}
+          {adminEdit && !adminOk && listReady && (
+            <div className="mb-3 px-3 py-2 rounded-xl border border-destructive/30 bg-destructive/10 text-[11px] text-destructive">
+              Admin access required for Edit Games.
+            </div>
+          )}
+          <div className="flex items-center gap-2 mb-3">
+            <button
+              onClick={randomGame}
+              className="flex items-center justify-center w-9 h-9 rounded-xl bg-accent/40 border border-white/8 hover:border-white/20 hover:bg-accent/60 text-muted-foreground hover:text-foreground transition-all flex-shrink-0 backdrop-blur-md"
+              title="Random game"
+            >
+              <Dices size={14} />
+            </button>
+
+            <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-accent/40 border border-white/8 focus-within:border-white/25 focus-within:bg-accent/60 transition-all backdrop-blur-md">
+              <Search size={13} className="text-muted-foreground flex-shrink-0" />
+              <input
+                value={search}
+                onChange={e => { setSearch(e.target.value); setPage(1); }}
+                placeholder="Search games..."
+                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+              />
+              {search && (
+                <button onClick={() => setSearch("")} className="text-muted-foreground hover:text-foreground transition-colors">
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowAdd(true)}
+              className="flex items-center justify-center w-9 h-9 rounded-xl bg-accent/40 border border-white/8 hover:border-white/20 hover:bg-accent/60 text-muted-foreground hover:text-foreground transition-all flex-shrink-0 backdrop-blur-md"
+              title="Add custom game"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+
+          <div className="flex gap-1.5 justify-center overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat}
+                onClick={() => { setActiveCategory(cat); setPage(1); }}
+                className="flex-shrink-0 px-3 py-1 rounded-full text-[11px] font-medium transition-all duration-150 backdrop-blur-md"
+                style={{
+                  background: activeCategory === cat ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.04)",
+                  color: activeCategory === cat ? "var(--foreground)" : "var(--muted-foreground)",
+                  border: `1px solid ${activeCategory === cat ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.08)"}`,
+                }}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

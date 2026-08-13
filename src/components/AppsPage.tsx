@@ -300,32 +300,9 @@ export default function AppsPage({ onNavigate }: AppsPageProps) {
   }, []);
 
   return (
-    <div className="absolute inset-0 flex flex-col overflow-hidden">
-      <div className="flex-shrink-0 relative z-10 px-6 pt-5 pb-3 apps-toolbar"
-        style={{ backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", background: "rgba(5, 10, 20, 0.35)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center gap-2">
-            <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-accent/40 border border-white/8 focus-within:border-white/25 focus-within:bg-accent/60 transition-all">
-              <Search size={13} className="text-muted-foreground flex-shrink-0" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search apps..."
-                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none" />
-              {search && (
-                <button onClick={() => setSearch("")} className="text-muted-foreground hover:text-foreground transition-colors">
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-            <button onClick={() => setShowAdd(true)}
-              className="flex items-center justify-center w-9 h-9 rounded-xl bg-accent/40 border border-white/8 hover:border-white/20 hover:bg-accent/60 text-muted-foreground hover:text-foreground transition-all flex-shrink-0"
-              title="Add custom app">
-              <Plus size={14} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto relative z-0" style={{ scrollbarWidth: "none" }}>
-        <div className="px-6 py-4 apps-scroll">
+    <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+        <div className="px-6 apps-scroll" style={{ paddingTop: 72, paddingBottom: 32 }}>
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
               <p className="text-sm">No apps found</p>
@@ -344,6 +321,33 @@ export default function AppsPage({ onNavigate }: AppsPageProps) {
               </div>
             </>
           )}
+        </div>
+      </div>
+
+      <div
+        className="absolute top-0 left-0 right-0 z-20 px-6 pt-5 pb-3 apps-toolbar pointer-events-none"
+        style={{
+          background: "linear-gradient(to bottom, hsla(220,35%,6%,0.55) 0%, hsla(220,35%,6%,0.18) 70%, transparent 100%)",
+        }}
+      >
+        <div className="max-w-4xl mx-auto pointer-events-auto">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-accent/40 border border-white/8 focus-within:border-white/25 focus-within:bg-accent/60 transition-all backdrop-blur-md">
+              <Search size={13} className="text-muted-foreground flex-shrink-0" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search apps..."
+                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none" />
+              {search && (
+                <button onClick={() => setSearch("")} className="text-muted-foreground hover:text-foreground transition-colors">
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+            <button onClick={() => setShowAdd(true)}
+              className="flex items-center justify-center w-9 h-9 rounded-xl bg-accent/40 border border-white/8 hover:border-white/20 hover:bg-accent/60 text-muted-foreground hover:text-foreground transition-all flex-shrink-0 backdrop-blur-md"
+              title="Add custom app">
+              <Plus size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
