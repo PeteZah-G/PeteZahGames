@@ -24,7 +24,7 @@ tower-http = { version = "0.5", features = ["compression-full", "cors"] }
 futures = "0.3"
 dashmap = "6"
 uuid = { version = "1.8", features = ["v4"] }
-image = { version = "0.25.9", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp", "ico"] }
+blake3 = "1"
 sysinfo = "0.32"
 
 [profile.release]

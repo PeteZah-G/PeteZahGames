@@ -21,6 +21,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Semaphore;
 use tower_http::compression::CompressionLayer;
+use tower_http::compression::predicate::{NotForContentType, Predicate, SizeAbove};
 use tower_http::cors::{Any, CorsLayer};
 
 #[global_allocator]
@@ -28,7 +29,10 @@ static GLOBAL: MiMalloc = MiMalloc;
 
 fn main() {
     tracing_subscriber::fmt()
-        .with_env_filter("mochi=info")
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "mochi=warn".into()),
+        )
         .init();
 
     let t = tuning::detect();
@@ -62,6 +66,11 @@ async fn async_main(t: tuning::MochiTuning) {
             (val.body.len() as u32).saturating_add(200)
         })
         .time_to_live(Duration::from_secs(t.cache_ttl_secs))
+        .build();
+
+    let fail_cache = Cache::builder()
+        .max_capacity(40_000)
+        .time_to_live(Duration::from_secs(90))
         .build();
 
     let asset_client = Client::builder()
@@ -160,6 +169,7 @@ async fn async_main(t: tuning::MochiTuning) {
         coalesce: DashMap::new(),
         request_permit: Arc::new(Semaphore::new(t.request_permits)),
         html_rewrite_permit: Arc::new(Semaphore::new(t.html_rewrite_permits)),
+        fail_cache,
         max_cache_entry_size: t.max_cache_entry_size,
         ram_cache_limit: t.ram_cache_limit,
         channel_buffer: t.channel_buffer,
@@ -167,7 +177,7 @@ async fn async_main(t: tuning::MochiTuning) {
 
     let port = std::env::var("MOCHI_PORT").unwrap_or_else(|_| "4000".to_string());
     let port = port.parse::<u16>().unwrap_or(4000);
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
     tracing::info!("listening on {}!!", addr);
 
     tokio::spawn(cache::disk_cache_cleanup_task(
@@ -181,11 +191,24 @@ async fn async_main(t: tuning::MochiTuning) {
         .allow_methods(Any)
         .allow_headers(Any);
 
+    let compress_when = SizeAbove::new(1024)
+        .and(NotForContentType::IMAGES)
+        .and(NotForContentType::const_new("application/wasm"))
+        .and(NotForContentType::const_new("application/octet-stream"))
+        .and(NotForContentType::const_new("application/x-shockwave-flash"))
+        .and(NotForContentType::const_new("video/mp4"))
+        .and(NotForContentType::const_new("video/webm"))
+        .and(NotForContentType::const_new("audio/mpeg"))
+        .and(NotForContentType::const_new("audio/ogg"))
+        .and(NotForContentType::const_new("audio/wav"))
+        .and(NotForContentType::const_new("font/woff"))
+        .and(NotForContentType::const_new("font/woff2"));
+
     let app = Router::new()
         .route("/health", axum::routing::get(|| async { "ok" }))
         .route("/", any(proxy::proxy_handler))
         .route("/*path", any(proxy::proxy_handler))
-        .layer(CompressionLayer::new())
+        .layer(CompressionLayer::new().compress_when(compress_when))
         .layer(cors)
         .route(
             &format!("{}*key", constants::MOCHI_PREFIX),

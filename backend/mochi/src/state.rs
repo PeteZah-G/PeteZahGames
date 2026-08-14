@@ -24,6 +24,7 @@ pub struct AppState {
     pub coalesce: DashMap<String, broadcast::Sender<Arc<CachedResponse>>>,
     pub request_permit: Arc<Semaphore>,
     pub html_rewrite_permit: Arc<Semaphore>,
+    pub fail_cache: Cache<String, u16>,
     pub max_cache_entry_size: usize,
     pub ram_cache_limit: usize,
     pub channel_buffer: usize,

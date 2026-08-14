@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 
 const FROM = 'PeteZah <no-reply@verify.petezahgames.com>';
+let quotaPauseUntil = 0;
 
 function getResend() {
   const key = process.env.RESEND_API_KEY;
@@ -11,7 +12,9 @@ function getResend() {
 }
 
 export async function sendVerificationEmail(to, verifyUrl) {
-  // how do u guys think I can make this look better?
+  if (Date.now() < quotaPauseUntil) {
+    throw new Error('Email sending paused after quota');
+  }
   const resend = getResend();
   const { error } = await resend.emails.send({
     from: FROM,
@@ -33,5 +36,11 @@ export async function sendVerificationEmail(to, verifyUrl) {
     `,
     text: `Verify your PeteZah email:\n\n${verifyUrl}\n\nThis link expires in 24 hours.`,
   });
-  if (error) throw new Error(error.message || 'Failed to send email');
+  if (error) {
+    const msg = error.message || 'Failed to send email';
+    if (/quota|rate.?limit/i.test(msg)) {
+      quotaPauseUntil = Date.now() + 60 * 60 * 1000;
+    }
+    throw new Error(msg);
+  }
 }

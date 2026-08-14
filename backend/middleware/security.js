@@ -6,8 +6,9 @@ export let TOKEN_SECRET = process.env.TOKEN_SECRET || '';
 const TOKEN_VALIDITY = 3600000;
 const BASE_POW_DIFFICULTY = 16;
 const MAX_POW_DIFFICULTY = 22;
-const MAX_REQUEST_SIZE = 10 * 1024 * 1024;
-const MAX_HEADER_SIZE = 65536;
+const MAX_REQUEST_SIZE = 512 * 1024;
+const MAX_GENERATE_SIZE = 10 * 1024 * 1024;
+const MAX_HEADER_SIZE = 32768;
 const CPU_THRESHOLD = 75;
 
 export const systemState = {
@@ -326,7 +327,9 @@ export function isKillSwitchUrlExempt(url) {
 export function createMemoryProtection(shield) {
   return (req, res, next) => {
     const contentLength = parseInt(req.headers['content-length'] || '0');
-    if (contentLength > MAX_REQUEST_SIZE) {
+    const pathOnly = String(req.url || req.originalUrl || '').split('?')[0];
+    const maxBody = pathOnly.startsWith('/api/generate') ? MAX_GENERATE_SIZE : MAX_REQUEST_SIZE;
+    if (contentLength > maxBody) {
       updateIPReputation(toIPv4(null, req), -10);
       shield.incrementBlocked(toIPv4(null, req), 'payload_oversized');
       return res.status(413).json({ error: 'Request too large' });

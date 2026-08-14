@@ -2,7 +2,7 @@ import { baremuxPath } from '@mercuryworkshop/bare-mux/node';
 import { epoxyPath } from '@mercuryworkshop/epoxy-transport';
 import { libcurlPath } from '@mercuryworkshop/libcurl-transport';
 import { scramjetPath } from '@mercuryworkshop/scramjet/path';
-import { server as wisp } from '@mercuryworkshop/wisp-js/server';
+import { server as wisp, logging } from '@mercuryworkshop/wisp-js/server';
 import bareServerPkg from '@tomphttp/bare-server-node';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
@@ -154,6 +154,18 @@ if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
   throw new Error('SESSION_SECRET must be set in production');
 }
 
+logging.set_level(process.env.WISP_DEBUG === '1' ? logging.INFO : logging.ERROR);
+wisp.options.allow_private_ips = false;
+wisp.options.allow_loopback_ips = false;
+wisp.options.allow_direct_ip = false;
+wisp.options.port_whitelist = [80, 443, 8080, 8443];
+wisp.options.stream_limit_per_host = 24;
+wisp.options.stream_limit_total = 128;
+wisp.options.dns_ttl = 300;
+wisp.options.dns_result_order = 'ipv4first';
+wisp.options.parse_real_ip = true;
+wisp.options.parse_real_ip_from = ['127.0.0.1', '::1'];
+
 const bare = createBareServer(PX.edge, { websocket: { maxPayloadLength: 4096 } });
 const barePremium = createBareServer('/api/bare-premium/', { websocket: { maxPayloadLength: 4096 } });
 const app = express();
@@ -179,10 +191,28 @@ const aiLimiter = createAiLimiter(shield);
 
 app.use(createSecurityHeaders());
 app.use(cookieParser());
-app.use(compression({ level: 6, threshold: 1024 }));
+app.use(compression({
+  level: 1,
+  threshold: 2048,
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false;
+    const p = req.path || req.url || '';
+    if (p.startsWith('/!!/') || p.startsWith('/!cover!/') || p.startsWith('/storage/ag/')) return false;
+    const ct = String(res.getHeader('Content-Type') || '');
+    if (/image|video|audio|wasm|octet-stream|font\/|woff|zip|gzip|br\b|mp4|webm|png|jpe?g|gif|webp|avif|wasm/i.test(ct)) {
+      return false;
+    }
+    return compression.filter(req, res);
+  },
+}));
 app.use(cors(createCorsConfig()));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb', parameterLimit: 100 }));
+const jsonParser = express.json({ limit: '512kb' });
+const generateJsonParser = express.json({ limit: '10mb' });
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/generate')) return next();
+  return jsonParser(req, res, next);
+});
+app.use(express.urlencoded({ extended: true, limit: '64kb', parameterLimit: 50 }));
 
 app.use(session({
   store: new SqliteStore({ client: db }),
@@ -315,7 +345,7 @@ app.get('/1k123.js', (_req, res) => {
 
 app.use('/api', challengeRouter);
 app.use('/api', elevated2faGate);
-app.use('/api/generate', aiLimiter, express.json({ limit: '20mb' }), aiRouter);
+app.use('/api/generate', aiLimiter, generateJsonParser, aiRouter);
 app.use('/api/tmdb', moviesRouter);
 app.use('/api/music/browse', musicBrowseLimiter);
 app.use('/api/music/trending', musicBrowseLimiter);
@@ -425,7 +455,7 @@ app.get('/api/admin/firefox-vm/history', getFirefoxVmHistoryHandler);
 app.use(mochiRouter);
 
 const mochiWsProxy = httpProxy.createProxyServer({
-  target: 'http://localhost:3005',
+  target: 'http://127.0.0.1:3005',
   ws: true,
 });
 
@@ -518,8 +548,8 @@ if (IS_DEV) {
 }
 
 const wsConnections = new Map();
-const MAX_WS_PER_IP = 100;
-const MAX_TOTAL_WS = 5000;
+const MAX_WS_PER_IP = 40;
+const MAX_TOTAL_WS = 3000;
 
 const server = createServer((req, res) => {
   const ip = toIPv4(null, req);

@@ -1,7 +1,67 @@
 use aho_corasick::AhoCorasick;
 use axum::http::{HeaderMap, HeaderValue};
 use std::path::Path;
+use url::Url;
 use crate::state::CDN_DOMAINS;
+
+const BLOCKED_PORTS: &[u16] = &[
+    22, 23, 25, 53, 110, 135, 139, 143, 445, 465, 587, 993, 995, 1433, 1521, 2049, 3306, 3389,
+    5432, 5900, 6379, 9200, 11211, 27017,
+];
+
+pub fn is_blocked_target(url: &Url) -> bool {
+    match url.scheme() {
+        "http" | "https" | "ws" | "wss" => {}
+        _ => return true,
+    }
+    if let Some(port) = url.port() {
+        if BLOCKED_PORTS.contains(&port) {
+            return true;
+        }
+    }
+    match url.host() {
+        Some(url::Host::Domain(host)) => {
+            let h = host.to_ascii_lowercase();
+            h == "localhost"
+                || h == "metadata.google.internal"
+                || h.ends_with(".localhost")
+                || h.ends_with(".local")
+                || h.ends_with(".internal")
+                || h.ends_with(".lan")
+                || h.ends_with(".home")
+                || h.ends_with(".corp")
+        }
+        Some(url::Host::Ipv4(ip)) => {
+            ip.is_loopback()
+                || ip.is_private()
+                || ip.is_link_local()
+                || ip.is_unspecified()
+                || ip.is_broadcast()
+                || ip.octets() == [169, 254, 169, 254]
+        }
+        Some(url::Host::Ipv6(ip)) => {
+            if ip.is_loopback() || ip.is_unspecified() || ip.is_multicast() {
+                return true;
+            }
+            let s = ip.segments();
+            if (s[0] & 0xfe00) == 0xfc00 || (s[0] & 0xffc0) == 0xfe80 {
+                return true;
+            }
+            if let Some(v4) = ip.to_ipv4_mapped() {
+                return v4.is_loopback()
+                    || v4.is_private()
+                    || v4.is_link_local()
+                    || v4.is_unspecified();
+            }
+            false
+        }
+        None => true,
+    }
+}
+
+pub fn is_blocked_url_str(raw: &str) -> bool {
+    Url::parse(raw).map(|u| is_blocked_target(&u)).unwrap_or(true)
+}
 
 pub fn fix_game_content_type(url: &str, headers: &mut HeaderMap) {
     let url_without_query = url.split('?').next().unwrap_or(url);

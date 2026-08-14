@@ -114,7 +114,7 @@ export async function signupHandler(req, res) {
     try {
       await sendUserVerificationEmail(req, userId, email);
     } catch (err) {
-      console.error('Signup verification email failed:', err);
+      console.error('Signup verification email failed:', err.message || err);
       emailSent = false;
     }
 

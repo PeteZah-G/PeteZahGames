@@ -12,7 +12,7 @@ use tokio::fs::{self, File};
 use tokio::io::{AsyncWriteExt, BufWriter};
 use tokio::sync::{broadcast, mpsc};
 use tokio_stream::wrappers::ReceiverStream;
-use tracing::{debug, error, warn};
+use tracing::{debug, warn};
 use url::Url;
 use crate::cache::{get_cache_path, load_from_disk, write_to_disk};
 use crate::constants;
@@ -20,7 +20,7 @@ use crate::cover::handle_cover_request;
 use crate::encoding::decode_mochi_url;
 use crate::helpers::{
     fix_game_content_type, get_cdn_cache_control, is_blacklisted_header, is_blacklisted_res_header,
-    is_likely_static_asset_fast,
+    is_blocked_target, is_likely_static_asset_fast,
 };
 use crate::rewrite::{rewrite_css_urls, rewrite_html};
 use crate::state::{AppState, CachedResponse};
@@ -28,6 +28,8 @@ use crate::websocket::handle_socket;
 
 static UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 static SEC_CH_UA: &str = "\"Not-A.Brand\";v=\"99\", \"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\"";
+const MAX_ERROR_BODY: usize = 8192;
+const MAX_HTML_REWRITE: usize = 4 * 1024 * 1024;
 
 fn build_safe_response_headers(res_headers_ref: &HeaderMap, is_likely_asset: bool) -> HeaderMap {
     let mut safe_headers = HeaderMap::with_capacity(res_headers_ref.len());
@@ -239,11 +241,18 @@ pub async fn proxy_handler(
             };
 
             let headers_clone = headers.clone();
+            if crate::helpers::is_blocked_url_str(&real_target) {
+                return (StatusCode::FORBIDDEN, "blocked").into_response();
+            }
             return ws.on_upgrade(move |socket| handle_socket(socket, real_target, headers_clone));
         }
     }
 
     if method == Method::GET {
+        if let Some(code) = state.fail_cache.get(target_url_str).await {
+            let status = StatusCode::from_u16(code).unwrap_or(StatusCode::NOT_FOUND);
+            return (status, "upstream error").into_response();
+        }
         if let Some(cached) = state.cache.get(target_url_str).await {
             let mut res_headers = cached.headers.clone();
             res_headers.insert("X-Cache", HeaderValue::from_static("HIT"));
@@ -259,6 +268,11 @@ pub async fn proxy_handler(
             fix_game_content_type(target_url_str, &mut res_headers);
             let status = StatusCode::from_u16(cached.status).unwrap_or(StatusCode::OK);
             return (status, res_headers, cached.body.clone()).into_response();
+        }
+        if let Some(disk_response) = load_from_disk(target_url_str).await {
+            let (mut response, _) = disk_response;
+            fix_game_content_type(target_url_str, response.headers_mut());
+            return response;
         }
     }
 
@@ -286,6 +300,10 @@ pub async fn proxy_handler(
         Ok(u) => u,
         Err(_) => return (StatusCode::BAD_REQUEST, "invalid url").into_response(),
     };
+
+    if is_blocked_target(&target_url) {
+        return (StatusCode::FORBIDDEN, "blocked").into_response();
+    }
 
     let is_likely_asset =
         is_likely_static_asset_fast(&target_url_string, Some(&state.asset_ext_matcher));
@@ -385,21 +403,30 @@ pub async fn proxy_handler(
     }
 
     if !status.is_success() {
+        let code = status.as_u16();
+        if method == Method::GET && matches!(code, 404 | 410 | 422) {
+            state.fail_cache.insert(target_url_str.to_string(), code).await;
+        }
         let mut error_headers = HeaderMap::new();
         if let Some(ct) = upstream_res.headers().get("content-type") {
             error_headers.insert("content-type", ct.clone());
         } else {
             error_headers.insert(
                 "content-type",
-                HeaderValue::from_static("text/html; charset=utf-8"),
+                HeaderValue::from_static("text/plain; charset=utf-8"),
             );
         }
+        error_headers.insert("Cache-Control", HeaderValue::from_static("public, max-age=60"));
 
         let bytes = upstream_res.bytes().await.unwrap_or_default();
-        let error_body = String::from_utf8_lossy(&bytes);
-        error!("upstream error body for {}: {}", target_url, error_body);
+        let clipped = if bytes.len() > MAX_ERROR_BODY {
+            bytes.slice(..MAX_ERROR_BODY)
+        } else {
+            bytes
+        };
+        warn!("upstream {} for {} ({}b)", code, target_url, clipped.len());
 
-        return (status, error_headers, error_body.to_string()).into_response();
+        return (status, error_headers, clipped).into_response();
     }
 
     let res_headers_ref = upstream_res.headers();
@@ -468,6 +495,10 @@ pub async fn proxy_handler(
             }
         };
 
+        if full_body.len() > MAX_HTML_REWRITE {
+            return (status, safe_headers, Body::from(full_body)).into_response();
+        }
+
         let effective_url_clone = effective_url.clone();
 
         let body_vec = tokio::task::spawn_blocking(move || {
@@ -495,7 +526,9 @@ pub async fn proxy_handler(
                 body: cached_body.clone(),
             });
 
-            state.cache.insert(cache_key.clone(), cached.clone()).await;
+            if cached_body.len() <= 512 * 1024 {
+                state.cache.insert(cache_key.clone(), cached).await;
+            }
 
             let headers_for_disk = safe_headers.clone();
             let body_for_disk = cached_body;
@@ -557,6 +590,13 @@ pub async fn proxy_handler(
                 body: rewritten_bytes.clone(),
             });
             state.cache.insert(target_url_str.to_string(), cached).await;
+            let cache_key = target_url_str.to_string();
+            let headers_for_disk = safe_headers.clone();
+            let body_for_disk = rewritten_bytes.clone();
+            let status_u16 = status.as_u16();
+            tokio::spawn(async move {
+                write_to_disk(&cache_key, status_u16, &headers_for_disk, &body_for_disk).await;
+            });
         }
 
         return (status, safe_headers, Body::from(rewritten_bytes)).into_response();
@@ -611,12 +651,27 @@ pub async fn proxy_handler(
             if !aborted {
                 if total_size < max_entry && total_size > 0 {
                     let body_bytes = Bytes::from(accumulator);
+                    let headers_for_disk = safe_headers_clone.clone();
                     let cached = Arc::new(CachedResponse {
                         status: status_u16,
                         headers: safe_headers_clone,
-                        body: body_bytes,
+                        body: body_bytes.clone(),
                     });
-                    state_clone.cache.insert(target_url_str_owned, cached).await;
+                    if body_bytes.len() <= 1024 * 1024 {
+                        state_clone
+                            .cache
+                            .insert(target_url_str_owned.clone(), cached)
+                            .await;
+                    }
+                    tokio::spawn(async move {
+                        write_to_disk(
+                            &target_url_str_owned,
+                            status_u16,
+                            &headers_for_disk,
+                            &body_bytes,
+                        )
+                        .await;
+                    });
                 }
             }
         });
@@ -725,7 +780,7 @@ async fn fetch_and_cache(
     let upstream_res = match req_builder.send().await {
         Ok(res) => res,
         Err(e) => {
-            error!("upstream error for {}: {}", target_url_str, e);
+            warn!("upstream error for {}: {}", target_url_str, e);
             state.coalesce.remove(target_url_str);
             return Err((StatusCode::BAD_GATEWAY, format!("upstream error: {}", e)).into_response());
         }

@@ -2,8 +2,6 @@ use axum::body::Body;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use bytes::Bytes;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use std::time::{Duration, SystemTime};
 use tokio::fs::{self, File};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
@@ -16,10 +14,7 @@ pub fn get_cache_path(url: &str) -> String {
     } else {
         url
     };
-    let mut hasher = DefaultHasher::new();
-    cache_key.hash(&mut hasher);
-    let hash = hasher.finish();
-    format!("./cache/{:x}.bin", hash)
+    format!("./cache/{}.bin", blake3::hash(cache_key.as_bytes()).to_hex())
 }
 
 pub async fn load_from_disk(url: &str) -> Option<(Response, bool)> {
@@ -109,11 +104,11 @@ pub async fn disk_cache_cleanup_task(
     max_age_secs: u64,
     cleanup_interval_secs: u64,
 ) {
-    let mut interval = tokio::time::interval(Duration::from_secs(cleanup_interval_secs));
+    let mut interval = tokio::time::interval(Duration::from_secs(cleanup_interval_secs.max(60)));
     interval.tick().await;
     let cache_dir = "./cache";
     loop {
-        tokio::time::sleep(Duration::from_secs(cleanup_interval_secs.max(60))).await;
+        interval.tick().await;
 
         let mut entries = match fs::read_dir(cache_dir).await {
             Ok(e) => e,
