@@ -17,8 +17,7 @@
     "start": "NODE_ENV=production node backend/server.js",
     "start:dev": "concurrently \"vite\" \"node backend/server.js\"",
     "ui": "node scripts/ui-studio.mjs",
-    "vendor:firefox-wasm": "node scripts/vendor-firefox-wasm.mjs",
-    "vendor:aclib": "node scripts/refresh-aclib.mjs"
+    "vendor:firefox-wasm": "node scripts/vendor-firefox-wasm.mjs"
   },
   "engines": {
     "node": ">=22.0.0"

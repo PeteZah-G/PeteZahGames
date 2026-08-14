@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Lock, Monitor, ExternalLink, Loader2, Sparkles, Maximize2 } from "lucide-react";
 import { setPendingAuth } from "@/lib/authPending";
-import { runInterstitial } from "@/lib/adcash";
+import { armAdAudio, runInterstitial } from "@/lib/exoclick";
 
 export default function FirefoxVmPage({ onNavigate }: { onNavigate: (url: string) => void }) {
   const [authed, setAuthed] = useState(false);
@@ -47,6 +47,7 @@ export default function FirefoxVmPage({ onNavigate }: { onNavigate: (url: string
   async function launchVm() {
     if (!ready || launching) return;
     setLaunching(true);
+    armAdAudio();
     try {
       await runInterstitial("vm");
     } catch {}

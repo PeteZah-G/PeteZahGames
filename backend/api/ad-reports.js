@@ -4,24 +4,10 @@ import db from '../db.js';
 import { isOwnerEmail } from '../utils/auth-roles.js';
 import { toIPv4 } from '../middleware/security.js';
 
-const ADCASH_BASE = 'https://adcash.myadcash.com/api/v2';
+const EXO_BASE = 'https://api.exoclick.com/v2';
 const CACHE_MS = 120000;
-const FETCH_MS = 8000;
+const FETCH_MS = 10000;
 const MAX_ROWS = 80;
-const MAX_PAGES = 4;
-const PAGE_SIZE = 200;
-const GROUP_BY = new Set(['zone', 'site', 'country', 'date', 'month', 'week', 'device_type']);
-const ROW_STR = ['zone', 'parent_zone', 'country', 'date', 'month', 'week', 'device_type', 'site', 'sub1', 'sub2'];
-const ROW_NUM = [
-  'earnings',
-  'unique_users',
-  'clicks',
-  'impressions',
-  'unique_users_fallback',
-  'unique_users_overcapped',
-  'unique_users_rejected',
-  'unique_users_ecpm',
-];
 
 export const adReportsLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -59,7 +45,7 @@ function requireAdmin(req, res) {
 }
 
 function reportingToken() {
-  const raw = process.env.AD_CASH_REPORTING_API || process.env.ADCASH_REPORTING_API || '';
+  const raw = process.env.EXOCLICK_API_TOKEN || '';
   return typeof raw === 'string' ? raw.trim() : '';
 }
 
@@ -83,55 +69,95 @@ function clipStr(v, max = 80) {
   return String(v).slice(0, max);
 }
 
-function sanitizeRow(row) {
-  if (!row || typeof row !== 'object') return null;
-  const out = {};
-  for (const k of ROW_STR) {
-    if (row[k] !== undefined && row[k] !== null) out[k] = clipStr(row[k]);
-  }
-  for (const k of ROW_NUM) {
-    if (row[k] !== undefined && row[k] !== null) out[k] = num(row[k]);
-  }
-  return out;
-}
-
-function sumRows(rows) {
-  const acc = {
+function emptyTotals() {
+  return {
     earnings: 0,
     clicks: 0,
     uniqueUsers: 0,
     impressions: 0,
+    videoViews: 0,
     rejected: 0,
     fallback: 0,
     overcapped: 0,
-  };
-  for (const r of rows || []) {
-    acc.earnings += num(r.earnings);
-    acc.clicks += num(r.clicks);
-    acc.uniqueUsers += num(r.unique_users);
-    acc.impressions += num(r.impressions);
-    acc.rejected += num(r.unique_users_rejected);
-    acc.fallback += num(r.unique_users_fallback);
-    acc.overcapped += num(r.unique_users_overcapped);
-  }
-  const views = acc.impressions > 0 ? acc.impressions : acc.uniqueUsers;
-  return {
-    ...acc,
-    views,
-    ecpm: views > 0 ? (acc.earnings / views) * 1000 : 0,
-    ctr: views > 0 ? acc.clicks / views : 0,
-    rejectRate: acc.uniqueUsers + acc.rejected > 0 ? acc.rejected / (acc.uniqueUsers + acc.rejected) : 0,
+    views: 0,
+    ecpm: 0,
+    ctr: 0,
+    vtr: 0,
+    rejectRate: 0,
   };
 }
 
-async function adcashFetch(path, { method = 'GET', token = '', body } = {}) {
+function rowMetrics(row) {
+  const video = row?.video && typeof row.video === 'object' ? row.video : {};
+  const impressions = num(row?.impressions);
+  const clicks = num(row?.clicks);
+  const earnings = num(row?.revenue ?? row?.earnings);
+  const videoImps = num(video.impressions);
+  const videoViews = num(video.views);
+  const views = videoViews || videoImps || impressions;
+  const ctr = num(row?.ctr) || (views > 0 ? clicks / views : 0);
+  const ecpm = num(row?.cpm) || (views > 0 ? (earnings / views) * 1000 : 0);
+  const vtr = num(video.vtr) || (videoImps > 0 ? videoViews / videoImps : 0);
+  return {
+    impressions,
+    clicks,
+    earnings,
+    videoViews,
+    views,
+    ctr,
+    ecpm,
+    vtr,
+  };
+}
+
+function sumRows(rows) {
+  const acc = emptyTotals();
+  for (const r of rows || []) {
+    const m = rowMetrics(r);
+    acc.earnings += m.earnings;
+    acc.clicks += m.clicks;
+    acc.impressions += m.impressions;
+    acc.videoViews += m.videoViews;
+    acc.views += m.views;
+  }
+  acc.ecpm = acc.views > 0 ? (acc.earnings / acc.views) * 1000 : 0;
+  acc.ctr = acc.views > 0 ? acc.clicks / acc.views : 0;
+  acc.vtr = acc.impressions > 0 ? acc.videoViews / acc.impressions : 0;
+  acc.uniqueUsers = acc.views;
+  return acc;
+}
+
+function groupLabel(row, key) {
+  const g = row?.group_by && typeof row.group_by === 'object' ? row.group_by : {};
+  const node = g[key];
+  if (node == null) {
+    if (key === 'date') return clipStr(row?.date || '');
+    return '';
+  }
+  if (typeof node === 'string' || typeof node === 'number') return clipStr(node);
+  return clipStr(
+    node.name
+    || node.date
+    || node.country_short_name
+    || node.country_iso
+    || node.iso
+    || node.id
+    || ''
+  );
+}
+
+function rowDate(row) {
+  return groupLabel(row, 'date') || clipStr(row?.date || '');
+}
+
+async function exoFetch(path, { method = 'GET', token = '', body } = {}) {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), FETCH_MS);
   try {
     const headers = { Accept: 'application/json' };
     if (token) headers.Authorization = `Bearer ${token}`;
     if (body !== undefined) headers['Content-Type'] = 'application/json';
-    const r = await fetch(`${ADCASH_BASE}${path}`, {
+    const r = await fetch(`${EXO_BASE}${path}`, {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -153,63 +179,54 @@ async function adcashFetch(path, { method = 'GET', token = '', body } = {}) {
 
 async function getAccessToken(apiToken) {
   if (tokenCache.access && Date.now() < tokenCache.exp - 20000) return tokenCache.access;
-  const res = await adcashFetch('/auth/token', {
+  const res = await exoFetch('/login', {
     method: 'POST',
     body: { api_token: apiToken },
   });
-  const access = res.data?.data?.access_token || res.data?.access_token;
-  const expiresIn = num(res.data?.data?.expires_in || res.data?.expires_in || 900);
+  const access = res.data?.token || res.data?.data?.token || res.data?.access_token;
+  const expiresIn = num(res.data?.expires_in || res.data?.data?.expires_in || 900);
   if (res.ok && typeof access === 'string' && access.length > 8 && access.length < 8000) {
     tokenCache = { access, exp: Date.now() + Math.min(Math.max(expiresIn, 60), 900) * 1000 };
     return tokenCache.access;
   }
-  if (apiToken.length > 8) {
-    tokenCache = { access: apiToken, exp: Date.now() + 8 * 60 * 1000 };
-    return apiToken;
-  }
   throw new Error('auth');
 }
 
-async function fetchReport(token, start, end, groupBy) {
-  if (!GROUP_BY.has(groupBy)) return { rows: [], meta: {} };
-  const rows = [];
-  let meta = {};
-  let offset = 0;
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const q = new URLSearchParams({
-      start_date: start,
-      end_date: end,
-      group_by: groupBy,
-      sort_by: '-earnings',
-      limit: String(PAGE_SIZE),
-      offset: String(offset),
-    });
-    let res = await adcashFetch(`/publishers/reports?${q.toString()}`, { token });
-    if (res.status === 429) {
-      await new Promise((r) => setTimeout(r, 1200));
-      res = await adcashFetch(`/publishers/reports?${q.toString()}`, { token });
-    }
-    if (!res.ok || !res.data) break;
-    const chunk = Array.isArray(res.data?.data?.rows) ? res.data.data.rows : [];
-    if (res.data.meta && typeof res.data.meta === 'object') meta = res.data.meta;
-    for (const raw of chunk) {
-      const row = sanitizeRow(raw);
-      if (row) rows.push(row);
-      if (rows.length >= MAX_ROWS * 4) break;
-    }
-    const total = num(res.data?.meta?.pagination?.total);
-    offset += PAGE_SIZE;
-    if (chunk.length < PAGE_SIZE || (total && offset >= total) || rows.length >= MAX_ROWS * 4) break;
+async function fetchStats(token, start, end, groupBy) {
+  const body = {
+    detailed: 1,
+    totals: 1,
+    filter: { date_from: start, date_to: end },
+    group_by: [groupBy],
+    order_by: [{ field: 'impressions', order: 'desc' }],
+    projection: { base: ['*'], video: ['*'] },
+    limit: 80,
+    offset: 0,
+  };
+  let res = await exoFetch('/statistics/p/', { method: 'POST', token, body });
+  if (!res.ok) {
+    res = await exoFetch('/statistics/publisher', { method: 'POST', token, body });
   }
-  return { rows: rows.slice(0, MAX_ROWS * 4), meta };
+  if (!res.ok || !res.data) return [];
+  const rows = Array.isArray(res.data.result)
+    ? res.data.result
+    : Array.isArray(res.data.data)
+      ? res.data.data
+      : [];
+  return rows.slice(0, MAX_ROWS * 4);
 }
 
 async function fetchBalance(token) {
-  const res = await adcashFetch('/publishers/balance', { token });
-  if (!res.ok || !res.data?.data) return null;
-  const amount = num(res.data.data.balance);
-  const currency = clipStr(res.data.data.currency || 'EUR', 8);
-  return { amount, currency };
+  const paths = ['/user', '/users/me', '/payments'];
+  for (const path of paths) {
+    const res = await exoFetch(path, { token });
+    if (!res.ok || !res.data) continue;
+    const src = res.data.data || res.data.result || res.data;
+    const amount = num(src.balance ?? src.available ?? src.amount);
+    const currency = clipStr(src.currency || src.currency_code || 'USD', 8) || 'USD';
+    if (amount || src.balance != null) return { amount, currency };
+  }
+  return null;
 }
 
 function oursWindow(fromDay, toDay) {
@@ -283,44 +300,46 @@ function oursDaily(fromDay, toDay) {
 
 function topKeyed(rows, key, limit = 12) {
   const list = (rows || [])
-    .map((r) => ({
-      key: clipStr(r[key] || 'unknown', 48),
-      earnings: num(r.earnings),
-      views: num(r.impressions) || num(r.unique_users),
-      uniqueUsers: num(r.unique_users),
-      clicks: num(r.clicks),
-      ecpm: num(r.unique_users_ecpm) || ((num(r.impressions) || num(r.unique_users)) > 0
-        ? (num(r.earnings) / (num(r.impressions) || num(r.unique_users))) * 1000
-        : 0),
-      rejected: num(r.unique_users_rejected),
-      fallback: num(r.unique_users_fallback),
-    }))
+    .map((r) => {
+      const m = rowMetrics(r);
+      return {
+        key: groupLabel(r, key) || 'unknown',
+        earnings: m.earnings,
+        views: m.views,
+        uniqueUsers: m.views,
+        clicks: m.clicks,
+        ecpm: m.ecpm,
+        rejected: 0,
+        fallback: 0,
+      };
+    })
+    .filter((r) => r.key)
     .sort((a, b) => b.earnings - a.earnings || b.views - a.views)
     .slice(0, limit);
   return list;
 }
 
-function buildInsights({ ours, adcash, compare, balance, today, yesterday }) {
+function buildInsights({ ours, exoclick, compare, balance, yesterday }) {
   const out = [];
   const oursToday = ours.today.views;
-  const acToday = adcash.today.views;
-  if (oursToday === 0 && acToday === 0) {
+  const exoToday = exoclick.today.views;
+  if (oursToday === 0 && exoToday === 0) {
     out.push({
       tone: 'info',
       title: 'No views yet today',
-      body: 'Neither PeteZah nor AdCash has counted a video ad view today. That is normal early in the day or if traffic is light.',
+      body: 'Neither PeteZah nor ExoClick has counted a video ad view today. That is normal early in the day or if traffic is light.',
     });
-  } else if (acToday === 0 && oursToday > 0) {
+  } else if (exoToday === 0 && oursToday > 0) {
     out.push({
       tone: 'warn',
-      title: 'We counted views AdCash has not',
-      body: `PeteZah recorded ${oursToday} started ads today, but AdCash reports 0. Reporting often lags, or the VAST tag is not attributing to this publisher account.`,
+      title: 'We counted views ExoClick has not',
+      body: `PeteZah recorded ${oursToday} started ads today, but ExoClick reports 0. Reporting often lags, or the VAST tag is not attributing to this publisher account.`,
     });
-  } else if (oursToday === 0 && acToday > 0) {
+  } else if (oursToday === 0 && exoToday > 0) {
     out.push({
       tone: 'warn',
-      title: 'AdCash sees views we do not',
-      body: `AdCash reports ${acToday} today while our overlay tracker is at 0. Those views may be coming from another placement, or /api/ads/shown is not firing on ad start.`,
+      title: 'ExoClick sees views we do not',
+      body: `ExoClick reports ${exoToday} today while our overlay tracker is at 0. Those views may be coming from another placement, or /api/ads/shown is not firing on ad start.`,
     });
   } else {
     const gap = Math.abs(compare.delta);
@@ -329,13 +348,13 @@ function buildInsights({ ours, adcash, compare, balance, today, yesterday }) {
       out.push({
         tone: 'good',
         title: 'Counts are aligned',
-        body: `Today we recorded ${oursToday} started ads vs AdCash ${acToday} (${Math.round(pct * 100)}%). Small gaps are expected from skip-before-start and reporting delay.`,
+        body: `Today we recorded ${oursToday} started ads vs ExoClick ${exoToday} (${Math.round(pct * 100)}%). Small gaps are expected from skip-before-start and reporting delay.`,
       });
     } else {
       out.push({
         tone: 'warn',
         title: 'View counts diverge',
-        body: `PeteZah ${oursToday} vs AdCash ${acToday} (gap ${gap}). If ours is higher, many players start then no-fill. If AdCash is higher, extra inventory is running outside this overlay.`,
+        body: `PeteZah ${oursToday} vs ExoClick ${exoToday} (gap ${gap}). If ours is higher, many players start then no-fill. If ExoClick is higher, extra inventory is running outside this overlay.`,
       });
     }
   }
@@ -363,91 +382,83 @@ function buildInsights({ ours, adcash, compare, balance, today, yesterday }) {
     }
   }
 
-  if (adcash.today.ecpm > 0) {
-    const vs7 = adcash.d7.views > 0 ? adcash.d7.ecpm : 0;
-    if (vs7 > 0 && adcash.today.ecpm > vs7 * 1.25) {
+  if (exoclick.today.ecpm > 0) {
+    const vs7 = exoclick.d7.views > 0 ? exoclick.d7.ecpm : 0;
+    if (vs7 > 0 && exoclick.today.ecpm > vs7 * 1.25) {
       out.push({
         tone: 'good',
         title: 'eCPM is running hot',
-        body: `Today eCPM ${adcash.today.ecpm.toFixed(2)} vs 7-day ${vs7.toFixed(2)}. Keep the same zones in rotation.`,
+        body: `Today eCPM ${exoclick.today.ecpm.toFixed(2)} vs 7-day ${vs7.toFixed(2)}. Keep the same zones in rotation.`,
       });
-    } else if (vs7 > 0 && adcash.today.ecpm < vs7 * 0.7) {
+    } else if (vs7 > 0 && exoclick.today.ecpm < vs7 * 0.7) {
       out.push({
         tone: 'warn',
         title: 'eCPM is soft today',
-        body: `Today eCPM ${adcash.today.ecpm.toFixed(2)} is below the 7-day ${vs7.toFixed(2)}. Mix or geo may be cheaper inventory.`,
+        body: `Today eCPM ${exoclick.today.ecpm.toFixed(2)} is below the 7-day ${vs7.toFixed(2)}. Mix or geo may be cheaper inventory.`,
       });
     } else {
       out.push({
         tone: 'info',
         title: 'eCPM snapshot',
-        body: `Today ${adcash.today.ecpm.toFixed(2)} ${adcash.currency}/mille. 7-day ${vs7.toFixed(2)}.`,
+        body: `Today ${exoclick.today.ecpm.toFixed(2)} ${exoclick.currency}/mille. 7-day ${vs7.toFixed(2)}.`,
       });
     }
   }
 
-  if (adcash.today.ctr > 0) {
+  if (exoclick.today.vtr > 0) {
     out.push({
-      tone: adcash.today.ctr >= 0.01 ? 'good' : 'info',
+      tone: exoclick.today.vtr >= 0.7 ? 'good' : 'info',
+      title: 'Video completion',
+      body: `VTR ${(exoclick.today.vtr * 100).toFixed(1)}% · ${exoclick.today.videoViews} completed views. Completions pay more than skips.`,
+    });
+  }
+
+  if (exoclick.today.ctr > 0) {
+    out.push({
+      tone: exoclick.today.ctr >= 0.01 ? 'good' : 'info',
       title: 'Click-through',
-      body: `CTR ${(adcash.today.ctr * 100).toFixed(2)}% on ${adcash.today.clicks} clicks. Video CTR is usually low; earnings still come from completed views.`,
-    });
-  }
-
-  if (adcash.today.rejectRate > 0.12) {
-    out.push({
-      tone: 'warn',
-      title: 'High rejection',
-      body: `${Math.round(adcash.today.rejectRate * 100)}% of AdCash uniques were rejected today. Bot/quality filters or geo mismatch can drive this.`,
-    });
-  }
-
-  if (adcash.today.fallback > adcash.today.uniqueUsers * 0.15 && adcash.today.uniqueUsers > 20) {
-    out.push({
-      tone: 'info',
-      title: 'Fallback traffic',
-      body: `${adcash.today.fallback} fallback uniques vs ${adcash.today.uniqueUsers} counted. A chunk of requests is not premium fill.`,
+      body: `CTR ${(exoclick.today.ctr * 100).toFixed(2)}% on ${exoclick.today.clicks} clicks. Video CTR is usually low; earnings still come from completed views.`,
     });
   }
 
   const yEarn = yesterday.earnings;
-  const tEarn = adcash.today.earnings;
+  const tEarn = exoclick.today.earnings;
   if (yEarn > 0) {
     const ch = (tEarn - yEarn) / yEarn;
     out.push({
       tone: ch >= 0 ? 'good' : 'info',
       title: 'Earnings vs yesterday',
-      body: `Today ${tEarn.toFixed(2)} ${adcash.currency} vs yesterday ${yEarn.toFixed(2)} (${ch >= 0 ? '+' : ''}${Math.round(ch * 100)}%). Incomplete until end of day.`,
+      body: `Today ${tEarn.toFixed(2)} ${exoclick.currency} vs yesterday ${yEarn.toFixed(2)} (${ch >= 0 ? '+' : ''}${Math.round(ch * 100)}%). Incomplete until end of day.`,
     });
   } else if (tEarn > 0) {
     out.push({
       tone: 'good',
       title: 'First earnings today',
-      body: `${tEarn.toFixed(2)} ${adcash.currency} so far.`,
+      body: `${tEarn.toFixed(2)} ${exoclick.currency} so far.`,
     });
   }
 
-  if (adcash.byZone[0]) {
-    const z = adcash.byZone[0];
+  if (exoclick.byZone[0]) {
+    const z = exoclick.byZone[0];
     out.push({
       tone: 'info',
       title: 'Top zone',
-      body: `Zone ${z.key} leads with ${z.earnings.toFixed(2)} ${adcash.currency} and ${z.views} views (eCPM ${z.ecpm.toFixed(2)}).`,
+      body: `Zone ${z.key} leads with ${z.earnings.toFixed(2)} ${exoclick.currency} and ${z.views} views (eCPM ${z.ecpm.toFixed(2)}).`,
     });
   }
 
-  if (adcash.byCountry[0]) {
-    const c = adcash.byCountry[0];
-    const share = adcash.today.views > 0 ? c.views / adcash.today.views : 0;
+  if (exoclick.byCountry[0]) {
+    const c = exoclick.byCountry[0];
+    const share = exoclick.today.views > 0 ? c.views / exoclick.today.views : 0;
     out.push({
       tone: share > 0.55 ? 'warn' : 'info',
       title: 'Top country',
-      body: `${c.key} is ${Math.round(share * 100)}% of AdCash views today. ${share > 0.55 ? 'Heavy concentration — revenue will swing with that geo.' : 'Spread looks healthier than a single-geo stack.'}`,
+      body: `${c.key} is ${Math.round(share * 100)}% of ExoClick views today. ${share > 0.55 ? 'Heavy concentration — revenue will swing with that geo.' : 'Spread looks healthier than a single-geo stack.'}`,
     });
   }
 
-  if (adcash.byDevice[0]) {
-    const d = adcash.byDevice[0];
+  if (exoclick.byDevice[0]) {
+    const d = exoclick.byDevice[0];
     out.push({
       tone: 'info',
       title: 'Device mix',
@@ -470,7 +481,7 @@ function buildInsights({ ours, adcash, compare, balance, today, yesterday }) {
     out.push({
       tone: 'info',
       title: 'Peak hour (UTC)',
-      body: `${String(peak.hour).padStart(2, '0')}:00 UTC had ${peak.views} started ads. Compare with AdCash hourly lag if evening traffic looks missing.`,
+      body: `${String(peak.hour).padStart(2, '0')}:00 UTC had ${peak.views} started ads.`,
     });
   }
 
@@ -486,16 +497,16 @@ function buildInsights({ ours, adcash, compare, balance, today, yesterday }) {
     out.push({
       tone: balance.amount < 10 ? 'warn' : 'good',
       title: 'Publisher balance',
-      body: `${balance.amount.toFixed(2)} ${balance.currency}.${balance.amount < 10 ? ' Low balance — confirm payout threshold in AdCash.' : ''}`,
+      body: `${balance.amount.toFixed(2)} ${balance.currency}.${balance.amount < 10 ? ' Low balance — confirm payout threshold in ExoClick.' : ''}`,
     });
   }
 
-  const d7avg = adcash.d7.earnings / 7;
+  const d7avg = exoclick.d7.earnings / 7;
   if (d7avg > 0) {
     out.push({
       tone: 'info',
       title: '7-day run rate',
-      body: `${adcash.d7.earnings.toFixed(2)} ${adcash.currency} over 7 days (~${d7avg.toFixed(2)}/day). 30-day total ${adcash.d30.earnings.toFixed(2)}.`,
+      body: `${exoclick.d7.earnings.toFixed(2)} ${exoclick.currency} over 7 days (~${d7avg.toFixed(2)}/day). 30-day total ${exoclick.d30.earnings.toFixed(2)}.`,
     });
   }
 
@@ -503,7 +514,7 @@ function buildInsights({ ours, adcash, compare, balance, today, yesterday }) {
 }
 
 function pickDayRows(rows, day) {
-  return (rows || []).filter((r) => r.date === day);
+  return (rows || []).filter((r) => rowDate(r) === day);
 }
 
 export async function getAdminAdReportsHandler(req, res) {
@@ -529,15 +540,15 @@ export async function getAdminAdReportsHandler(req, res) {
     daily: oursDaily(d30, today),
   };
 
-  const emptyAc = {
+  const emptyNet = {
     ok: false,
     error: token ? 'unavailable' : 'not_configured',
-    currency: 'EUR',
+    currency: 'USD',
     timezone: 'UTC',
-    today: sumRows([]),
-    yesterday: sumRows([]),
-    d7: sumRows([]),
-    d30: sumRows([]),
+    today: emptyTotals(),
+    yesterday: emptyTotals(),
+    d7: emptyTotals(),
+    d30: emptyTotals(),
     byZone: [],
     byCountry: [],
     byDevice: [],
@@ -545,55 +556,57 @@ export async function getAdminAdReportsHandler(req, res) {
     bySite: [],
   };
 
-  let adcash = { ...emptyAc };
+  let exoclick = { ...emptyNet };
   let balance = null;
 
   if (token) {
     try {
       const access = await getAccessToken(token);
       const [todayDate, todayZone, todayCountry, todayDevice, rangeDate, rangeZone, rangeSite, bal] = await Promise.all([
-        fetchReport(access, today, today, 'date'),
-        fetchReport(access, today, today, 'zone'),
-        fetchReport(access, today, today, 'country'),
-        fetchReport(access, today, today, 'device_type'),
-        fetchReport(access, d30, today, 'date'),
-        fetchReport(access, d30, today, 'zone'),
-        fetchReport(access, d30, today, 'site'),
+        fetchStats(access, today, today, 'date'),
+        fetchStats(access, today, today, 'zone_id'),
+        fetchStats(access, today, today, 'country_iso'),
+        fetchStats(access, today, today, 'device_type_id'),
+        fetchStats(access, d30, today, 'date'),
+        fetchStats(access, d30, today, 'zone_id'),
+        fetchStats(access, d30, today, 'site_id'),
         fetchBalance(access),
       ]);
-      const meta = todayDate.meta || rangeDate.meta || {};
-      const yRows = pickDayRows(rangeDate.rows, yesterday);
-      const tRows = todayDate.rows.length ? todayDate.rows : pickDayRows(rangeDate.rows, today);
-      const d7Rows = (rangeDate.rows || []).filter((r) => r.date >= d7 && r.date <= today);
-      adcash = {
+      const yRows = pickDayRows(rangeDate, yesterday);
+      const tRows = todayDate.length ? todayDate : pickDayRows(rangeDate, today);
+      const d7Rows = (rangeDate || []).filter((r) => {
+        const day = rowDate(r);
+        return day >= d7 && day <= today;
+      });
+      exoclick = {
         ok: true,
         error: null,
-        currency: clipStr(meta.currency || 'EUR', 8),
-        timezone: clipStr(meta.timezone || 'UTC', 40),
+        currency: clipStr(bal?.currency || 'USD', 8),
+        timezone: 'UTC',
         today: sumRows(tRows),
         yesterday: sumRows(yRows),
         d7: sumRows(d7Rows),
-        d30: sumRows(rangeDate.rows),
-        byZone: topKeyed(todayZone.rows.length ? todayZone.rows : rangeZone.rows, 'zone'),
-        byCountry: topKeyed(todayCountry.rows, 'country'),
-        byDevice: topKeyed(todayDevice.rows, 'device_type'),
-        byDate: topKeyed(rangeDate.rows, 'date', 31).sort((a, b) => a.key.localeCompare(b.key)),
-        bySite: topKeyed(rangeSite.rows, 'site'),
+        d30: sumRows(rangeDate),
+        byZone: topKeyed(todayZone.length ? todayZone : rangeZone, 'zone_id'),
+        byCountry: topKeyed(todayCountry, 'country_iso'),
+        byDevice: topKeyed(todayDevice, 'device_type_id'),
+        byDate: topKeyed(rangeDate, 'date', 31).sort((a, b) => a.key.localeCompare(b.key)),
+        bySite: topKeyed(rangeSite, 'site_id'),
       };
       balance = bal;
     } catch {
       tokenCache = { access: '', exp: 0 };
-      adcash = { ...emptyAc, error: 'unavailable' };
+      exoclick = { ...emptyNet, error: 'unavailable' };
     }
   }
 
   const compare = {
     todayOurs: ours.today.views,
-    todayAdcash: adcash.today.views,
-    delta: ours.today.views - adcash.today.views,
-    ratio: adcash.today.views > 0 ? ours.today.views / adcash.today.views : null,
+    todayExoclick: exoclick.today.views,
+    delta: ours.today.views - exoclick.today.views,
+    ratio: exoclick.today.views > 0 ? ours.today.views / exoclick.today.views : null,
     uniqueOurs: ours.today.uniqueVisitors,
-    uniqueAdcash: adcash.today.uniqueUsers,
+    uniqueExoclick: exoclick.today.uniqueUsers,
   };
 
   const body = {
@@ -601,16 +614,15 @@ export async function getAdminAdReportsHandler(req, res) {
     generatedAt: Date.now(),
     day: today,
     ours,
-    adcash,
+    exoclick,
     compare,
     balance,
     insights: buildInsights({
       ours,
-      adcash,
+      exoclick,
       compare,
       balance,
-      today,
-      yesterday: adcash.yesterday,
+      yesterday: exoclick.yesterday,
     }),
   };
 

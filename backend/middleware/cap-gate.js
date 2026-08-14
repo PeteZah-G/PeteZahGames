@@ -46,6 +46,7 @@ const OPEN_EXACT = new Set([
   '/privacy-policy',
   '/dmca',
   '/copyright',
+  '/4f66ddd48bf4ee436b4ca095a86f40ff.html',
 ]);
 
 const OPEN_PREFIX = ['/cap/', '/api/verify-email', '/api/legal', '/vendor/', '/fonts/', '/storage/ag/'];

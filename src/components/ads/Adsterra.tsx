@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from "react";
+import { ExoClickBanner } from "@/components/ads/ExoClick";
 
 const KEY_728 = "5aed292251276d82b269fc3b8ecc354d";
 const KEY_320 = "fee48967b89db2d0bd32a6c670ffa744";
@@ -111,7 +112,12 @@ export function AdResponsiveBanner({ className = "" }: { className?: string }) {
     mq.addEventListener?.("change", onChange);
     return () => mq.removeEventListener?.("change", onChange);
   }, []);
-  return mobile ? <AdBanner320 className={className} /> : <AdBanner728 className={className} />;
+  return (
+    <div className={className} style={{ width: "100%" }}>
+      {mobile ? <AdBanner320 /> : <AdBanner728 />}
+      <ExoClickBanner />
+    </div>
+  );
 }
 
 export function AdNativeBar() {
@@ -174,7 +180,7 @@ export function scrubAdsterraLoadingArtifacts() {
 
   try {
     for (const el of Array.from(document.body.children)) {
-      if (el.id === "root" || el.id === "app" || el.id === "pz-adcash-root") continue;
+      if (el.id === "root" || el.id === "app" || el.id === "pz-video-ad-root") continue;
       if (el.id === LOADING_HOST_ID || el.id === MONETAG_HOST_ID) {
         try {
           el.remove();
@@ -260,7 +266,7 @@ function teardownSandboxedAd(
   try {
     for (const el of Array.from(document.body.children)) {
       if (preserved.has(el)) continue;
-      if (el.id === "root" || el.id === "app" || el.id === "pz-adcash-root") continue;
+      if (el.id === "root" || el.id === "app" || el.id === "pz-video-ad-root") continue;
       try {
         el.remove();
       } catch {}

@@ -99,13 +99,13 @@ We may investigate and cooperate with schools, employers, ISPs, platforms, payme
 
 7. Advertising; Ad Networks; Malicious or Misleading Ads
 
-7.1 The Service may display advertisements from third-party networks and partners, including without limitation Adsterra, Adcash (when enabled), and other networks or direct sponsors we choose from time to time ("Ad Partners").
+7.1 The Service may display advertisements from third-party networks and partners, including without limitation Adsterra, ExoClick, and other networks or direct sponsors we choose from time to time ("Ad Partners").
 
 7.2 Ad Partners select, serve, rotate, and monetize many creatives outside our day-to-day editorial control. Ads may include pop-ups, interstitials, rewarded/video units, redirects, or download prompts.
 
 7.3 YOU ACKNOWLEDGE THAT AD PARTNERS SOMETIMES SERVE AGGRESSIVE, MISLEADING, LOW-QUALITY, OR EVEN MALWARE-LIKE CREATIVES DESPITE FILTERS. IF YOU ENCOUNTER A SUSPICIOUS "VIRUS," "YOUR DEVICE IS INFECTED," FAKE UPDATE, CRYPTO SCAM, PHISHING, OR SIMILAR AD: DO NOT CLICK, DOWNLOAD, OR ENTER CREDENTIALS. CLOSE THE TAB/WINDOW AND REPORT IT IF POSSIBLE. SUCH INCIDENTS ARE THE RESPONSIBILITY OF THE RELEVANT AD PARTNER AND/OR THE ADVERTISER — NOT AN INDICATION THAT OUR SITE ITSELF IS COMPROMISED, AND NOT A WARRANTY FAILURE BY US.
 
-7.4 We may enable, disable, throttle, or replace Ad Partners (including setting flags such as ADCASH_ENABLED) at any time. Absence of one network does not mean the Service is ad-free.
+7.4 We may enable, disable, throttle, or replace Ad Partners (including setting flags such as EXOCLICK_ENABLED) at any time. Absence of one network does not mean the Service is ad-free.
 
 7.5 We are not liable for losses from interacting with ads, installing software promoted by ads, or ad-driven redirects. Use an ad blocker / reputable antivirus at your discretion, understanding blockers may affect Service features.
 
@@ -197,7 +197,7 @@ This Policy covers data processed when you visit our sites, pass verification, c
 
 2.4 Proxy / technical transmission: while proxying, systems necessarily process URLs, headers, and content bytes in transit to fulfill your request. We do not sell your browsing history. Retention of detailed proxy destination logs, if any, is limited to what we reasonably need for security, debugging, capacity, and legal compliance, then discarded or aggregated.
 
-2.5 Advertising technology: Ad Partners (such as Adsterra, AppLixir when enabled, Google advertising tags, and others) may set cookies, use pixels, or collect device/IP/user-agent data under THEIR policies to serve and measure ads. Their processing is governed primarily by those partners. See Section 7 of the Terms regarding aggressive or malicious ad creatives.
+2.5 Advertising technology: Ad Partners (such as Adsterra, ExoClick, Google advertising tags, and others) may set cookies, use pixels, or collect device/IP/user-agent data under THEIR policies to serve and measure ads. Their processing is governed primarily by those partners. See Section 7 of the Terms regarding aggressive or malicious ad creatives.
 
 2.6 Analytics: we may use first-party or third-party analytics (including tag managers / measurement IDs present on some pages) to understand aggregate traffic and reliability.
 

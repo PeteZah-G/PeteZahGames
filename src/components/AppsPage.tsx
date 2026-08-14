@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, Plus, Star, MoreVertical, X, Trash2, Share2, Copy, Check, Upload } from "lucide-react";
 import { requestSyncSoon } from "@/lib/settingsSync";
 import { AdResponsiveBanner, AdNativeBar } from "@/components/ads/Adsterra";
+import { armAdAudio } from "@/lib/exoclick";
 
 function generateAppId(app: { label: string; url: string }) {
   return `${app.label}-${app.url}`.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
@@ -272,6 +273,7 @@ export default function AppsPage({ onNavigate }: AppsPageProps) {
   })();
 
   const handleOpen = useCallback((app: App) => {
+    armAdAudio();
     if (!onNavigate) return;
     if (app.external || app.url.startsWith("petezah://") || app.url.includes("docs.google.com/forms")) {
       onNavigate(app.url);

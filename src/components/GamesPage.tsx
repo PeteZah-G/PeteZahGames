@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, Dices, Plus, Star, MoreVertical, X, Trash2, Share2, Copy, Check, Upload, ChevronLeft, ChevronRight, RefreshCw, Crown } from "lucide-react";
 import { requestSyncSoon } from "@/lib/settingsSync";
 import { AdResponsiveBanner, AdNativeBar } from "@/components/ads/Adsterra";
+import { armAdAudio } from "@/lib/exoclick";
 
 const CATEGORIES = ["All", "Action", "Racing", "Strategy", "Sports", "Skill", "Shooting", "2 Player", "Io"];
 const PINNED_LABELS = ["Request Games", "Minecraft", "Roblox"];
@@ -606,6 +607,7 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
   }, [hasMore, visible.length]);
 
   const handlePlay = useCallback((game: Game) => {
+    armAdAudio();
     recordPlay(game);
     pushRecentGame(game.id);
     setPlayCounts((prev) => ({ ...prev, [game.id]: (prev[game.id] || 0) + 1 }));

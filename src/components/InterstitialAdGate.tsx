@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
-import { requestAdGate, playVideoAd, stopVideoAd } from "@/lib/adcash";
+import { requestAdGate, playVideoAd, stopVideoAd } from "@/lib/exoclick";
 import {
   AdBanner320,
   AdBanner728,

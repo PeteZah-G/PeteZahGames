@@ -22,7 +22,7 @@ function fmt(n: number, digits = 0) {
   return n.toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: digits });
 }
 
-function money(n: number, currency = "EUR") {
+function money(n: number, currency = "USD") {
   try {
     return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 2 }).format(n || 0);
   } catch {
@@ -124,9 +124,9 @@ export function AdReportsPanel({ C }: { C: C }) {
     return () => window.clearInterval(t);
   }, []);
 
-  const ac = data?.adcash || {};
+  const ac = data?.exoclick || {};
   const ours = data?.ours || {};
-  const cur = ac.currency || data?.balance?.currency || "EUR";
+  const cur = ac.currency || data?.balance?.currency || "USD";
   const insights: Insight[] = Array.isArray(data?.insights) ? data.insights : [];
 
   return (
@@ -164,8 +164,8 @@ export function AdReportsPanel({ C }: { C: C }) {
         </div>
       </div>
       <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 14px" }}>
-        PeteZah overlay starts vs AdCash publisher stats. Token stays on the server. Dates in UTC
-        {ac.timezone && ac.timezone !== "UTC" ? ` · AdCash ${ac.timezone}` : ""}.
+        PeteZah overlay starts vs ExoClick publisher stats. Token stays on the server. Dates in UTC
+        {ac.timezone && ac.timezone !== "UTC" ? ` · ExoClick ${ac.timezone}` : ""}.
       </p>
 
       {loading && !data ? (
@@ -178,12 +178,12 @@ export function AdReportsPanel({ C }: { C: C }) {
         <>
           {!data?.configured ? (
             <p style={{ fontSize: 12, color: C.danger, margin: "0 0 14px" }}>
-              AD_CASH_REPORTING_API is not set. Local overlay stats still show below.
+              EXOCLICK_API_TOKEN is not set. Local overlay stats still show below.
             </p>
           ) : null}
           {ac.error && data?.configured ? (
             <p style={{ fontSize: 12, color: C.danger, margin: "0 0 14px" }}>
-              AdCash API did not return data. Local counts are still live.
+              ExoClick API did not return data. Local counts are still live.
             </p>
           ) : null}
 
@@ -192,15 +192,15 @@ export function AdReportsPanel({ C }: { C: C }) {
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(132px, 1fr))", gap: 8, marginBottom: 14 }}>
             <Stat C={C} label="Ours today" value={fmt(ours.today?.views || 0)} sub="Started video ads" />
-            <Stat C={C} label="AdCash today" value={fmt(ac.today?.views || 0)} sub={ac.today?.impressions ? "Impressions" : "Uniques / views"} />
+            <Stat C={C} label="ExoClick today" value={fmt(ac.today?.views || 0)} sub={ac.today?.impressions ? "Impressions" : "Views"} />
             <Stat
               C={C}
               label="Gap"
               value={fmt(data?.compare?.delta || 0)}
-              sub={data?.compare?.ratio != null ? `Ours/AdCash ${pct(data.compare.ratio)}` : "No AdCash baseline"}
+              sub={data?.compare?.ratio != null ? `Ours/ExoClick ${pct(data.compare.ratio)}` : "No ExoClick baseline"}
             />
             <Stat C={C} label="Ours uniques" value={fmt(ours.today?.uniqueVisitors || 0)} sub={`${fmt(ours.today?.freq || 0, 2)} per visitor`} />
-            <Stat C={C} label="AdCash uniques" value={fmt(ac.today?.uniqueUsers || 0)} sub={`${fmt(ac.today?.impressions || 0)} impressions`} />
+            <Stat C={C} label="ExoClick views" value={fmt(ac.today?.uniqueUsers || ac.today?.views || 0)} sub={`${fmt(ac.today?.impressions || 0)} impressions`} />
             <Stat C={C} label="Start rate" value={pct(ours.today?.startRate || 0)} sub={`${fmt(ours.today?.views || 0)} / ${fmt(ours.today?.attempts || 0)} attempts`} />
           </div>
 
@@ -211,9 +211,8 @@ export function AdReportsPanel({ C }: { C: C }) {
             <Stat C={C} label="Earnings today" value={money(ac.today?.earnings || 0, cur)} sub={`Yesterday ${money(ac.yesterday?.earnings || 0, cur)}`} />
             <Stat C={C} label="eCPM" value={fmt(ac.today?.ecpm || 0, 2)} sub={`7d ${fmt(ac.d7?.ecpm || 0, 2)}`} />
             <Stat C={C} label="Clicks" value={fmt(ac.today?.clicks || 0)} sub={`CTR ${pct(ac.today?.ctr || 0)}`} />
-            <Stat C={C} label="Rejected" value={fmt(ac.today?.rejected || 0)} sub={pct(ac.today?.rejectRate || 0)} />
-            <Stat C={C} label="Fallback" value={fmt(ac.today?.fallback || 0)} />
-            <Stat C={C} label="Overcapped" value={fmt(ac.today?.overcapped || 0)} />
+            <Stat C={C} label="Video views" value={fmt(ac.today?.videoViews || 0)} sub={`VTR ${pct(ac.today?.vtr || 0)}`} />
+            <Stat C={C} label="Completions" value={pct(ac.today?.vtr || 0)} sub={`${fmt(ac.today?.videoViews || 0)} completed`} />
           </div>
 
           <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px" }}>
@@ -221,11 +220,11 @@ export function AdReportsPanel({ C }: { C: C }) {
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(132px, 1fr))", gap: 8, marginBottom: 14 }}>
             <Stat C={C} label="Ours 7d" value={fmt(ours.d7?.views || 0)} sub={`${fmt(ours.d7?.uniqueVisitors || 0)} uniques`} />
-            <Stat C={C} label="AdCash 7d" value={fmt(ac.d7?.views || 0)} sub={money(ac.d7?.earnings || 0, cur)} />
+            <Stat C={C} label="ExoClick 7d" value={fmt(ac.d7?.views || 0)} sub={money(ac.d7?.earnings || 0, cur)} />
             <Stat C={C} label="Ours 30d" value={fmt(ours.d30?.views || 0)} sub={`${fmt(ours.d30?.uniqueVisitors || 0)} uniques`} />
-            <Stat C={C} label="AdCash 30d" value={fmt(ac.d30?.views || 0)} sub={money(ac.d30?.earnings || 0, cur)} />
+            <Stat C={C} label="ExoClick 30d" value={fmt(ac.d30?.views || 0)} sub={money(ac.d30?.earnings || 0, cur)} />
             <Stat C={C} label="Games / apps / VM" value={`${ours.today?.byContext?.game || 0} / ${ours.today?.byContext?.app || 0} / ${ours.today?.byContext?.vm || 0}`} sub="Started today" />
-            <Stat C={C} label="Yesterday ours" value={fmt(ours.yesterday?.views || 0)} sub={`AdCash ${fmt(ac.yesterday?.views || 0)}`} />
+            <Stat C={C} label="Yesterday ours" value={fmt(ours.yesterday?.views || 0)} sub={`ExoClick ${fmt(ac.yesterday?.views || 0)}`} />
           </div>
 
           <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px" }}>
@@ -265,7 +264,7 @@ export function AdReportsPanel({ C }: { C: C }) {
             </div>
             <div>
               <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px" }}>
-                AdCash by date
+                ExoClick by date
               </p>
               <Bars C={C} rows={(ac.byDate || []).map((r: any) => ({ ...r, label: r.key }))} valueKey="views" labelKey="label" maxItems={16} />
             </div>
