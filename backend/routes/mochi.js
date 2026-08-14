@@ -35,8 +35,6 @@ const mochiProxy = createProxyMiddleware({
   target: 'http://127.0.0.1:3005',
   changeOrigin: false,
   ws: false,
-  proxyTimeout: 25000,
-  timeout: 25000,
   on: {
     error: (err, req, res) => {
       if (res && 'status' in res) {

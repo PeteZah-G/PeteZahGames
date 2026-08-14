@@ -68,11 +68,6 @@ async fn async_main(t: tuning::MochiTuning) {
         .time_to_live(Duration::from_secs(t.cache_ttl_secs))
         .build();
 
-    let fail_cache = Cache::builder()
-        .max_capacity(40_000)
-        .time_to_live(Duration::from_secs(90))
-        .build();
-
     let asset_client = Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
         .danger_accept_invalid_certs(true)
@@ -169,7 +164,6 @@ async fn async_main(t: tuning::MochiTuning) {
         coalesce: DashMap::new(),
         request_permit: Arc::new(Semaphore::new(t.request_permits)),
         html_rewrite_permit: Arc::new(Semaphore::new(t.html_rewrite_permits)),
-        fail_cache,
         max_cache_entry_size: t.max_cache_entry_size,
         ram_cache_limit: t.ram_cache_limit,
         channel_buffer: t.channel_buffer,

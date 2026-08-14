@@ -249,10 +249,6 @@ pub async fn proxy_handler(
     }
 
     if method == Method::GET {
-        if let Some(code) = state.fail_cache.get(target_url_str).await {
-            let status = StatusCode::from_u16(code).unwrap_or(StatusCode::NOT_FOUND);
-            return (status, "upstream error").into_response();
-        }
         if let Some(cached) = state.cache.get(target_url_str).await {
             let mut res_headers = cached.headers.clone();
             res_headers.insert("X-Cache", HeaderValue::from_static("HIT"));
@@ -403,10 +399,6 @@ pub async fn proxy_handler(
     }
 
     if !status.is_success() {
-        let code = status.as_u16();
-        if method == Method::GET && matches!(code, 404 | 410 | 422) {
-            state.fail_cache.insert(target_url_str.to_string(), code).await;
-        }
         let mut error_headers = HeaderMap::new();
         if let Some(ct) = upstream_res.headers().get("content-type") {
             error_headers.insert("content-type", ct.clone());
@@ -416,7 +408,6 @@ pub async fn proxy_handler(
                 HeaderValue::from_static("text/plain; charset=utf-8"),
             );
         }
-        error_headers.insert("Cache-Control", HeaderValue::from_static("public, max-age=60"));
 
         let bytes = upstream_res.bytes().await.unwrap_or_default();
         let clipped = if bytes.len() > MAX_ERROR_BODY {
@@ -424,7 +415,7 @@ pub async fn proxy_handler(
         } else {
             bytes
         };
-        warn!("upstream {} for {} ({}b)", code, target_url, clipped.len());
+        warn!("upstream {} for {} ({}b)", status.as_u16(), target_url, clipped.len());
 
         return (status, error_headers, clipped).into_response();
     }
@@ -471,7 +462,7 @@ pub async fn proxy_handler(
             .unwrap_or(false);
 
         let html_permit = match tokio::time::timeout(
-            Duration::from_secs(5),
+            Duration::from_secs(30),
             state.html_rewrite_permit.clone().acquire_owned(),
         )
         .await
@@ -526,9 +517,7 @@ pub async fn proxy_handler(
                 body: cached_body.clone(),
             });
 
-            if cached_body.len() <= 512 * 1024 {
-                state.cache.insert(cache_key.clone(), cached).await;
-            }
+            state.cache.insert(cache_key.clone(), cached).await;
 
             let headers_for_disk = safe_headers.clone();
             let body_for_disk = cached_body;
@@ -657,12 +646,10 @@ pub async fn proxy_handler(
                         headers: safe_headers_clone,
                         body: body_bytes.clone(),
                     });
-                    if body_bytes.len() <= 1024 * 1024 {
-                        state_clone
-                            .cache
-                            .insert(target_url_str_owned.clone(), cached)
-                            .await;
-                    }
+                    state_clone
+                        .cache
+                        .insert(target_url_str_owned.clone(), cached)
+                        .await;
                     tokio::spawn(async move {
                         write_to_disk(
                             &target_url_str_owned,
