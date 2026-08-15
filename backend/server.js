@@ -160,6 +160,7 @@ wisp.options.allow_private_ips = false;
 wisp.options.allow_loopback_ips = false;
 wisp.options.allow_direct_ip = false;
 wisp.options.port_whitelist = [80, 443, 8080, 8443];
+wisp.options.stream_limit_per_host = -1;
 wisp.options.stream_limit_total = 128;
 wisp.options.dns_ttl = 300;
 wisp.options.dns_result_order = 'ipv4first';
