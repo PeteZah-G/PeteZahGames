@@ -2,12 +2,13 @@ import { useState, useEffect, useRef, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Play, X, Film, Search, Heart, ArrowLeft, Tv, Star, Clapperboard, Sparkles,
-  ChevronLeft, ChevronRight, Info,
+  ChevronLeft, ChevronRight, Info, Loader2,
 } from "lucide-react";
 import { pxEncode, pxReady } from "@/lib/px";
 import { applyVpnRegion, isSignedIn } from "@/lib/vpn";
 import { setPendingAuth } from "@/lib/authPending";
 import { AdResponsiveBanner } from "@/components/ads/Adsterra";
+import { sealPlayerPopups, setPopupLock } from "@/lib/sealPlayerPopups";
 
 interface CatalogItem {
   id: number;
@@ -89,16 +90,22 @@ const TMDB_STILL = "https://image.tmdb.org/t/p/w300";
 
 const PROVIDERS = [
   {
-    id: "vidlink",
-    label: "VidLink",
-    movie: (id: number) => `https://vidlink.pro/movie/${id}`,
-    tv: (id: number, s: number, e: number) => `https://vidlink.pro/tv/${id}/${s}/${e}`,
+    id: "vidnest",
+    label: "VidNest",
+    movie: (id: number) => `https://vidnest.fun/movie/${id}`,
+    tv: (id: number, s: number, e: number) => `https://vidnest.fun/tv/${id}/${s}/${e}`,
   },
   {
     id: "vidking",
     label: "VidKing",
     movie: (id: number) => `https://www.vidking.net/embed/movie/${id}`,
     tv: (id: number, s: number, e: number) => `https://www.vidking.net/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    id: "vidlink",
+    label: "VidLink",
+    movie: (id: number) => `https://vidlink.pro/movie/${id}`,
+    tv: (id: number, s: number, e: number) => `https://vidlink.pro/tv/${id}/${s}/${e}`,
   },
   {
     id: "vidsrc",
@@ -149,6 +156,74 @@ const PROVIDERS = [
     tv: (id: number, s: number, e: number) => `https://player.autoembed.cc/embed/tv/${id}/${s}/${e}`,
   },
 ];
+
+const VIRGINIA_REGION = "4";
+const TOR_REGION = "tor";
+const BLACK_FAIL_MS = 20000;
+const AUTO_SOURCE_HOPS = [
+  { provider: "vidnest", region: VIRGINIA_REGION, label: "VidNest" },
+  { provider: "vidnest", region: TOR_REGION, label: "VidNest · Tor" },
+  { provider: "vidlink", region: TOR_REGION, label: "VidLink · Tor" },
+] as const;
+
+function collectVideos(root: Window | Document | ShadowRoot, depth = 0, out: HTMLVideoElement[] = []): HTMLVideoElement[] {
+  if (!root || depth > 5) return out;
+  try {
+    const scope: ParentNode | null = "document" in root && (root as Window).document
+      ? (root as Window).document
+      : (root as ParentNode);
+    if (!scope || typeof scope.querySelectorAll !== "function") return out;
+    scope.querySelectorAll("video").forEach((v) => out.push(v as HTMLVideoElement));
+    scope.querySelectorAll("*").forEach((el) => {
+      const sr = (el as HTMLElement).shadowRoot;
+      if (sr) collectVideos(sr, depth + 1, out);
+    });
+    if (depth < 4) {
+      scope.querySelectorAll("iframe").forEach((frame) => {
+        try {
+          const w = (frame as HTMLIFrameElement).contentWindow;
+          if (w) collectVideos(w, depth + 1, out);
+        } catch {}
+      });
+    }
+  } catch {}
+  return out;
+}
+
+function mediaLooksAlive(v: HTMLVideoElement, lastTimes: WeakMap<HTMLVideoElement, number>): boolean {
+  const t = Number(v.currentTime) || 0;
+  const prev = lastTimes.get(v);
+  lastTimes.set(v, t);
+  if (typeof prev === "number" && t > prev + 0.12) return true;
+  const hasFrame = (v.readyState || 0) >= 2 && v.videoWidth >= 16 && v.videoHeight >= 16;
+  if (hasFrame) return true;
+  if (!v.paused && t > 0.25) return true;
+  try {
+    if (v.played && v.played.length > 0 && v.played.end(v.played.length - 1) > 0.3) return true;
+  } catch {}
+  return false;
+}
+
+function inspectPlayerIframe(
+  iframe: HTMLIFrameElement | null,
+  lastTimes: WeakMap<HTMLVideoElement, number>
+): "alive" | "dead" | "unknown" {
+  if (!iframe) return "dead";
+  let win: Window | null = null;
+  let doc: Document | null = null;
+  try {
+    win = iframe.contentWindow;
+    doc = iframe.contentDocument || win?.document || null;
+  } catch {
+    return "unknown";
+  }
+  if (!win || !doc || !doc.body) return "unknown";
+  const videos = collectVideos(win);
+  for (const v of videos) {
+    if (mediaLooksAlive(v, lastTimes)) return "alive";
+  }
+  return "dead";
+}
 
 function getSavedMovies(): { items: SavedMovie[]; groups: MovieGroup[] } {
   try {
@@ -325,7 +400,7 @@ function MoviePlayer({
   const frameHostRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [watching, setWatching] = useState(false);
-  const [provider, setProvider] = useState("vidlink");
+  const [provider, setProvider] = useState("vidnest");
   const [season, setSeason] = useState(state.season || 1);
   const [episode, setEpisode] = useState(state.episode || 1);
   const [seasons, setSeasons] = useState<SeasonInfo[]>([]);
@@ -333,12 +408,20 @@ function MoviePlayer({
   const [frameReady, setFrameReady] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [barVisible, setBarVisible] = useState(true);
+  const [hopIndex, setHopIndex] = useState(0);
+  const [sourceNote, setSourceNote] = useState("");
   const hideBarTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoHopRef = useRef(true);
+  const hopIndexRef = useRef(0);
+  const providerRef = useRef(provider);
+  providerRef.current = provider;
 
   useEffect(() => {
     const prev = localStorage.getItem("selectedVpnRegion") || "default";
-    if (prev !== "tor") localStorage.setItem("pz-vpn-before-movies", prev);
-    applyVpnRegion("tor");
+    if (prev !== VIRGINIA_REGION && prev !== TOR_REGION) {
+      localStorage.setItem("pz-vpn-before-movies", prev);
+    }
+    applyVpnRegion(VIRGINIA_REGION);
     return () => {
       const restore = localStorage.getItem("pz-vpn-before-movies") || "default";
       applyVpnRegion(restore);
@@ -350,6 +433,11 @@ function MoviePlayer({
     setEpisode(state.episode || 1);
     setWatching(false);
     setFrameReady(false);
+    autoHopRef.current = true;
+    hopIndexRef.current = 0;
+    setHopIndex(0);
+    setProvider("vidnest");
+    setSourceNote("");
   }, [state.tmdbId, state.type]);
 
   useEffect(() => {
@@ -380,18 +468,33 @@ function MoviePlayer({
   }, [season, episode]);
 
   useEffect(() => {
+    setPopupLock(true);
     const prevOpen = window.open;
-    window.open = (() => null) as typeof window.open;
+    window.open = function () {
+      return null;
+    } as typeof window.open;
     const blockAux = (e: MouseEvent) => {
       if (e.button === 1) {
         e.preventDefault();
         e.stopPropagation();
       }
     };
+    const blockBlank = (e: MouseEvent) => {
+      const a = (e.target as Element | null)?.closest?.("a");
+      if (!a) return;
+      const t = (a.getAttribute("target") || "").toLowerCase();
+      if (t === "_blank" || t === "_new") {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
     document.addEventListener("auxclick", blockAux, true);
+    document.addEventListener("click", blockBlank, true);
     return () => {
+      setPopupLock(false);
       window.open = prevOpen;
       document.removeEventListener("auxclick", blockAux, true);
+      document.removeEventListener("click", blockBlank, true);
     };
   }, []);
 
@@ -419,35 +522,20 @@ function MoviePlayer({
     };
 
     const sealFrame = (iframe: HTMLIFrameElement) => {
-      try {
-        const w = iframe.contentWindow as any;
-        if (!w) return;
-        w.open = () => null;
-        w.alert = () => {};
-        const doc = iframe.contentDocument;
-        if (doc && !(doc as any).__pzSeal) {
-          (doc as any).__pzSeal = true;
-          doc.addEventListener(
-            "click",
-            (e: MouseEvent) => {
-              const el = e.target as HTMLElement | null;
-              const a = el?.closest?.("a");
-              if (a && (a.getAttribute("target") === "_blank" || a.getAttribute("rel")?.includes("noopener"))) {
-                e.preventDefault();
-                e.stopPropagation();
-              }
-            },
-            true
-          );
-        }
-      } catch {}
+      sealPlayerPopups(iframe);
     };
+
+    const hop = AUTO_SOURCE_HOPS[hopIndex] || AUTO_SOURCE_HOPS[0];
+    const providerId = autoHopRef.current ? hop.provider : provider;
+    const regionId = autoHopRef.current
+      ? hop.region
+      : (localStorage.getItem("selectedVpnRegion") || VIRGINIA_REGION);
+    const prov = PROVIDERS.find((p) => p.id === providerId) || PROVIDERS[0];
 
     const mount = () => {
       if (!pxReady()) return false;
       try {
         cleanup();
-        const prov = PROVIDERS.find((p) => p.id === provider) || PROVIDERS[0];
         const target =
           state.type === "tv"
             ? prov.tv(state.tmdbId, season, episode)
@@ -465,6 +553,7 @@ function MoviePlayer({
         );
         iframe.title = "Player";
         iframe.onload = () => {
+          iframe.dataset.pzReady = "1";
           iframe.style.opacity = "1";
           sealFrame(iframe);
         };
@@ -481,16 +570,20 @@ function MoviePlayer({
     };
 
     setFrameReady(false);
-    if (!mount()) {
-      timer = setInterval(() => {
-        if (cancelled) return;
-        if (mount() && timer) clearInterval(timer);
-      }, 120);
-    }
+    (async () => {
+      await applyVpnRegion(regionId);
+      if (cancelled) return;
+      if (!mount()) {
+        timer = setInterval(() => {
+          if (cancelled) return;
+          if (mount() && timer) clearInterval(timer);
+        }, 120);
+      }
+    })();
 
     sealTimer = setInterval(() => {
       if (iframeRef.current) sealFrame(iframeRef.current);
-    }, 800);
+    }, 250);
 
     return () => {
       cancelled = true;
@@ -498,7 +591,47 @@ function MoviePlayer({
       if (sealTimer) clearInterval(sealTimer);
       cleanup();
     };
-  }, [watching, provider, state.tmdbId, state.type, season, episode]);
+  }, [watching, provider, hopIndex, state.tmdbId, state.type, season, episode]);
+
+  useEffect(() => {
+    if (!watching || !autoHopRef.current) return;
+    const lastTimes = new WeakMap<HTMLVideoElement, number>();
+    let deadMs = 0;
+    let aliveHits = 0;
+    let locked = false;
+    const tickMs = 1000;
+    const timer = window.setInterval(() => {
+      if (!autoHopRef.current || locked) return;
+      const iframe = iframeRef.current;
+      if (!iframe || iframe.dataset.pzReady !== "1") {
+        deadMs += tickMs;
+      } else {
+        const verdict = inspectPlayerIframe(iframe, lastTimes);
+        if (verdict === "alive") {
+          aliveHits += 1;
+          deadMs = 0;
+          if (aliveHits >= 2) locked = true;
+          setSourceNote("");
+          return;
+        }
+        if (verdict === "unknown") return;
+        deadMs += tickMs;
+      }
+      if (deadMs < BLACK_FAIL_MS) return;
+      deadMs = 0;
+      const next = hopIndexRef.current + 1;
+      if (next >= AUTO_SOURCE_HOPS.length) {
+        autoHopRef.current = false;
+        setSourceNote("Still not playing — try another source");
+        return;
+      }
+      hopIndexRef.current = next;
+      setHopIndex(next);
+      setProvider(AUTO_SOURCE_HOPS[next].provider);
+      setSourceNote("Switching source…");
+    }, tickMs);
+    return () => window.clearInterval(timer);
+  }, [watching, hopIndex, provider, state.tmdbId, state.type, season, episode]);
 
   const bumpBar = () => {
     setBarVisible(true);
@@ -514,8 +647,24 @@ function MoviePlayer({
     };
   }, [watching, episode, season]);
 
+  const pickProvider = (id: string) => {
+    autoHopRef.current = false;
+    setSourceNote("");
+    setProvider(id);
+  };
+
   const startWatch = (ep?: number) => {
     if (typeof ep === "number") setEpisode(ep);
+    if (provider === "vidnest" || provider === "vidlink" || !PROVIDERS.some((p) => p.id === provider)) {
+      autoHopRef.current = true;
+      const hop = provider === "vidlink" ? 2 : 0;
+      hopIndexRef.current = hop;
+      setHopIndex(hop);
+      setProvider(AUTO_SOURCE_HOPS[hop].provider);
+      setSourceNote("");
+    } else {
+      autoHopRef.current = false;
+    }
     setWatching(true);
   };
 
@@ -543,6 +692,28 @@ function MoviePlayer({
               {loadError || "Loading player…"}
             </div>
           )}
+          {sourceNote ? (
+            <div style={{
+              position: "absolute", inset: 0, zIndex: 6, display: "flex",
+              alignItems: "center", justifyContent: "center", pointerEvents: "none",
+              background: sourceNote.startsWith("Switching") ? "hsla(220, 30%, 4%, 0.55)" : "transparent",
+            }}>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
+                borderRadius: 999, background: "hsla(220, 28%, 10%, 0.88)",
+                border: `1px solid ${S.border}`, color: S.text, fontSize: 12, fontWeight: 650,
+                backdropFilter: "blur(12px)",
+              }}>
+                {sourceNote.startsWith("Switching") ? <Loader2 size={14} className="animate-spin" /> : null}
+                <span>
+                  {sourceNote}
+                  {autoHopRef.current && hopIndex > 0 && sourceNote.startsWith("Switching")
+                    ? ` ${AUTO_SOURCE_HOPS[hopIndex]?.label || ""}`
+                    : ""}
+                </span>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div
@@ -650,7 +821,7 @@ function MoviePlayer({
 
             <select
               value={provider}
-              onChange={(e) => setProvider(e.target.value)}
+              onChange={(e) => pickProvider(e.target.value)}
               style={{
                 background: "transparent", border: `1px solid ${S.border}`, borderRadius: 999,
                 color: S.textSub, fontSize: 10, padding: "4px 8px", outline: "none", cursor: "pointer",
@@ -700,7 +871,7 @@ function MoviePlayer({
           <div style={{ flex: 1 }} />
           <select
             value={provider}
-            onChange={(e) => setProvider(e.target.value)}
+            onChange={(e) => pickProvider(e.target.value)}
             style={{
               background: "hsla(220, 28%, 12%, 0.55)", border: `1px solid ${S.border}`, borderRadius: 999,
               color: S.textSub, fontSize: 10, padding: "6px 10px", outline: "none", cursor: "pointer",

@@ -163,6 +163,7 @@ export default function ArcBrowser() {
     installParentOpenTrap();
 
     const openFromDetail = (detail: OpenTabRequest) => {
+      if (document.documentElement.getAttribute("data-pz-lock-popups") === "1") return;
       const raw = detail?.url;
       if (!raw) return;
       const url = unwrapProxyUrl(raw);
