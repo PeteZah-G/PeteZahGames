@@ -145,7 +145,7 @@ export default function AppViewerPage({ url, title, onBack }: AppViewerPageProps
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [muted, setMuted] = useState(false);
-  const { unlocked, phase, showBanner } = useInterstitialUnlock("app");
+  const { unlocked, phase } = useInterstitialUnlock("app");
   const displayTitle = title?.trim() || "App";
 
   const applyZoom = useCallback((z: number) => {
@@ -247,7 +247,7 @@ export default function AppViewerPage({ url, title, onBack }: AppViewerPageProps
 
   return (
     <div className="absolute inset-0">
-      <div ref={containerRef} className="relative w-full h-full overflow-hidden">
+      <div ref={containerRef} className="relative w-full h-full overflow-hidden" data-pz-content-frame="1">
         <div
           ref={wrapperRef}
           style={{
@@ -260,7 +260,7 @@ export default function AppViewerPage({ url, title, onBack }: AppViewerPageProps
           }}
         />
 
-        <InterstitialOverlay phase={phase} showBanner={showBanner} />
+        <InterstitialOverlay phase={phase} />
 
         <AnimatePresence>
           {controlsVisible && (

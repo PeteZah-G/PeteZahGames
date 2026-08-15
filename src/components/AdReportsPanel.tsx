@@ -183,7 +183,9 @@ export function AdReportsPanel({ C }: { C: C }) {
           ) : null}
           {ac.error && data?.configured ? (
             <p style={{ fontSize: 12, color: C.danger, margin: "0 0 14px" }}>
-              ExoClick API did not return data. Local counts are still live.
+              ExoClick API error: {String(ac.error)}
+              {data?.proxy ? " (proxy on)" : " — if your VPS IP is blocked, set EXOCLICK_HTTP_PROXY"}.
+              Local counts are still live.
             </p>
           ) : null}
 

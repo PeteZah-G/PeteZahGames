@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { Lock, Monitor, ExternalLink, Loader2, Sparkles, Maximize2 } from "lucide-react";
 import { setPendingAuth } from "@/lib/authPending";
-import { armAdAudio, runInterstitial } from "@/lib/exoclick";
+import { armAdAudio, runInterstitial, CONTAINER_ID } from "@/lib/exoclick";
 
 export default function FirefoxVmPage({ onNavigate }: { onNavigate: (url: string) => void }) {
   const [authed, setAuthed] = useState(false);
@@ -46,8 +47,8 @@ export default function FirefoxVmPage({ onNavigate }: { onNavigate: (url: string
 
   async function launchVm() {
     if (!ready || launching) return;
-    setLaunching(true);
     armAdAudio();
+    flushSync(() => setLaunching(true));
     try {
       await runInterstitial("vm");
     } catch {}
@@ -216,6 +217,15 @@ export default function FirefoxVmPage({ onNavigate }: { onNavigate: (url: string
           Use Exit on the VM splash to return to PeteZah
         </p>
       </div>
+      {launching ? (
+        <div
+          className="absolute inset-0 z-20"
+          data-pz-content-frame="1"
+          style={{ background: "#070b12" }}
+        >
+          <div id={CONTAINER_ID} data-pz-ad-slot="1" style={{ position: "absolute", inset: 0 }} />
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -129,12 +129,16 @@ function loadIma(): Promise<void> {
   return playerAssets;
 }
 
-function slotSize() {
-  const vw = Math.max(320, window.innerWidth || 640);
-  const vh = Math.max(240, window.innerHeight || 360);
-  const w = Math.max(400, Math.min(1280, Math.floor(vw * 0.94)));
-  const h = Math.max(225, Math.min(720, Math.floor(w * 9 / 16), Math.floor(vh * 0.82)));
-  return { w, h };
+function isFrameSlot(el: HTMLElement) {
+  return el.getAttribute("data-pz-ad-slot") === "1";
+}
+
+function slotSize(host: HTMLElement) {
+  const rect = host.getBoundingClientRect();
+  const vw = Math.max(300, Math.floor(rect.width) || window.innerWidth || 640);
+  const vh = Math.max(200, Math.floor(rect.height) || window.innerHeight || 360);
+  // Full host rect so IMA skip / controls are not clipped by 16:9 letterboxing.
+  return { w: vw, h: vh };
 }
 
 function ensureContainer() {
@@ -142,10 +146,16 @@ function ensureContainer() {
   if (!el) {
     el = document.createElement("div");
     el.id = CONTAINER_ID;
-    document.body.appendChild(el);
+    const frame = document.querySelector("[data-pz-content-frame]") as HTMLElement | null;
+    (frame || document.body).appendChild(el);
   }
-  el.style.cssText =
-    "position:fixed;inset:0;z-index:2147483646;pointer-events:auto;display:flex;align-items:center;justify-content:center;background:hsla(220,35%,3%,0.88);";
+  if (isFrameSlot(el)) {
+    el.style.cssText =
+      "position:absolute;inset:0;z-index:2;pointer-events:auto;display:flex;align-items:center;justify-content:center;background:#070b12;";
+  } else {
+    el.style.cssText =
+      "position:absolute;inset:0;z-index:80;pointer-events:auto;display:flex;align-items:center;justify-content:center;background:#070b12;";
+  }
   return el;
 }
 
@@ -178,8 +188,15 @@ function clearContainer() {
       } catch {}
     });
     el.innerHTML = "";
-    el.style.pointerEvents = "none";
-    el.style.display = "none";
+    if (!isFrameSlot(el)) {
+      el.style.pointerEvents = "none";
+      el.style.display = "none";
+      try {
+        el.remove();
+      } catch {}
+    } else {
+      el.style.pointerEvents = "none";
+    }
   }
   try {
     scrubAdsterraLoadingArtifacts();
@@ -215,12 +232,15 @@ export async function requestAdGate(
 }
 
 function mountStage(videoId: string) {
-  const { w, h } = slotSize();
   const root = ensureContainer();
+  const { w, h } = slotSize(root);
   root.innerHTML = "";
+  root.style.pointerEvents = "auto";
 
   const stage = document.createElement("div");
-  stage.style.cssText = `position:relative;width:${w}px;height:${h}px;max-width:96vw;max-height:86vh;background:#000;overflow:hidden;`;
+  // overflow:visible so ExoClick/IMA skip control is not clipped at the edges
+  stage.style.cssText =
+    "position:absolute;inset:0;width:100%;height:100%;background:#000;overflow:visible;";
 
   const video = document.createElement("video");
   video.id = videoId;
@@ -230,15 +250,17 @@ function mountStage(videoId: string) {
   video.preload = "auto";
   video.width = w;
   video.height = h;
-  video.style.cssText = "width:100%;height:100%;object-fit:contain;background:#000;display:block";
+  video.style.cssText =
+    "position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;display:block";
 
   const adLayer = document.createElement("div");
   adLayer.id = `${videoId}-ad`;
-  adLayer.style.cssText = "position:absolute;inset:0;z-index:2";
+  adLayer.style.cssText = "position:absolute;inset:0;z-index:2;overflow:visible";
 
   const timerLabel = document.createElement("div");
+  // Keep off the usual IMA skip corner (top-right)
   timerLabel.style.cssText =
-    "position:absolute;right:8px;bottom:8px;z-index:8;padding:4px 8px;border-radius:6px;background:hsla(220,28%,8%,0.55);color:hsla(0,0%,96%,0.7);font:650 11px/1 ui-sans-serif,system-ui,sans-serif;pointer-events:none";
+    "position:absolute;left:8px;bottom:8px;z-index:8;padding:4px 8px;border-radius:6px;background:hsla(220,28%,8%,0.55);color:hsla(0,0%,96%,0.7);font:650 11px/1 ui-sans-serif,system-ui,sans-serif;pointer-events:none";
   timerLabel.textContent = "Ad";
 
   stage.appendChild(video);
@@ -479,7 +501,11 @@ export async function runInterstitial(
   const gate = await requestAdGate(context);
   if (gate.show) {
     const result = await playVideoAd(context);
-    return result === "error" ? "skipped" : "shown";
+    if (result === "error") {
+      await playLoaderNetworkAds(3600);
+      return "fallback";
+    }
+    return "shown";
   }
   const reason = "reason" in gate ? gate.reason : undefined;
   if (reason === "disabled" || reason === "network") {

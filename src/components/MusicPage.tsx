@@ -1308,7 +1308,7 @@ export default function MusicPage({
 
             {/* Ad sits below all shelves / lists — scroll to reach */}
             <div style={{ padding: "28px 22px 48px", minHeight: 140 }}>
-              <AdResponsiveBanner />
+              <AdResponsiveBanner exo={false} />
               <p style={{ margin: "10px 0 0", fontSize: 10, color: S.textMuted, lineHeight: 1.4 }}>
                 Playback via official YouTube and SoundCloud embeds. Metadata from iTunes Search. Content remains on those platforms.
               </p>

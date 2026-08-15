@@ -147,6 +147,7 @@ const SqliteStore = BetterSqlite3Session(session);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 dotenv.config({ path: path.join(__dirname, '.env.production') });
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 if (!process.env.TOKEN_SECRET) throw new Error('TOKEN_SECRET must be set');
 if (!process.env.TMDB_API_KEY) throw new Error('TMDB_API_KEY must be set');
@@ -159,7 +160,6 @@ wisp.options.allow_private_ips = false;
 wisp.options.allow_loopback_ips = false;
 wisp.options.allow_direct_ip = false;
 wisp.options.port_whitelist = [80, 443, 8080, 8443];
-wisp.options.stream_limit_per_host = 24;
 wisp.options.stream_limit_total = 128;
 wisp.options.dns_ttl = 300;
 wisp.options.dns_result_order = 'ipv4first';

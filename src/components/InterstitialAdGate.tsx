@@ -1,11 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
-import { requestAdGate, playVideoAd, stopVideoAd } from "@/lib/exoclick";
+import { requestAdGate, playVideoAd, stopVideoAd, CONTAINER_ID } from "@/lib/exoclick";
 import {
-  AdBanner320,
-  AdBanner728,
-  AdNativeBar,
   playLoaderNetworkAds,
+  playLoaderNetworkAdsBehind,
   scrubAdsterraLoadingArtifacts,
 } from "@/components/ads/Adsterra";
 import { GameLaunchSplash } from "@/components/GameLaunchSplash";
@@ -14,24 +12,24 @@ type Context = "game" | "app" | "vm";
 export type InterstitialPhase = "checking" | "ad" | "loading" | "ready";
 
 const LOADER_AD_MS = 3600;
+/** Keep behind-network ads alive for typical VAST length, then scrub. */
+const HARD_BEHIND_MS = 45000;
+const BEHIND_HOST_ID = "pz-loader-ad-behind";
 
 export function useInterstitialUnlock(context: Context, enabled = true) {
   const [unlocked, setUnlocked] = useState(!enabled);
   const [phase, setPhase] = useState<InterstitialPhase>(enabled ? "checking" : "ready");
-  const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
     if (!enabled) {
       setUnlocked(true);
       setPhase("ready");
-      setShowBanner(false);
       return;
     }
 
     let cancelled = false;
     setUnlocked(false);
     setPhase("checking");
-    setShowBanner(false);
 
     (async () => {
       try {
@@ -40,20 +38,36 @@ export function useInterstitialUnlock(context: Context, enabled = true) {
 
         if (gate.show) {
           setPhase("ad");
-          setShowBanner(true);
-          await playVideoAd(context);
+          // Wait for the behind-host to mount before loading Adsterra under the video.
+          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          if (cancelled) return;
+          // Adsterra/Monetag load behind the video (no layout strip) so the VAST player stays full-bleed.
+          const behind = playLoaderNetworkAdsBehind(BEHIND_HOST_ID, HARD_BEHIND_MS);
+          const result = await playVideoAd(context);
+          if (cancelled) {
+            try {
+              await behind;
+            } catch {}
+            return;
+          }
+          if (result === "error") {
+            // Visible fallback when ExoClick VAST fails / is blocked
+            await playLoaderNetworkAds(LOADER_AD_MS);
+          } else {
+            try {
+              scrubAdsterraLoadingArtifacts();
+            } catch {}
+          }
         } else {
           const reason = gate.reason;
           if (reason === "disabled" || reason === "network") {
             setPhase("ad");
-            setShowBanner(true);
             await playLoaderNetworkAds(LOADER_AD_MS);
           }
         }
       } catch {
         if (!cancelled) {
           setPhase("ad");
-          setShowBanner(true);
           try {
             await playLoaderNetworkAds(LOADER_AD_MS);
           } catch {}
@@ -67,14 +81,12 @@ export function useInterstitialUnlock(context: Context, enabled = true) {
       if (cancelled) return;
 
       if (context === "game") {
-        setShowBanner(false);
         setPhase("loading");
         return;
       }
 
       setUnlocked(true);
       setPhase("ready");
-      setShowBanner(false);
     })();
 
     return () => {
@@ -91,15 +103,13 @@ export function useInterstitialUnlock(context: Context, enabled = true) {
   const finishLoading = () => {
     setUnlocked(true);
     setPhase("ready");
-    setShowBanner(false);
   };
 
-  return { unlocked, phase, showBanner, finishLoading };
+  return { unlocked, phase, finishLoading };
 }
 
 export function InterstitialOverlay({
   phase,
-  showBanner = false,
   title,
   onLoadingDone,
 }: {
@@ -123,51 +133,53 @@ export function InterstitialOverlay({
 
   return (
     <div
+      data-pz-content-frame="1"
       style={{
         position: "absolute",
         inset: 0,
         zIndex: 80,
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 10,
-        background: "hsla(220, 35%, 5%, 0.55)",
-        backdropFilter: "blur(6px)",
-        padding: 16,
-        overflowY: "auto",
+        background: "#070b12",
+        overflow: "visible",
       }}
     >
-      <Loader2 size={18} className="animate-spin" style={{ color: "hsla(0,0%,96%,0.85)" }} />
-      <p style={{ margin: 0, fontSize: 12, color: "hsla(0,0%,100%,0.72)" }}>
-        {phase === "ad" ? "Loading — thanks for supporting PeteZah" : "Preparing…"}
-      </p>
-      {showBanner ? (
+      <div style={{ flex: 1, minHeight: 0, position: "relative", overflow: "visible" }}>
+        {/* Network banners sit behind the video layer — no bottom strip stealing height */}
+        <div
+          id={BEHIND_HOST_ID}
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 1,
+            overflow: "hidden",
+            pointerEvents: "none",
+          }}
+        />
         <div
           style={{
-            width: "100%",
-            maxWidth: 760,
-            marginTop: 4,
+            position: "absolute",
+            inset: 0,
+            zIndex: 2,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 6,
+            justifyContent: "center",
+            gap: 10,
+            pointerEvents: "none",
           }}
         >
-          <div style={{ width: "100%", maxWidth: 360 }}>
-            <AdBanner320 />
-          </div>
-          <div className="hidden sm:block" style={{ width: "100%", maxWidth: 728 }}>
-            <AdBanner728 />
-          </div>
-          <div style={{ width: "100%", maxWidth: 520 }}>
-            <AdNativeBar />
-          </div>
+          <Loader2 size={18} className="animate-spin" style={{ color: "hsla(0,0%,96%,0.85)" }} />
+          <p style={{ margin: 0, fontSize: 12, color: "hsla(0,0%,100%,0.72)" }}>
+            {phase === "ad" ? "Loading — thanks for supporting PeteZah" : "Preparing…"}
+          </p>
         </div>
-      ) : null}
-      <p style={{ margin: 0, fontSize: 10, color: "hsla(0,0%,100%,0.4)" }}>
-        Starting in a moment
-      </p>
+        <div
+          id={CONTAINER_ID}
+          data-pz-ad-slot="1"
+          style={{ position: "absolute", inset: 0, zIndex: 3, overflow: "visible" }}
+        />
+      </div>
     </div>
   );
 }
@@ -181,13 +193,12 @@ export function InterstitialGate({
   children: ReactNode;
   title?: string;
 }) {
-  const { unlocked, phase, showBanner, finishLoading } = useInterstitialUnlock(context);
+  const { unlocked, phase, finishLoading } = useInterstitialUnlock(context);
   return (
-    <div className="absolute inset-0">
+    <div className="absolute inset-0" data-pz-content-frame="1">
       {unlocked ? children : null}
       <InterstitialOverlay
         phase={phase}
-        showBanner={showBanner}
         title={title}
         onLoadingDone={finishLoading}
       />

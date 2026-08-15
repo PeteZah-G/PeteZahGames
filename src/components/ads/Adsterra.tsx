@@ -101,7 +101,14 @@ export function AdBanner320({ className = "" }: { className?: string }) {
   );
 }
 
-export function AdResponsiveBanner({ className = "" }: { className?: string }) {
+export function AdResponsiveBanner({
+  className = "",
+  exo = true,
+}: {
+  className?: string;
+  /** When false, only Adsterra banners are shown (no ExoClick). */
+  exo?: boolean;
+}) {
   const [mobile, setMobile] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(max-width: 720px)").matches : false
   );
@@ -115,7 +122,7 @@ export function AdResponsiveBanner({ className = "" }: { className?: string }) {
   return (
     <div className={className} style={{ width: "100%" }}>
       {mobile ? <AdBanner320 /> : <AdBanner728 />}
-      <ExoClickBanner />
+      {exo ? <ExoClickBanner /> : null}
     </div>
   );
 }
@@ -356,6 +363,57 @@ export async function playLoaderNetworkAds(ms = 3600): Promise<"shown" | "skippe
   scrubAdsterraLoadingArtifacts();
   const anyShown = results.some((r) => r.status === "fulfilled" && r.value === "shown");
   return anyShown ? "shown" : "skipped";
+}
+
+/**
+ * Load Adsterra/Monetag into a host that sits *behind* the video ad (full-bleed VAST in front).
+ * Does not take layout space; pointer-events stay off so the video skip control remains usable.
+ */
+export function playLoaderNetworkAdsBehind(
+  hostId: string,
+  ms = 45000
+): Promise<"shown" | "skipped"> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const host = document.getElementById(hostId) as HTMLDivElement | null;
+    if (!host) {
+      resolve("skipped");
+      return;
+    }
+
+    host.innerHTML = "";
+    host.style.pointerEvents = "none";
+
+    const frame = document.createElement("iframe");
+    frame.title = "Advertisement";
+    frame.setAttribute("sandbox", "allow-scripts allow-popups allow-popups-to-escape-sandbox");
+    frame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+    frame.style.cssText =
+      "position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none;opacity:0;background:transparent;";
+    frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden}</style></head><body><script src="${LOADING_SRC}" data-cfasync="false" data-pz-loading-ad="1"><\/script><script src="${MONETAG_SRC}" data-zone="${MONETAG_ZONE}" data-cfasync="false" data-pz-monetag="1"><\/script></body></html>`;
+    host.appendChild(frame);
+
+    const finish = (r: "shown" | "skipped") => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try {
+        frame.srcdoc = "<!DOCTYPE html><html><body></body></html>";
+        frame.src = "about:blank";
+        frame.remove();
+      } catch {}
+      try {
+        host.innerHTML = "";
+      } catch {}
+      try {
+        scrubAdsterraLoadingArtifacts();
+      } catch {}
+      resolve(r);
+    };
+
+    const timer = window.setTimeout(() => finish("shown"), Math.max(1200, ms));
+    frame.onerror = () => finish("skipped");
+  });
 }
 
 export { LOADING_SRC, KEY_728, KEY_320, NATIVE_ID, INVOKE_HOST, MONETAG_SRC, MONETAG_ZONE };

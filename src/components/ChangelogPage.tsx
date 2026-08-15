@@ -338,7 +338,7 @@ export default function ChangelogPage({ onNavigate }: { onNavigate: (url: string
           </motion.div>
         ))}
       </div>
-      <AdResponsiveBanner />
+      <AdResponsiveBanner exo={false} />
     </div>
   );
 }

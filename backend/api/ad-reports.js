@@ -1,12 +1,18 @@
 import rateLimit from 'express-rate-limit';
 import fetch from 'node-fetch';
+import httpsProxyAgentPkg from 'https-proxy-agent';
 import db from '../db.js';
 import { isOwnerEmail } from '../utils/auth-roles.js';
 import { toIPv4 } from '../middleware/security.js';
 
+const HttpsProxyAgent =
+  httpsProxyAgentPkg.HttpsProxyAgent
+  || httpsProxyAgentPkg.default
+  || httpsProxyAgentPkg;
+
 const EXO_BASE = 'https://api.exoclick.com/v2';
-const CACHE_MS = 120000;
-const FETCH_MS = 10000;
+const CACHE_MS = 90000;
+const FETCH_MS = 12000;
 const MAX_ROWS = 80;
 
 export const adReportsLimiter = rateLimit({
@@ -18,8 +24,9 @@ export const adReportsLimiter = rateLimit({
   handler: (_req, res) => res.status(429).json({ error: 'rate_limit' }),
 });
 
-let tokenCache = { access: '', exp: 0 };
+let tokenCache = { access: '', type: 'Bearer', exp: 0 };
 let payloadCache = { at: 0, body: null };
+let proxyAgent = null;
 
 function requireAdmin(req, res) {
   if (!req.session?.user) {
@@ -45,8 +52,24 @@ function requireAdmin(req, res) {
 }
 
 function reportingToken() {
-  const raw = process.env.EXOCLICK_API_TOKEN || '';
+  const raw = process.env.EXOCLICK_API_TOKEN || process.env.EXO_API_TOKEN || '';
   return typeof raw === 'string' ? raw.trim() : '';
+}
+
+function getProxyAgent() {
+  if (proxyAgent !== null) return proxyAgent || undefined;
+  const url = String(process.env.EXOCLICK_HTTP_PROXY || process.env.HTTPS_PROXY || '').trim();
+  if (!url) {
+    proxyAgent = false;
+    return undefined;
+  }
+  try {
+    proxyAgent = new HttpsProxyAgent(url);
+    return proxyAgent;
+  } catch {
+    proxyAgent = false;
+    return undefined;
+  }
 }
 
 function ymdUTC(d = new Date()) {
@@ -91,13 +114,14 @@ function rowMetrics(row) {
   const video = row?.video && typeof row.video === 'object' ? row.video : {};
   const impressions = num(row?.impressions);
   const clicks = num(row?.clicks);
-  const earnings = num(row?.revenue ?? row?.earnings);
+  const earnings = num(row?.revenue ?? row?.earnings ?? row?.value);
   const videoImps = num(video.impressions);
   const videoViews = num(video.views);
   const views = videoViews || videoImps || impressions;
   const ctr = num(row?.ctr) || (views > 0 ? clicks / views : 0);
   const ecpm = num(row?.cpm) || (views > 0 ? (earnings / views) * 1000 : 0);
-  const vtr = num(video.vtr) || (videoImps > 0 ? videoViews / videoImps : 0);
+  const vtr = num(video.vtr);
+  const vtrNorm = vtr > 1 ? vtr / 100 : vtr;
   return {
     impressions,
     clicks,
@@ -106,7 +130,7 @@ function rowMetrics(row) {
     views,
     ctr,
     ecpm,
-    vtr,
+    vtr: vtrNorm || (videoImps > 0 ? videoViews / videoImps : 0),
   };
 }
 
@@ -131,7 +155,7 @@ function groupLabel(row, key) {
   const g = row?.group_by && typeof row.group_by === 'object' ? row.group_by : {};
   const node = g[key];
   if (node == null) {
-    if (key === 'date') return clipStr(row?.date || '');
+    if (key === 'date') return clipStr(row?.date || row?.ddate || '');
     return '';
   }
   if (typeof node === 'string' || typeof node === 'number') return clipStr(node);
@@ -147,23 +171,37 @@ function groupLabel(row, key) {
 }
 
 function rowDate(row) {
-  return groupLabel(row, 'date') || clipStr(row?.date || '');
+  return groupLabel(row, 'date') || clipStr(row?.date || row?.ddate || '');
 }
 
-async function exoFetch(path, { method = 'GET', token = '', body } = {}) {
+function extractRows(data) {
+  if (!data) return [];
+  if (Array.isArray(data.result)) return data.result;
+  if (Array.isArray(data.data)) return data.data;
+  if (Array.isArray(data.rows)) return data.rows;
+  if (Array.isArray(data)) return data;
+  return [];
+}
+
+async function exoFetch(path, { method = 'GET', token = '', tokenType = 'Bearer', body, query } = {}) {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), FETCH_MS);
   try {
     const headers = { Accept: 'application/json' };
-    if (token) headers.Authorization = `Bearer ${token}`;
+    if (token) headers.Authorization = `${tokenType || 'Bearer'} ${token}`;
     if (body !== undefined) headers['Content-Type'] = 'application/json';
-    const r = await fetch(`${EXO_BASE}${path}`, {
+    let url = `${EXO_BASE}${path}`;
+    if (query) url += (url.includes('?') ? '&' : '?') + query;
+    const opts = {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: ac.signal,
-      redirect: 'error',
-    });
+      redirect: 'follow',
+    };
+    const agent = getProxyAgent();
+    if (agent) opts.agent = agent;
+    const r = await fetch(url, opts);
     const text = await r.text();
     let data = null;
     try {
@@ -171,55 +209,90 @@ async function exoFetch(path, { method = 'GET', token = '', body } = {}) {
     } catch {
       data = null;
     }
-    return { ok: r.ok, status: r.status, data };
+    return { ok: r.ok, status: r.status, data, text: text.slice(0, 240) };
   } finally {
     clearTimeout(timer);
   }
 }
 
 async function getAccessToken(apiToken) {
-  if (tokenCache.access && Date.now() < tokenCache.exp - 20000) return tokenCache.access;
+  if (tokenCache.access && Date.now() < tokenCache.exp - 20000) {
+    return { access: tokenCache.access, type: tokenCache.type || 'Bearer' };
+  }
   const res = await exoFetch('/login', {
     method: 'POST',
     body: { api_token: apiToken },
   });
   const access = res.data?.token || res.data?.data?.token || res.data?.access_token;
+  const type = clipStr(res.data?.type || res.data?.data?.type || 'Bearer', 32) || 'Bearer';
   const expiresIn = num(res.data?.expires_in || res.data?.data?.expires_in || 900);
   if (res.ok && typeof access === 'string' && access.length > 8 && access.length < 8000) {
-    tokenCache = { access, exp: Date.now() + Math.min(Math.max(expiresIn, 60), 900) * 1000 };
-    return tokenCache.access;
+    tokenCache = {
+      access,
+      type,
+      exp: Date.now() + Math.min(Math.max(expiresIn, 60), 3600) * 1000,
+    };
+    return { access, type };
   }
-  throw new Error('auth');
+  const err = new Error(`auth_${res.status || 'fail'}`);
+  err.detail = res.text || '';
+  throw err;
 }
 
-async function fetchStats(token, start, end, groupBy) {
+async function fetchStats(token, tokenType, start, end, groupBy) {
   const body = {
     detailed: 1,
     totals: 1,
     filter: { date_from: start, date_to: end },
     group_by: [groupBy],
-    order_by: [{ field: 'impressions', order: 'desc' }],
+    order_by: [{ field: 'revenue', order: 'desc' }],
     projection: { base: ['*'], video: ['*'] },
-    limit: 80,
+    limit: 100,
     offset: 0,
   };
-  let res = await exoFetch('/statistics/p/', { method: 'POST', token, body });
-  if (!res.ok) {
-    res = await exoFetch('/statistics/publisher', { method: 'POST', token, body });
+
+  const attempts = [
+    { path: '/statistics/p/global', method: 'POST', body },
+    {
+      path: '/statistics/p/global',
+      method: 'POST',
+      body: {
+        filter: { date_from: start, date_to: end },
+        group_by: [groupBy],
+        totals: 1,
+      },
+    },
+    {
+      path: `/statistics/publisher/${groupBy === 'date' ? 'date' : groupBy === 'zone_id' ? 'zone' : groupBy === 'country_iso' ? 'country' : 'date'}`,
+      method: 'GET',
+      query: new URLSearchParams({
+        'date-from': start,
+        'date-to': end,
+        limit: '100',
+        offset: '0',
+      }).toString(),
+    },
+  ];
+
+  for (const attempt of attempts) {
+    const res = await exoFetch(attempt.path, {
+      method: attempt.method,
+      token,
+      tokenType,
+      body: attempt.body,
+      query: attempt.query,
+    });
+    if (!res.ok || !res.data) continue;
+    const rows = extractRows(res.data);
+    if (rows.length || res.ok) return rows.slice(0, MAX_ROWS * 4);
   }
-  if (!res.ok || !res.data) return [];
-  const rows = Array.isArray(res.data.result)
-    ? res.data.result
-    : Array.isArray(res.data.data)
-      ? res.data.data
-      : [];
-  return rows.slice(0, MAX_ROWS * 4);
+  return [];
 }
 
-async function fetchBalance(token) {
+async function fetchBalance(token, tokenType) {
   const paths = ['/user', '/users/me', '/payments'];
   for (const path of paths) {
-    const res = await exoFetch(path, { token });
+    const res = await exoFetch(path, { token, tokenType });
     if (!res.ok || !res.data) continue;
     const src = res.data.data || res.data.result || res.data;
     const amount = num(src.balance ?? src.available ?? src.amount);
@@ -323,38 +396,58 @@ function buildInsights({ ours, exoclick, compare, balance, yesterday }) {
   const out = [];
   const oursToday = ours.today.views;
   const exoToday = exoclick.today.views;
+
+  if (exoclick.error === 'not_configured') {
+    out.push({
+      tone: 'warn',
+      title: 'ExoClick API token missing',
+      body: 'Set EXOCLICK_API_TOKEN in backend/.env.production and restart PeteZahG.',
+    });
+  } else if (exoclick.error && String(exoclick.error).startsWith('auth')) {
+    out.push({
+      tone: 'warn',
+      title: 'ExoClick login failed',
+      body: 'API token was rejected. Regenerate it under Profile → API Tokens. If your VPS IP is blocked, set EXOCLICK_HTTP_PROXY to a residential proxy.',
+    });
+  } else if (exoclick.error) {
+    out.push({
+      tone: 'warn',
+      title: 'ExoClick API unavailable',
+      body: `Could not load publisher stats (${exoclick.error}). Local PeteZah counts below still work. Datacenter IPs are sometimes blocked — set EXOCLICK_HTTP_PROXY if needed.`,
+    });
+  }
+
   if (oursToday === 0 && exoToday === 0) {
     out.push({
       tone: 'info',
       title: 'No views yet today',
       body: 'Neither PeteZah nor ExoClick has counted a video ad view today. That is normal early in the day or if traffic is light.',
     });
-  } else if (exoToday === 0 && oursToday > 0) {
+  } else if (exoToday === 0 && oursToday > 0 && !exoclick.error) {
     out.push({
       tone: 'warn',
       title: 'We counted views ExoClick has not',
-      body: `PeteZah recorded ${oursToday} started ads today, but ExoClick reports 0. Reporting often lags, or the VAST tag is not attributing to this publisher account.`,
+      body: `PeteZah recorded ${oursToday} started ads today, but ExoClick reports 0. Reporting often lags a few hours.`,
     });
   } else if (oursToday === 0 && exoToday > 0) {
     out.push({
       tone: 'warn',
       title: 'ExoClick sees views we do not',
-      body: `ExoClick reports ${exoToday} today while our overlay tracker is at 0. Those views may be coming from another placement, or /api/ads/shown is not firing on ad start.`,
+      body: `ExoClick reports ${exoToday} today while our overlay tracker is at 0.`,
     });
-  } else {
-    const gap = Math.abs(compare.delta);
+  } else if (exoToday > 0) {
     const pct = compare.ratio;
     if (pct >= 0.7 && pct <= 1.4) {
       out.push({
         tone: 'good',
         title: 'Counts are aligned',
-        body: `Today we recorded ${oursToday} started ads vs ExoClick ${exoToday} (${Math.round(pct * 100)}%). Small gaps are expected from skip-before-start and reporting delay.`,
+        body: `Today we recorded ${oursToday} started ads vs ExoClick ${exoToday} (${Math.round(pct * 100)}%).`,
       });
-    } else {
+    } else if (pct != null) {
       out.push({
         tone: 'warn',
         title: 'View counts diverge',
-        body: `PeteZah ${oursToday} vs ExoClick ${exoToday} (gap ${gap}). If ours is higher, many players start then no-fill. If ExoClick is higher, extra inventory is running outside this overlay.`,
+        body: `PeteZah ${oursToday} vs ExoClick ${exoToday} (gap ${Math.abs(compare.delta)}).`,
       });
     }
   }
@@ -365,7 +458,7 @@ function buildInsights({ ours, exoclick, compare, balance, yesterday }) {
       out.push({
         tone: 'warn',
         title: 'Low start rate',
-        body: `Only ${Math.round(sr * 100)}% of allowed gates became a started ad (${ours.today.views}/${ours.today.attempts}). The VAST tag is often empty or IMA errors before impression.`,
+        body: `Only ${Math.round(sr * 100)}% of gated attempts started a video ad (${ours.today.views}/${ours.today.attempts}).`,
       });
     } else if (sr >= 0.7) {
       out.push({
@@ -373,51 +466,22 @@ function buildInsights({ ours, exoclick, compare, balance, yesterday }) {
         title: 'Solid start rate',
         body: `${Math.round(sr * 100)}% of gated attempts started a video ad today.`,
       });
-    } else {
-      out.push({
-        tone: 'info',
-        title: 'Start rate is mixed',
-        body: `${Math.round(sr * 100)}% of attempts started. Typical for VAST fill that varies by geo and hour.`,
-      });
     }
   }
 
   if (exoclick.today.ecpm > 0) {
-    const vs7 = exoclick.d7.views > 0 ? exoclick.d7.ecpm : 0;
-    if (vs7 > 0 && exoclick.today.ecpm > vs7 * 1.25) {
-      out.push({
-        tone: 'good',
-        title: 'eCPM is running hot',
-        body: `Today eCPM ${exoclick.today.ecpm.toFixed(2)} vs 7-day ${vs7.toFixed(2)}. Keep the same zones in rotation.`,
-      });
-    } else if (vs7 > 0 && exoclick.today.ecpm < vs7 * 0.7) {
-      out.push({
-        tone: 'warn',
-        title: 'eCPM is soft today',
-        body: `Today eCPM ${exoclick.today.ecpm.toFixed(2)} is below the 7-day ${vs7.toFixed(2)}. Mix or geo may be cheaper inventory.`,
-      });
-    } else {
-      out.push({
-        tone: 'info',
-        title: 'eCPM snapshot',
-        body: `Today ${exoclick.today.ecpm.toFixed(2)} ${exoclick.currency}/mille. 7-day ${vs7.toFixed(2)}.`,
-      });
-    }
+    out.push({
+      tone: 'info',
+      title: 'eCPM snapshot',
+      body: `Today ${exoclick.today.ecpm.toFixed(2)} ${exoclick.currency}/mille. 7-day ${exoclick.d7.ecpm.toFixed(2)}.`,
+    });
   }
 
   if (exoclick.today.vtr > 0) {
     out.push({
       tone: exoclick.today.vtr >= 0.7 ? 'good' : 'info',
       title: 'Video completion',
-      body: `VTR ${(exoclick.today.vtr * 100).toFixed(1)}% · ${exoclick.today.videoViews} completed views. Completions pay more than skips.`,
-    });
-  }
-
-  if (exoclick.today.ctr > 0) {
-    out.push({
-      tone: exoclick.today.ctr >= 0.01 ? 'good' : 'info',
-      title: 'Click-through',
-      body: `CTR ${(exoclick.today.ctr * 100).toFixed(2)}% on ${exoclick.today.clicks} clicks. Video CTR is usually low; earnings still come from completed views.`,
+      body: `VTR ${(exoclick.today.vtr * 100).toFixed(1)}% · ${exoclick.today.videoViews} completed views.`,
     });
   }
 
@@ -428,7 +492,7 @@ function buildInsights({ ours, exoclick, compare, balance, yesterday }) {
     out.push({
       tone: ch >= 0 ? 'good' : 'info',
       title: 'Earnings vs yesterday',
-      body: `Today ${tEarn.toFixed(2)} ${exoclick.currency} vs yesterday ${yEarn.toFixed(2)} (${ch >= 0 ? '+' : ''}${Math.round(ch * 100)}%). Incomplete until end of day.`,
+      body: `Today ${tEarn.toFixed(2)} ${exoclick.currency} vs yesterday ${yEarn.toFixed(2)} (${ch >= 0 ? '+' : ''}${Math.round(ch * 100)}%).`,
     });
   } else if (tEarn > 0) {
     out.push({
@@ -443,53 +507,7 @@ function buildInsights({ ours, exoclick, compare, balance, yesterday }) {
     out.push({
       tone: 'info',
       title: 'Top zone',
-      body: `Zone ${z.key} leads with ${z.earnings.toFixed(2)} ${exoclick.currency} and ${z.views} views (eCPM ${z.ecpm.toFixed(2)}).`,
-    });
-  }
-
-  if (exoclick.byCountry[0]) {
-    const c = exoclick.byCountry[0];
-    const share = exoclick.today.views > 0 ? c.views / exoclick.today.views : 0;
-    out.push({
-      tone: share > 0.55 ? 'warn' : 'info',
-      title: 'Top country',
-      body: `${c.key} is ${Math.round(share * 100)}% of ExoClick views today. ${share > 0.55 ? 'Heavy concentration — revenue will swing with that geo.' : 'Spread looks healthier than a single-geo stack.'}`,
-    });
-  }
-
-  if (exoclick.byDevice[0]) {
-    const d = exoclick.byDevice[0];
-    out.push({
-      tone: 'info',
-      title: 'Device mix',
-      body: `${d.key || 'Unknown'} is the leading device with ${d.views} views and eCPM ${d.ecpm.toFixed(2)}.`,
-    });
-  }
-
-  const ctx = ours.today.byContext;
-  const ctxTotal = ctx.game + ctx.app + ctx.vm;
-  if (ctxTotal > 0) {
-    out.push({
-      tone: 'info',
-      title: 'Where we showed ads',
-      body: `Games ${ctx.game} · Apps ${ctx.app} · VM ${ctx.vm}. ${ctx.game / ctxTotal > 0.8 ? 'Almost all overlay starts are on games.' : 'Starts are split across surfaces.'}`,
-    });
-  }
-
-  const peak = ours.hours.reduce((a, b) => (b.views > a.views ? b : a), ours.hours[0] || { hour: 0, views: 0 });
-  if (peak && peak.views > 0) {
-    out.push({
-      tone: 'info',
-      title: 'Peak hour (UTC)',
-      body: `${String(peak.hour).padStart(2, '0')}:00 UTC had ${peak.views} started ads.`,
-    });
-  }
-
-  if (ours.today.freq > 1.6) {
-    out.push({
-      tone: 'info',
-      title: 'Repeat viewers',
-      body: `Average ${ours.today.freq.toFixed(2)} started ads per unique visitor today (cap is 2 / 5 min).`,
+      body: `Zone ${z.key} leads with ${z.earnings.toFixed(2)} ${exoclick.currency} and ${z.views} views.`,
     });
   }
 
@@ -497,7 +515,7 @@ function buildInsights({ ours, exoclick, compare, balance, yesterday }) {
     out.push({
       tone: balance.amount < 10 ? 'warn' : 'good',
       title: 'Publisher balance',
-      body: `${balance.amount.toFixed(2)} ${balance.currency}.${balance.amount < 10 ? ' Low balance — confirm payout threshold in ExoClick.' : ''}`,
+      body: `${balance.amount.toFixed(2)} ${balance.currency}.`,
     });
   }
 
@@ -506,7 +524,7 @@ function buildInsights({ ours, exoclick, compare, balance, yesterday }) {
     out.push({
       tone: 'info',
       title: '7-day run rate',
-      body: `${exoclick.d7.earnings.toFixed(2)} ${exoclick.currency} over 7 days (~${d7avg.toFixed(2)}/day). 30-day total ${exoclick.d30.earnings.toFixed(2)}.`,
+      body: `${exoclick.d7.earnings.toFixed(2)} ${exoclick.currency} over 7 days (~${d7avg.toFixed(2)}/day).`,
     });
   }
 
@@ -521,7 +539,8 @@ export async function getAdminAdReportsHandler(req, res) {
   if (!requireAdmin(req, res)) return;
   res.setHeader('Cache-Control', 'no-store');
 
-  if (payloadCache.body && Date.now() - payloadCache.at < CACHE_MS) {
+  const force = String(req.query?.refresh || '') === '1';
+  if (!force && payloadCache.body && Date.now() - payloadCache.at < CACHE_MS) {
     return res.json(payloadCache.body);
   }
 
@@ -561,16 +580,16 @@ export async function getAdminAdReportsHandler(req, res) {
 
   if (token) {
     try {
-      const access = await getAccessToken(token);
+      const { access, type } = await getAccessToken(token);
       const [todayDate, todayZone, todayCountry, todayDevice, rangeDate, rangeZone, rangeSite, bal] = await Promise.all([
-        fetchStats(access, today, today, 'date'),
-        fetchStats(access, today, today, 'zone_id'),
-        fetchStats(access, today, today, 'country_iso'),
-        fetchStats(access, today, today, 'device_type_id'),
-        fetchStats(access, d30, today, 'date'),
-        fetchStats(access, d30, today, 'zone_id'),
-        fetchStats(access, d30, today, 'site_id'),
-        fetchBalance(access),
+        fetchStats(access, type, today, today, 'date'),
+        fetchStats(access, type, today, today, 'zone_id'),
+        fetchStats(access, type, today, today, 'country_iso'),
+        fetchStats(access, type, today, today, 'device_type_id'),
+        fetchStats(access, type, d30, today, 'date'),
+        fetchStats(access, type, d30, today, 'zone_id'),
+        fetchStats(access, type, d30, today, 'site_id'),
+        fetchBalance(access, type),
       ]);
       const yRows = pickDayRows(rangeDate, yesterday);
       const tRows = todayDate.length ? todayDate : pickDayRows(rangeDate, today);
@@ -594,9 +613,10 @@ export async function getAdminAdReportsHandler(req, res) {
         bySite: topKeyed(rangeSite, 'site_id'),
       };
       balance = bal;
-    } catch {
-      tokenCache = { access: '', exp: 0 };
-      exoclick = { ...emptyNet, error: 'unavailable' };
+    } catch (err) {
+      tokenCache = { access: '', type: 'Bearer', exp: 0 };
+      const code = err?.message || 'unavailable';
+      exoclick = { ...emptyNet, error: code };
     }
   }
 
@@ -611,6 +631,7 @@ export async function getAdminAdReportsHandler(req, res) {
 
   const body = {
     configured: !!token,
+    proxy: !!getProxyAgent(),
     generatedAt: Date.now(),
     day: today,
     ours,
