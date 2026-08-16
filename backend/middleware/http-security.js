@@ -1,13 +1,54 @@
+export function isJsdelivrOrigin(origin) {
+  if (!origin || typeof origin !== 'string') return false;
+  try {
+    const u = new URL(origin);
+    if (u.protocol !== 'https:') return false;
+    const h = u.hostname.toLowerCase();
+    return h === 'jsdelivr.net' || h.endsWith('.jsdelivr.net');
+  } catch {
+    return false;
+  }
+}
+
+export function crossSiteCookieFlags(req) {
+  const origin = req?.headers?.origin || '';
+  const cdn = isJsdelivrOrigin(origin);
+  return {
+    httpOnly: true,
+    path: '/',
+    secure: process.env.NODE_ENV === 'production' || cdn,
+    sameSite: cdn ? 'none' : 'lax',
+    ...(cdn ? { partitioned: true } : {}),
+  };
+}
+
+export function wrapCrossSiteCookies() {
+  return (req, res, next) => {
+    if (!isJsdelivrOrigin(req.headers.origin)) return next();
+    const orig = res.cookie.bind(res);
+    res.cookie = (name, value, options = {}) =>
+      orig(name, value, {
+        ...options,
+        sameSite: 'none',
+        secure: true,
+        partitioned: true,
+      });
+    next();
+  };
+}
+
 export function createSecurityHeaders() {
-  return (_req, res, next) => {
+  return (req, res, next) => {
+    const p = req.path || '';
+    const gameFrame = p === '/storage/ag' || p.startsWith('/storage/ag/');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-    // Keep embeds/iframes working: do not lock script-src/frame-src here.
-    // Harden the easy wins that do not break Scramjet, movies, or the SPA.
+    if (!gameFrame) res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader(
       'Content-Security-Policy',
       [
-        "frame-ancestors 'self'",
+        gameFrame
+          ? "frame-ancestors 'self' https://*.jsdelivr.net"
+          : "frame-ancestors 'self'",
         "base-uri 'self'",
         "object-src 'none'",
         "form-action 'self'",
@@ -31,22 +72,22 @@ export function createCorsConfig() {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  const appUrl = (process.env.APP_URL || process.env.PUBLIC_URL || '').replace(/\/$/, '');
+  const appUrl = (process.env.APP_URL || process.env.PUBLIC_URL || process.env.BASE_URL || '')
+    .replace(/\/$/, '');
   const isProd = process.env.NODE_ENV === 'production';
 
   return {
     origin: (origin, cb) => {
-      // Same-origin / non-browser clients (no Origin header)
       if (!origin) return cb(null, true);
       if (appUrl && origin === appUrl) return cb(null, true);
+      if (isJsdelivrOrigin(origin)) return cb(null, true);
       if (allowed.length && allowed.includes(origin)) return cb(null, true);
-      // Dev convenience only — never open CORS in production
       if (!isProd && !appUrl && allowed.length === 0) return cb(null, true);
       return cb(null, false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-PZ-Gate', 'X-PZ-Legal'],
   };
 }
 

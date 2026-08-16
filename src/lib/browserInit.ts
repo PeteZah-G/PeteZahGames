@@ -128,9 +128,11 @@ async function clearServiceWorkers() {
 }
 
 async function registerSw() {
-  const reg = await navigator.serviceWorker.register(PX.sw, {
+  const ver = (window as any).__PZ_CACHE__;
+  const swUrl = ver ? `${PX.sw}?v=${encodeURIComponent(String(ver))}` : PX.sw;
+  const reg = await navigator.serviceWorker.register(swUrl, {
     updateViaCache: "none",
-    scope: "/",
+    scope: (window as any).__PZ_ORIGIN__ ? new URL(".", location.href).pathname : "/",
   });
   try {
     await reg.update();

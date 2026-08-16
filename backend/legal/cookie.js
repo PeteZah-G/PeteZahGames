@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import { LEGAL_VERSION } from './version.js';
 import { getCapSecret } from '../cap/store.js';
+import { crossSiteCookieFlags } from '../middleware/http-security.js';
 
 const LEGAL_COOKIE = 'pz_legal';
 const LEGAL_TTL_MS = 365 * 24 * 60 * 60 * 1000;
@@ -42,19 +43,25 @@ export function readLegalCookie(req) {
   return m ? decodeURIComponent(m[1]) : null;
 }
 
-export function hasValidLegal(req) {
-  return verifyLegalCookieValue(readLegalCookie(req));
+function headerToken(req, name) {
+  const h = req.headers?.[name];
+  if (typeof h === 'string') return h;
+  if (Array.isArray(h) && typeof h[0] === 'string') return h[0];
+  return null;
 }
 
-export function setLegalCookie(res) {
-  const secure = process.env.NODE_ENV === 'production';
-  res.cookie(LEGAL_COOKIE, mintLegalCookieValue(), {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure,
+export function hasValidLegal(req) {
+  if (verifyLegalCookieValue(readLegalCookie(req))) return true;
+  return verifyLegalCookieValue(headerToken(req, 'x-pz-legal'));
+}
+
+export function setLegalCookie(res, req) {
+  const value = mintLegalCookieValue();
+  res.cookie(LEGAL_COOKIE, value, {
+    ...crossSiteCookieFlags(req),
     maxAge: LEGAL_TTL_MS,
-    path: '/',
   });
+  return value;
 }
 
 export { LEGAL_COOKIE, LEGAL_TTL_MS };

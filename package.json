@@ -19,7 +19,8 @@
     "postinstall": "node scripts/fix-wisp-streams.mjs && node scripts/vendor-cap.mjs",
     "ui": "node scripts/ui-studio.mjs",
     "vendor:firefox-wasm": "node scripts/vendor-firefox-wasm.mjs",
-    "vendor:cap": "node scripts/vendor-cap.mjs"
+    "vendor:cap": "node scripts/vendor-cap.mjs",
+    "build:svg": "node scripts/build-svg.mjs"
   },
   "engines": {
     "node": ">=22.0.0"

@@ -12,12 +12,13 @@ import {
 import { spawn } from "node:child_process";
 import { componentTagger } from "lovable-tagger";
 
-function gameAssetsPassthrough(): Plugin {
+function gameAssetsPassthrough(mode: string): Plugin {
   const root = path.resolve(__dirname);
   const src = path.join(root, "public/storage/ag");
   const dest = path.join(root, "dist/storage/ag");
   const parkPublic = path.join(root, ".tmp-ag-assets");
   let publicParked = false;
+  const skip = mode === "svg";
 
   const restorePublic = () => {
     if (!existsSync(parkPublic)) {
@@ -69,6 +70,7 @@ function gameAssetsPassthrough(): Plugin {
     apply: "build",
     enforce: "pre",
     config() {
+      if (skip) return;
       process.once("exit", restorePublic);
       process.once("SIGINT", () => {
         restorePublic();
@@ -80,13 +82,16 @@ function gameAssetsPassthrough(): Plugin {
       parkDistDir();
     },
     buildStart() {
+      if (skip) return;
       parkPublicDir();
       parkDistDir();
     },
     buildEnd() {
+      if (skip) return;
       restorePublic();
     },
     closeBundle() {
+      if (skip) return;
       linkIntoDist();
     },
   };
@@ -165,7 +170,13 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-  plugins: [gameAssetsPassthrough(), react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [gameAssetsPassthrough(mode), react(), mode === "development" && componentTagger()].filter(Boolean),
+  base: mode === "svg" ? "./" : "/",
+  build: {
+    outDir: mode === "svg" ? "svg" : "dist",
+    emptyOutDir: true,
+    assetsDir: "assets",
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

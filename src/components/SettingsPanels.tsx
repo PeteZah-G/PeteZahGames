@@ -16,6 +16,7 @@ import {
   resolveUserAgent,
 } from "@/lib/siteThemes";
 import { applyVpnRegion } from "@/lib/vpn";
+import { originWsHost } from "@/lib/siteOrigin";
 import {
   SHORTCUT_META,
   DEFAULT_SHORTCUTS,
@@ -732,11 +733,7 @@ export function ShortcutsSettings({ C }: { C: C }) {
 
 export function ProxySettings(props: Props) {
   const { C, s, setS, setVal, applySettings, settingsSaved, applySettingsNow, toggle } = props;
-  const defaultWisp = useMemo(() => {
-    const proto = typeof location !== "undefined" && location.protocol === "https:" ? "wss://" : "ws://";
-    const host = typeof location !== "undefined" ? location.host : "localhost";
-    return `${proto}${host}/wisp/`;
-  }, []);
+  const defaultWisp = useMemo(() => `${originWsHost()}/wisp/`, []);
 
   const uaPreview = resolveUserAgent();
   const eng = SEARCH_ENGINES.find((e) => e.id === (s.searchEngine || "ddg")) || SEARCH_ENGINES[0];

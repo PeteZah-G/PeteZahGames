@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import "./lib/svgBridge";
 import App from "./App";
 import "./index.css";
 import "./styles/studio-overrides.css";

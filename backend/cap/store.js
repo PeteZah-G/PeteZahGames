@@ -1,5 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from 'crypto';
 import db from '../db.js';
+import { crossSiteCookieFlags } from '../middleware/http-security.js';
 
 const GATE_COOKIE = 'pz_gate';
 const GATE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -91,19 +92,25 @@ export function readGateCookie(req) {
   return m ? decodeURIComponent(m[1]) : null;
 }
 
-export function hasValidGate(req) {
-  return verifyGateCookieValue(readGateCookie(req));
+function headerToken(req, name) {
+  const h = req.headers?.[name];
+  if (typeof h === 'string') return h;
+  if (Array.isArray(h) && typeof h[0] === 'string') return h[0];
+  return null;
 }
 
-export function setGateCookie(res) {
-  const secure = process.env.NODE_ENV === 'production';
-  res.cookie(GATE_COOKIE, mintGateCookieValue(), {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure,
+export function hasValidGate(req) {
+  if (verifyGateCookieValue(readGateCookie(req))) return true;
+  return verifyGateCookieValue(headerToken(req, 'x-pz-gate'));
+}
+
+export function setGateCookie(res, req) {
+  const value = mintGateCookieValue();
+  res.cookie(GATE_COOKIE, value, {
+    ...crossSiteCookieFlags(req),
     maxAge: GATE_TTL_MS,
-    path: '/',
   });
+  return value;
 }
 
 export function capScope() {

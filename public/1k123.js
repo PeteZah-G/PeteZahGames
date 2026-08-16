@@ -5,7 +5,8 @@ if (navigator.userAgent.includes('Firefox')) {
   });
 }
 
-var _p = ['/q', '9vx/'].join('');
+var _base = self.location.pathname.replace(/[^/]*$/, '');
+var _p = _base + ['q', '9vx/'].join('');
 var _f = ['sj', '.all', '.js'].join('');
 importScripts(_p + _f);
 
@@ -14,7 +15,7 @@ var _sw = ['Scr', 'amjet', 'Service', 'Worker'].join('');
 var _exports = self[_lw]();
 var _engine = new _exports[_sw]();
 
-var _pref = ['/afs', 'd123', 'k2/'].join('');
+var _pref = _base + ['afs', 'd123', 'k2/'].join('');
 var _hydrated = false;
 var _configPromise = null;
 
@@ -30,12 +31,12 @@ function isAppShellRequest(request, url) {
   if (url.origin !== self.location.origin) return false;
   var path = url.pathname;
   if (path.indexOf(_pref) === 0) return false;
-  if (path === '/' || path === '/index.html' || path === '/1k123.js') return true;
-  if (path.indexOf('/assets/') === 0) return true;
-  if (path.indexOf('/q9vx/') === 0) return true;
-  if (path.indexOf('/m4thx/') === 0) return true;
-  if (path.indexOf('/e7px/') === 0) return true;
-  if (path.indexOf('/l9cx/') === 0) return true;
+  if (path === _base || path === _base + 'index.html' || path === _base + 'new.svg' || path === _base + '1k123.js') return true;
+  if (path.indexOf(_base + 'assets/') === 0) return true;
+  if (path.indexOf(_base + 'q9vx/') === 0) return true;
+  if (path.indexOf(_base + 'm4thx/') === 0) return true;
+  if (path.indexOf(_base + 'e7px/') === 0) return true;
+  if (path.indexOf(_base + 'l9cx/') === 0) return true;
   return false;
 }
 

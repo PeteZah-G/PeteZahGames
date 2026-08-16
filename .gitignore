@@ -248,3 +248,4 @@ public/firefox-wasm/chrome-assets.tar.zst
 .tmp-ag-assets/
 .tmp-ag-dist
 .tmp-ag-dist-*
+svg/

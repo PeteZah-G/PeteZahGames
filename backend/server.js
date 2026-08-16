@@ -23,7 +23,7 @@ import { PX } from './px-paths.js';
 import { applySeoToHtml } from './utils/seo-meta.js';
 import fs, { existsSync } from 'node:fs';
 
-import { createCorsConfig, createSecurityHeaders, createUploadGuard } from './middleware/http-security.js';
+import { createCorsConfig, createSecurityHeaders, createUploadGuard, wrapCrossSiteCookies } from './middleware/http-security.js';
 import { ddosShield } from './security/ddos-shield.js';
 import { toIPv4, systemState, createGateMiddleware, createMemoryProtection, checkCircuitBreaker, checkSystemPressure, cleanupSecurityMaps, isTrustedWS, adjustPowDifficulty, isKillSwitchUrlExempt, updateIPReputation } from './middleware/security.js';
 import { setShieldRef } from './utils/shield-ref.js';
@@ -192,6 +192,7 @@ const aiLimiter = createAiLimiter(shield);
 
 app.use(createSecurityHeaders());
 app.use(cookieParser());
+app.use(wrapCrossSiteCookies());
 app.use(compression({
   level: 1,
   threshold: 2048,
@@ -581,6 +582,18 @@ const server = createServer((req, res) => {
 });
 
 server.on('upgrade', (req, socket, head) => {
+  try {
+    const host = req.headers.host || 'localhost';
+    const u = new URL(req.url, `http://${host}`);
+    const g = u.searchParams.get('g');
+    const l = u.searchParams.get('l');
+    if (g) req.headers['x-pz-gate'] = g;
+    if (l) req.headers['x-pz-legal'] = l;
+    u.searchParams.delete('g');
+    u.searchParams.delete('l');
+    const q = u.searchParams.toString();
+    req.url = u.pathname + (q ? `?${q}` : '');
+  } catch {}
   const url = req.url;
   const ip = toIPv4(null, req);
 

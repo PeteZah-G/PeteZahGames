@@ -1,19 +1,54 @@
+import { originHttpHost, originWsHost, svgDirPath } from "./siteOrigin";
+
+function dir() {
+  try {
+    if (typeof window === "undefined" || !(window as any).__PZ_ORIGIN__) return "/";
+    return svgDirPath();
+  } catch {
+    return "/";
+  }
+}
+
 export const PX = {
-  prefix: "/afsd123k2/",
-  core: "/q9vx/",
-  mux: "/m4thx/",
-  epoxy: "/e7px/",
-  curl: "/l9cx/",
+  get prefix() {
+    return dir() + "afsd123k2/";
+  },
+  get core() {
+    return dir() + "q9vx/";
+  },
+  get mux() {
+    return dir() + "m4thx/";
+  },
+  get epoxy() {
+    return dir() + "e7px/";
+  },
+  get curl() {
+    return dir() + "l9cx/";
+  },
   stream: "/wisp/",
   edge: "/api/edge/",
-  sw: "/1k123.js",
-  coreAll: "/q9vx/sj.all.js",
-  coreSync: "/q9vx/sj.sync.js",
-  coreWasm: "/q9vx/sj.wasm.wasm",
-  muxWorker: "/m4thx/worker.js",
-  epoxyMod: "/e7px/index.mjs",
-  curlMod: "/l9cx/index.mjs",
-} as const;
+  get sw() {
+    return dir() + "1k123.js";
+  },
+  get coreAll() {
+    return dir() + "q9vx/sj.all.js";
+  },
+  get coreSync() {
+    return dir() + "q9vx/sj.sync.js";
+  },
+  get coreWasm() {
+    return dir() + "q9vx/sj.wasm.wasm";
+  },
+  get muxWorker() {
+    return dir() + "m4thx/worker.js";
+  },
+  get epoxyMod() {
+    return dir() + "e7px/index.mjs";
+  },
+  get curlMod() {
+    return dir() + "l9cx/index.mjs";
+  },
+};
 
 function fromCodes(codes: number[]): string {
   return codes.map((c) => String.fromCharCode(c)).join("");
@@ -108,9 +143,9 @@ export async function setMuxTransport(conn: any, modPath: string, streamUrl: str
 }
 
 export function defaultStreamUrl(): string {
-  return (location.protocol === "https:" ? "wss" : "ws") + "://" + location.host + PX.stream;
+  return originWsHost() + PX.stream;
 }
 
 export function defaultEdgeUrl(): string {
-  return location.protocol + "//" + location.host + PX.edge;
+  return originHttpHost() + PX.edge;
 }

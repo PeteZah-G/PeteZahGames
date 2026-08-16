@@ -1,5 +1,6 @@
 import { PX, getMuxRoot, openMuxConnection, setMuxTransport } from "@/lib/px";
 import { ensureProxyEngine } from "@/lib/browserInit";
+import { originWsHost } from "@/lib/siteOrigin";
 
 export type VpnRegionDef = {
   id: string;
@@ -98,7 +99,7 @@ export async function applyVpnRegion(regionId: string) {
     await new Promise<void>((resolve) => {
       const s = document.createElement("script");
       s.id = "config-script";
-      s.src = region.config;
+      s.src = region.config.startsWith("/") || region.config.startsWith("http") ? region.config : `./${region.config}`;
       s.onload = () => resolve();
       s.onerror = () => resolve();
       document.body.appendChild(s);
@@ -108,11 +109,7 @@ export async function applyVpnRegion(regionId: string) {
     const wispUrl =
       regionId === "custom"
         ? region.wisp
-        : cfg?.wispurl ??
-          (location.protocol === "https:" ? "wss" : "ws") +
-            "://" +
-            location.host +
-            region.wisp;
+        : cfg?.wispurl ?? originWsHost() + region.wisp;
     if (regionId === "custom") {
       try {
         localStorage.setItem("proxServer", region.wisp);

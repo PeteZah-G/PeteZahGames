@@ -16,6 +16,7 @@ import { useInterstitialUnlock, InterstitialOverlay } from "./InterstitialAdGate
 import { openNativeWindow } from "@/lib/openTabBridge";
 import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
 import { ensureProxyEngine } from "@/lib/browserInit";
+import { getSiteOrigin } from "@/lib/siteOrigin";
 
 interface GameViewerPageProps {
   url: string;
@@ -70,6 +71,8 @@ function needsScramjetProxy(raw: string): boolean {
     const u = new URL(raw, window.location.origin);
     if (u.protocol !== "http:" && u.protocol !== "https:") return false;
     if (u.origin === window.location.origin) return false;
+    const origin = getSiteOrigin();
+    if (origin && u.origin === origin) return false;
     return true;
   } catch {
     return false;

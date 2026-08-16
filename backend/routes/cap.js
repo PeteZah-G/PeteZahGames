@@ -65,8 +65,8 @@ router.post('/redeem', capLimiter, async (req, res) => {
     }
 
     storeCapToken(result.tokenKey, result.expires);
-    setGateCookie(res);
-    res.json({ success: true, token: result.token, expires: result.expires });
+    const gate = setGateCookie(res, req);
+    res.json({ success: true, token: result.token, expires: result.expires, gate });
   } catch (e) {
     console.error('[cap] redeem', e.message);
     res.status(500).json({ success: false, reason: 'server_error' });

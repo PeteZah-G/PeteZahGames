@@ -25,6 +25,6 @@ export function legalAcceptHandler(req, res) {
     return res.status(403).json({ error: 'Complete verification first.' });
   }
 
-  setLegalCookie(res);
-  return res.json({ ok: true, version: LEGAL_VERSION });
+  const legal = setLegalCookie(res, req);
+  return res.json({ ok: true, version: LEGAL_VERSION, legal });
 }

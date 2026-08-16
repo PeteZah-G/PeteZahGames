@@ -2,13 +2,16 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useParams } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, useParams } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ProfilePage from "./components/ProfilePage";
 import SharedAiPage from "./components/SharedAiPage";
+import SvgAccessGate from "./components/SvgAccessGate";
+import { isSvgShell } from "./lib/siteOrigin";
 
 const queryClient = new QueryClient();
+const Router = isSvgShell() ? HashRouter : BrowserRouter;
 
 function PublicProfileRoute() {
   const { username } = useParams();
@@ -20,14 +23,16 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <Routes>
+      <Router>
+        <SvgAccessGate>
+          <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/user/:username" element={<PublicProfileRoute />} />
           <Route path="/share/ai/:token" element={<SharedAiPage />} />
           <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+          </Routes>
+        </SvgAccessGate>
+      </Router>
     </TooltipProvider>
   </QueryClientProvider>
 );
