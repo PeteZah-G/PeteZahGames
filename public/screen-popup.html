@@ -83,7 +83,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             prompt: question,
-            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+            model: 'qwen/qwen3.6-27b',
             groqMessages: [
               { role: 'system', content: 'You are a helpful AI. Answer concisely. For educational questions use: Answer: [answer]\n[brief explanation]' },
               { role: 'user', content: [

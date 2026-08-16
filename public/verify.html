@@ -295,8 +295,12 @@
       Secure access · PeteZah
     </p>
   </div>
+  <script>
+    window.CAP_CUSTOM_WASM_URL = "/vendor/cap/cap_wasm_bg.wasm";
+    window.CAP_PAKO_URL = "/vendor/cap/pako_inflate.min.js";
+  </script>
   <script type="module" src="/pz-vanta.js"></script>
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@cap.js/widget@0.1.56"></script>
+  <script src="/vendor/cap/cap.min.js"></script>
   <script type="module">
     const status = document.getElementById("status");
     const el = document.getElementById("cap");

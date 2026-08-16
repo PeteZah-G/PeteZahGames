@@ -250,6 +250,20 @@ app.post('/api/legal/accept', legalAcceptHandler);
 app.use('/cap', capRouter);
 app.use('/vendor/three', express.static(path.join(__dirname, '../node_modules/three/build'), { index: false, maxAge: '7d' }));
 app.use('/vendor/vanta', express.static(path.join(__dirname, '../node_modules/vanta/dist'), { index: false, maxAge: '7d' }));
+const capVendorDir = path.join(__dirname, '../public/vendor/cap');
+const capVendorFiles = new Set(['cap.min.js', 'cap_wasm_bg.wasm', 'pako_inflate.min.js']);
+app.get('/vendor/cap/:file', (req, res) => {
+  const file = path.basename(String(req.params.file || ''));
+  if (!capVendorFiles.has(file)) return res.status(404).end();
+  res.setHeader(
+    'Content-Type',
+    file.endsWith('.wasm') ? 'application/wasm' : 'text/javascript; charset=utf-8',
+  );
+  res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+  res.sendFile(file, { root: capVendorDir, dotfiles: 'deny', maxAge: '7d' }, (err) => {
+    if (err && !res.headersSent) res.status(err.statusCode || 404).end();
+  });
+});
 
 app.get('/api/websocket/normal/', websocketNormalHandler);
 app.get('/api/websocket/normal', websocketNormalHandler);

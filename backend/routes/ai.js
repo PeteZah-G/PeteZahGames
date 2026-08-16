@@ -11,14 +11,20 @@ const CACHE_MAX_SIZE = 500;
 const CACHE_MAX_PROMPT_LEN = 120;
 
 const VISION_MODEL = 'qwen/qwen3.6-27b';
-const DEFAULT_MODEL = 'llama-3.1-8b-instant';
+const DEFAULT_MODEL = 'openai/gpt-oss-20b';
+const STRONG_MODEL = 'openai/gpt-oss-120b';
 
-const ALLOWED_MODELS = new Set([
-  'llama-3.1-8b-instant',
-  'llama-3.3-70b-versatile',
-  VISION_MODEL,
-  'meta-llama/llama-4-scout-17b-16e-instruct',
-]);
+const ALLOWED_MODELS = new Set([DEFAULT_MODEL, STRONG_MODEL, VISION_MODEL]);
+
+const MODEL_ALIASES = {
+  'llama-3.1-8b-instant': DEFAULT_MODEL,
+  'llama-3.3-70b-versatile': STRONG_MODEL,
+  'llama3-8b-8192': DEFAULT_MODEL,
+  'llama3-70b-8192': STRONG_MODEL,
+  'qwen/qwen3-32b': STRONG_MODEL,
+  'meta-llama/llama-4-scout-17b-16e-instruct': VISION_MODEL,
+  'meta-llama/llama-4-maverick-17b-128e-instruct': STRONG_MODEL,
+};
 
 function normalizeCacheKey(prompt) {
   return prompt.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
@@ -39,11 +45,20 @@ function setCache(key, response) {
 function resolveModel(raw, wantsVision) {
   if (wantsVision) return VISION_MODEL;
   const model = typeof raw === 'string' ? raw.trim() : '';
-  if (ALLOWED_MODELS.has(model) && model !== 'meta-llama/llama-4-scout-17b-16e-instruct') {
-    return model;
-  }
-  if (model === 'meta-llama/llama-4-scout-17b-16e-instruct') return VISION_MODEL;
+  const mapped = MODEL_ALIASES[model] || model;
+  if (ALLOWED_MODELS.has(mapped) && mapped !== VISION_MODEL) return mapped;
   return DEFAULT_MODEL;
+}
+
+function groqSampling(model, wantsVision) {
+  const isGptOss = model.startsWith('openai/gpt-oss-');
+  const isQwen = model.startsWith('qwen/');
+  return {
+    temperature: wantsVision || isGptOss ? 1 : 0.7,
+    max_completion_tokens: wantsVision || isGptOss ? 2048 : 1024,
+    ...(isQwen ? { reasoning_effort: 'none' } : {}),
+    ...(isGptOss ? { reasoning_effort: 'low' } : {}),
+  };
 }
 
 function extractImagePart(content) {
@@ -191,7 +206,6 @@ router.post('/', async (req, res) => {
     if (cached) return res.json({ response: cached, cached: true });
   }
 
-  // Anonymous sample of first turns only (no user identity).
   try {
     const turnCount = Array.isArray(safeMessages) ? safeMessages.filter((m) => m.role === 'user').length : 1;
     if (turnCount <= 1 && typeof prompt === 'string' && prompt.trim()) {
@@ -206,10 +220,7 @@ router.post('/', async (req, res) => {
       const payload = {
         model: resolvedModel,
         messages,
-        temperature: wantsVision ? 1 : 0.7,
-        max_completion_tokens: wantsVision ? 2048 : 1024,
-        // Qwen3 thinking can burn the whole token budget and return empty content.
-        ...(resolvedModel.startsWith('qwen/') ? { reasoning_effort: 'none' } : {}),
+        ...groqSampling(resolvedModel, wantsVision),
       };
 
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {

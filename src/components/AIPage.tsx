@@ -109,24 +109,32 @@ function saveLocalConvos(
   } catch {}
 }
 
+const DEFAULT_MODEL = "openai/gpt-oss-20b";
+
 const MODELS = [
-  { value: "llama-3.1-8b-instant", label: "Llama 3.1 8B (Fast)" },
-  { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B" },
+  { value: DEFAULT_MODEL, label: "GPT-OSS 20B (Fast)" },
+  { value: "openai/gpt-oss-120b", label: "GPT-OSS 120B" },
 ];
 
 const VISION_MODEL = "qwen/qwen3.6-27b";
 
-const ALLOWED_MODELS = new Set([
-  ...MODELS.map((m) => m.value),
-  VISION_MODEL,
-]);
+const ALLOWED_MODELS = new Set(MODELS.map((m) => m.value));
+
+const MODEL_ALIASES: Record<string, string> = {
+  "llama-3.1-8b-instant": DEFAULT_MODEL,
+  "llama-3.3-70b-versatile": "openai/gpt-oss-120b",
+  "llama3-8b-8192": DEFAULT_MODEL,
+  "llama3-70b-8192": "openai/gpt-oss-120b",
+  "qwen/qwen3-32b": "openai/gpt-oss-120b",
+};
 
 function resolveStoredModel() {
   try {
     const raw = localStorage.getItem("selectedModel") || "";
-    if (ALLOWED_MODELS.has(raw)) return raw;
+    const mapped = MODEL_ALIASES[raw] || raw;
+    if (ALLOWED_MODELS.has(mapped)) return mapped;
   } catch {}
-  return "llama-3.1-8b-instant";
+  return DEFAULT_MODEL;
 }
 
 const SUGGESTIONS = [
@@ -1078,7 +1086,7 @@ export default function AIPage({
           ? VISION_MODEL
           : ALLOWED_MODELS.has(model)
             ? model
-            : "llama-3.1-8b-instant";
+            : DEFAULT_MODEL;
 
         const res = await fetch("/api/generate", {
           method: "POST",

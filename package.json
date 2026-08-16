@@ -16,14 +16,17 @@
     "test:watch": "vitest",
     "start": "NODE_ENV=production node backend/server.js",
     "start:dev": "concurrently \"vite\" \"node backend/server.js\"",
-    "postinstall": "node scripts/fix-wisp-streams.mjs",
+    "postinstall": "node scripts/fix-wisp-streams.mjs && node scripts/vendor-cap.mjs",
     "ui": "node scripts/ui-studio.mjs",
-    "vendor:firefox-wasm": "node scripts/vendor-firefox-wasm.mjs"
+    "vendor:firefox-wasm": "node scripts/vendor-firefox-wasm.mjs",
+    "vendor:cap": "node scripts/vendor-cap.mjs"
   },
   "engines": {
     "node": ">=22.0.0"
   },
   "dependencies": {
+    "@cap.js/wasm": "0.0.7",
+    "@cap.js/widget": "0.1.56",
     "@hookform/resolvers": "^3.10.0",
     "@mercuryworkshop/bare-mux": "^2.1.7",
     "@mercuryworkshop/epoxy-transport": "^2.1.27",
@@ -87,6 +90,7 @@
     "node-fetch": "^3.3.2",
     "nodemailer": "^8.0.1",
     "otpauth": "^9.5.1",
+    "pako": "2.1.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
