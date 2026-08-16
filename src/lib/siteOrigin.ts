@@ -1,6 +1,7 @@
 const ORIGIN_KEY = "__PZ_ORIGIN__";
 const GATE_KEY = "pz_gate";
 const LEGAL_KEY = "pz_legal";
+const SESSION_KEY = "pz_sid";
 
 function trimSlash(s: string) {
   return s.replace(/\/+$/, "");
@@ -64,6 +65,27 @@ export function storeLegalToken(value: string) {
   if (!value || typeof value !== "string" || value.length > 512) return;
   try {
     localStorage.setItem(LEGAL_KEY, value);
+  } catch {}
+}
+
+export function readSessionToken(): string {
+  try {
+    return localStorage.getItem(SESSION_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function storeSessionToken(value: string) {
+  if (!value || typeof value !== "string" || !value.startsWith("s:") || value.length > 512) return;
+  try {
+    localStorage.setItem(SESSION_KEY, value);
+  } catch {}
+}
+
+export function clearSessionToken() {
+  try {
+    localStorage.removeItem(SESSION_KEY);
   } catch {}
 }
 

@@ -1,11 +1,14 @@
 import {
+  clearSessionToken,
   getSiteOrigin,
   isSvgShell,
   originWsHost,
   readGateToken,
   readLegalToken,
+  readSessionToken,
   storeGateToken,
   storeLegalToken,
+  storeSessionToken,
   svgDirUrl,
 } from "./siteOrigin";
 
@@ -36,26 +39,21 @@ const REMOTE = [
   "/storage/",
   "/uploads/",
   "/wisp/",
+  "/!!/",
+  "/!cover!/",
   "/firefox-wasm",
   "/terms",
   "/tos",
   "/privacy",
+  "/privacy-policy",
   "/dmca",
   "/copyright",
   "/verify",
+  "/embed.html",
 ];
 
 function starts(path: string, list: string[]) {
   return list.some((p) => path === p || path.startsWith(p));
-}
-
-function pathOf(url: string) {
-  try {
-    if (url.startsWith("/") && !url.startsWith("//")) return url.split("?")[0];
-    const u = new URL(url, location.href);
-    if (u.origin === location.origin) return u.pathname;
-  } catch {}
-  return "";
 }
 
 function isRemoteAbs(url: string) {
@@ -76,8 +74,12 @@ export function rewriteClientUrl(raw: string): string {
   let url = raw;
   if (url.startsWith("/") && !url.startsWith("//")) {
     const path = url.split("?")[0];
-    if (starts(path, LOCAL)) return new URL(url.slice(1), svgDirUrl()).href;
-    if (starts(path, REMOTE) || path.startsWith("/api")) return origin + url;
+    if (starts(path, REMOTE) || path.startsWith("/api") || path.startsWith("/!!/") || path.startsWith("/!cover!/")) {
+      return origin + url;
+    }
+    if (starts(path, LOCAL) || path.startsWith("/")) {
+      return new URL(url.slice(1), svgDirUrl()).href;
+    }
     return raw;
   }
   try {
@@ -91,22 +93,30 @@ export function rewriteClientUrl(raw: string): string {
 }
 
 function attachAuth(headers: Headers) {
+  headers.set("X-PZ-Svg", "1");
   const g = readGateToken();
   const l = readLegalToken();
+  const s = readSessionToken();
   if (g) headers.set("X-PZ-Gate", g);
   if (l) headers.set("X-PZ-Legal", l);
+  if (s) headers.set("X-PZ-Session", s);
 }
 
 function captureAuth(res: Response) {
   const loc = res.url || "";
-  if (!isRemoteAbs(loc) && !loc.includes("/cap/") && !loc.includes("/api/legal/")) return;
-  res
+  if (loc.includes("/api/signout")) {
+    clearSessionToken();
+    return Promise.resolve();
+  }
+  if (!isRemoteAbs(loc) && !loc.includes("/cap/") && !loc.includes("/api/")) return Promise.resolve();
+  return res
     .clone()
     .json()
     .then((d) => {
       if (d && typeof d === "object") {
         if (typeof d.gate === "string") storeGateToken(d.gate);
         if (typeof d.legal === "string") storeLegalToken(d.legal);
+        if (typeof d.sid === "string") storeSessionToken(d.sid);
       }
     })
     .catch(() => {});
@@ -188,8 +198,12 @@ export function installSvgBridge() {
       attachAuth(headers);
       nextInit.headers = headers;
     }
-    return origFetch(nextInput, nextInit).then((res) => {
-      captureAuth(res);
+    return origFetch(nextInput, nextInit).then(async (res) => {
+      if (/\/api\/(signin|signout|me|auth|legal)\b/.test(abs)) {
+        await captureAuth(res);
+      } else {
+        void captureAuth(res);
+      }
       return res;
     });
   };
@@ -204,10 +218,13 @@ export function installSvgBridge() {
   XMLHttpRequest.prototype.send = function (...args: any[]) {
     try {
       if (isRemoteAbs((this as any).__pzUrl || "")) {
+        this.setRequestHeader("X-PZ-Svg", "1");
         const g = readGateToken();
         const l = readLegalToken();
+        const s = readSessionToken();
         if (g) this.setRequestHeader("X-PZ-Gate", g);
         if (l) this.setRequestHeader("X-PZ-Legal", l);
+        if (s) this.setRequestHeader("X-PZ-Session", s);
       }
     } catch {}
     return XS.apply(this, args as any);

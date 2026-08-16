@@ -191,6 +191,6 @@ ${loaders.join('\n')}
 </svg>
 `;
 
-writeFileSync(path.join(out, 'new.svg'), svg);
+writeFileSync(path.join(out, 'index.svg'), svg);
 writeFileSync(path.join(out, '.cache-stamp'), v);
-console.log(`svg build ready → svg/new.svg  BASE_URL=${origin}  v=${v}`);
+console.log(`svg build ready → svg/index.svg  BASE_URL=${origin}  v=${v}`);

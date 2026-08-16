@@ -4,6 +4,7 @@ import { Search, Dices, Plus, Star, MoreVertical, X, Trash2, Share2, Copy, Check
 import { requestSyncSoon } from "@/lib/settingsSync";
 import { AdResponsiveBanner, AdNativeBar } from "@/components/ads/Adsterra";
 import { armAdAudio } from "@/lib/exoclick";
+import { originHttpHost } from "@/lib/siteOrigin";
 
 const CATEGORIES = ["All", "Action", "Racing", "Strategy", "Sports", "Skill", "Shooting", "2 Player", "Io"];
 const PINNED_LABELS = ["Request Games", "Minecraft", "Roblox"];
@@ -204,13 +205,14 @@ function GameCarousel({
 function resolveGameUrl(url: string): string {
   if (!url) return url;
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  const host = originHttpHost();
   if (url.startsWith("/iframe.html?url=")) {
     const inner = url.slice("/iframe.html?url=".length);
     const decoded = decodeURIComponent(inner);
     if (decoded.startsWith("http://") || decoded.startsWith("https://")) return decoded;
-    return window.location.origin + decoded;
+    return host + decoded;
   }
-  return window.location.origin + url;
+  return host + url;
 }
 
 

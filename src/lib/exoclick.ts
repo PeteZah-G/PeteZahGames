@@ -1,4 +1,5 @@
 import { playLoaderNetworkAds, scrubAdsterraLoadingArtifacts } from "@/components/ads/Adsterra";
+import { getSiteOrigin, isSvgShell } from "@/lib/siteOrigin";
 
 const CONTAINER_ID = "pz-video-ad-root";
 const VAST_BASE = "https://s.magsrv.com/v1/vast.php";
@@ -76,6 +77,13 @@ function canUnmute() {
 }
 
 function buildVastUrl() {
+  const origin = getSiteOrigin();
+  if (origin) {
+    const u = new URL("/api/ads/vast.xml", origin);
+    u.searchParams.set("cb", String(Date.now()) + Math.floor(Math.random() * 1e6));
+    u.searchParams.set("sub", activeContext);
+    return u.toString();
+  }
   const u = new URL(VAST_BASE);
   u.searchParams.set("idz", VAST_ZONE);
   u.searchParams.set("cb", String(Date.now()) + Math.floor(Math.random() * 1e6));
@@ -227,6 +235,7 @@ export async function requestAdGate(
     }
     return { show: true, context };
   } catch {
+    if (isSvgShell()) return { show: true, context, reason: "offline" };
     return { show: false, reason: "network" };
   }
 }
@@ -384,7 +393,7 @@ function playViaImaSdk(
       req.setAdWillPlayMuted(muted);
       try {
         req.contentDuration = -1;
-        req.pageUrl = location.origin;
+        req.pageUrl = getSiteOrigin() || location.origin;
       } catch {}
       try {
         if (ima.OmidAccessMode && ima.OmidVerificationVendor) {

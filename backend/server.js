@@ -24,6 +24,7 @@ import { applySeoToHtml } from './utils/seo-meta.js';
 import fs, { existsSync } from 'node:fs';
 
 import { createCorsConfig, createSecurityHeaders, createUploadGuard, wrapCrossSiteCookies } from './middleware/http-security.js';
+import { attachSvgSessionSid, injectSvgSessionCookie } from './utils/svg-session.js';
 import { ddosShield } from './security/ddos-shield.js';
 import { toIPv4, systemState, createGateMiddleware, createMemoryProtection, checkCircuitBreaker, checkSystemPressure, cleanupSecurityMaps, isTrustedWS, adjustPowDifficulty, isKillSwitchUrlExempt, updateIPReputation } from './middleware/security.js';
 import { setShieldRef } from './utils/shield-ref.js';
@@ -106,6 +107,7 @@ import {
   adsGateHandler,
   adsVastLimiter,
   adsVastHandler,
+  adsVastXmlHandler,
   adsShownHandler,
 } from './api/ads.js';
 import { adReportsLimiter, getAdminAdReportsHandler } from './api/ad-reports.js';
@@ -191,6 +193,7 @@ const apiLimiter = createApiLimiter(shield);
 const aiLimiter = createAiLimiter(shield);
 
 app.use(createSecurityHeaders());
+app.use(injectSvgSessionCookie);
 app.use(cookieParser());
 app.use(wrapCrossSiteCookies());
 app.use(compression({
@@ -230,6 +233,7 @@ app.use(session({
   },
   rolling: true,
 }));
+app.use(attachSvgSessionSid());
 
 app.use(createMemoryProtection(shield));
 app.use(createIpBanMiddleware());
@@ -399,6 +403,7 @@ app.get('/api/admin/link-stats', getAdminLinkStatsHandler);
 app.post('/api/ads/gate', adsGateLimiter, adsGateHandler);
 app.post('/api/ads/shown', adsGateLimiter, adsShownHandler);
 app.get('/api/ads/vast', adsVastLimiter, adsVastHandler);
+app.get('/api/ads/vast.xml', adsVastLimiter, adsVastXmlHandler);
 app.get('/api/admin/ad-reports', adReportsLimiter, getAdminAdReportsHandler);
 
 app.get('/api/settings', getSettingsHandler);

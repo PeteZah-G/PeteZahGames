@@ -153,3 +153,22 @@ export async function adsVastHandler(_req, res) {
   res.setHeader('Cache-Control', 'no-store');
   return res.json({ tagUrl: vastUrl(), mediaUrl: '', clickThrough: '' });
 }
+
+export async function adsVastXmlHandler(_req, res) {
+  if (!isVideoAdsEnabled()) {
+    return res.status(204).end();
+  }
+  try {
+    const r = await fetch(vastUrl(), { redirect: 'follow' });
+    const xml = await r.text();
+    if (!r.ok || !xml) {
+      return res.status(502).end();
+    }
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    return res.send(xml);
+  } catch {
+    return res.status(502).end();
+  }
+}

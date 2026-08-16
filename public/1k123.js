@@ -31,7 +31,7 @@ function isAppShellRequest(request, url) {
   if (url.origin !== self.location.origin) return false;
   var path = url.pathname;
   if (path.indexOf(_pref) === 0) return false;
-  if (path === _base || path === _base + 'index.html' || path === _base + 'new.svg' || path === _base + '1k123.js') return true;
+  if (path === _base || path === _base + 'index.html' || path === _base + 'index.svg' || path === _base + 'new.svg' || path === _base + '1k123.js') return true;
   if (path.indexOf(_base + 'assets/') === 0) return true;
   if (path.indexOf(_base + 'q9vx/') === 0) return true;
   if (path.indexOf(_base + 'm4thx/') === 0) return true;

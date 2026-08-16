@@ -40,14 +40,18 @@ export function wrapCrossSiteCookies() {
 export function createSecurityHeaders() {
   return (req, res, next) => {
     const p = req.path || '';
-    const gameFrame = p === '/storage/ag' || p.startsWith('/storage/ag/');
+    const remoteFrame =
+      p === '/storage/ag' ||
+      p.startsWith('/storage/ag/') ||
+      p.startsWith('/!!/') ||
+      p.startsWith('/!cover!/');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    if (!gameFrame) res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    if (!remoteFrame) res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader(
       'Content-Security-Policy',
       [
-        gameFrame
-          ? "frame-ancestors 'self' https://*.jsdelivr.net"
+        remoteFrame
+          ? "frame-ancestors 'self' https://cdn.jsdelivr.net https://*.jsdelivr.net"
           : "frame-ancestors 'self'",
         "base-uri 'self'",
         "object-src 'none'",
@@ -86,8 +90,15 @@ export function createCorsConfig() {
       return cb(null, false);
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-PZ-Gate', 'X-PZ-Legal'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-PZ-Gate',
+      'X-PZ-Legal',
+      'X-PZ-Session',
+      'X-PZ-Svg',
+    ],
   };
 }
 
