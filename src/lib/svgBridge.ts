@@ -9,6 +9,7 @@ import {
   storeGateToken,
   storeLegalToken,
   storeSessionToken,
+  svgDirPath,
   svgDirUrl,
 } from "./siteOrigin";
 
@@ -66,6 +67,12 @@ function isRemoteAbs(url: string) {
   }
 }
 
+function onSvgDir(path: string) {
+  const dir = svgDirPath();
+  if (!dir || dir === "/") return false;
+  return path === dir.slice(0, -1) || path.startsWith(dir);
+}
+
 export function rewriteClientUrl(raw: string): string {
   if (!isSvgShell() || !raw || raw.startsWith("data:") || raw.startsWith("blob:") || raw.startsWith("javascript:")) {
     return raw;
@@ -77,6 +84,9 @@ export function rewriteClientUrl(raw: string): string {
     if (starts(path, REMOTE) || path.startsWith("/api") || path.startsWith("/!!/") || path.startsWith("/!cover!/")) {
       return origin + url;
     }
+    if (onSvgDir(path)) {
+      return new URL(url, location.origin).href;
+    }
     if (starts(path, LOCAL) || path.startsWith("/")) {
       return new URL(url.slice(1), svgDirUrl()).href;
     }
@@ -85,6 +95,7 @@ export function rewriteClientUrl(raw: string): string {
   try {
     const u = new URL(url, location.href);
     if (u.origin === location.origin) {
+      if (onSvgDir(u.pathname)) return u.href;
       const path = u.pathname + u.search + u.hash;
       return rewriteClientUrl(path.startsWith("/") ? path : `/${path}`);
     }

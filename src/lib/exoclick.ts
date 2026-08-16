@@ -1,4 +1,4 @@
-import { playLoaderNetworkAds, scrubAdsterraLoadingArtifacts } from "@/components/ads/Adsterra";
+import { scrubAdsterraLoadingArtifacts } from "@/components/ads/Adsterra";
 import { getSiteOrigin, isSvgShell } from "@/lib/siteOrigin";
 
 const CONTAINER_ID = "pz-video-ad-root";
@@ -77,13 +77,6 @@ function canUnmute() {
 }
 
 function buildVastUrl() {
-  const origin = getSiteOrigin();
-  if (origin) {
-    const u = new URL("/api/ads/vast.xml", origin);
-    u.searchParams.set("cb", String(Date.now()) + Math.floor(Math.random() * 1e6));
-    u.searchParams.set("sub", activeContext);
-    return u.toString();
-  }
   const u = new URL(VAST_BASE);
   u.searchParams.set("idz", VAST_ZONE);
   u.searchParams.set("cb", String(Date.now()) + Math.floor(Math.random() * 1e6));
@@ -320,7 +313,7 @@ function playViaImaSdk(
 
     const fillWait = window.setTimeout(() => {
       if (!started) finish("error");
-    }, FILL_WAIT_MS);
+    }, isSvgShell() ? 6000 : FILL_WAIT_MS);
 
     try {
       ima.settings.setDisableCustomPlaybackForIOS10Plus(true);
@@ -419,9 +412,14 @@ async function playWithRetries(
   timerLabel: HTMLElement
 ): Promise<"done" | "skip" | "error"> {
   const unmuted = canUnmute();
-  const attempts: boolean[] = unmuted ? [false, true, true] : [true, true, true];
+  const attempts: boolean[] = isSvgShell()
+    ? [unmuted ? false : true]
+    : unmuted
+      ? [false, true, true]
+      : [true, true, true];
   let last: "done" | "skip" | "error" = "error";
-  for (let i = 0; i < Math.min(VAST_RETRIES, attempts.length); i++) {
+  const retries = isSvgShell() ? 1 : Math.min(VAST_RETRIES, attempts.length);
+  for (let i = 0; i < retries; i++) {
     if (playGen !== myGen) return "skip";
     last = await playViaImaSdk(myGen, video, adLayer, w, h, buildVastUrl(), attempts[i], timerLabel);
     if (last === "done" || last === "skip") return last;
@@ -452,7 +450,7 @@ function playSession(myGen: number): Promise<"done" | "skip" | "error"> {
       resolve(result);
     };
 
-    const hard = window.setTimeout(() => finish("skip"), HARD_CAP_MS);
+    const hard = window.setTimeout(() => finish("skip"), isSvgShell() ? 8000 : HARD_CAP_MS);
 
     try {
       await loadIma();
@@ -493,7 +491,7 @@ export function playVideoAd(context?: "game" | "app" | "vm"): Promise<"done" | "
       resolve(result);
     };
 
-    const hard = window.setTimeout(() => finish("skip"), HARD_CAP_MS + 1500);
+    const hard = window.setTimeout(() => finish("skip"), isSvgShell() ? 9000 : HARD_CAP_MS + 1500);
 
     try {
       const result = await playSession(myGen);
@@ -510,16 +508,8 @@ export async function runInterstitial(
   const gate = await requestAdGate(context);
   if (gate.show) {
     const result = await playVideoAd(context);
-    if (result === "error") {
-      await playLoaderNetworkAds(3600);
-      return "fallback";
-    }
+    if (result === "error" || result === "skip") return "skipped";
     return "shown";
-  }
-  const reason = "reason" in gate ? gate.reason : undefined;
-  if (reason === "disabled" || reason === "network") {
-    await playLoaderNetworkAds(3600);
-    return "fallback";
   }
   return "skipped";
 }

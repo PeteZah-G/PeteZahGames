@@ -2,7 +2,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { requestAdGate, playVideoAd, stopVideoAd, CONTAINER_ID } from "@/lib/exoclick";
 import {
-  playLoaderNetworkAds,
   playLoaderNetworkAdsBehind,
   scrubAdsterraLoadingArtifacts,
 } from "@/components/ads/Adsterra";
@@ -11,8 +10,6 @@ import { GameLaunchSplash } from "@/components/GameLaunchSplash";
 type Context = "game" | "app" | "vm";
 export type InterstitialPhase = "checking" | "ad" | "loading" | "ready";
 
-const LOADER_AD_MS = 3600;
-/** Keep behind-network ads alive for typical VAST length, then scrub. */
 const HARD_BEHIND_MS = 45000;
 const BEHIND_HOST_ID = "pz-loader-ad-behind";
 
@@ -38,10 +35,8 @@ export function useInterstitialUnlock(context: Context, enabled = true) {
 
         if (gate.show) {
           setPhase("ad");
-          // Wait for the behind-host to mount before loading Adsterra under the video.
           await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
           if (cancelled) return;
-          // Adsterra/Monetag load behind the video (no layout strip) so the VAST player stays full-bleed.
           const behind = playLoaderNetworkAdsBehind(BEHIND_HOST_ID, HARD_BEHIND_MS);
           const result = await playVideoAd(context);
           if (cancelled) {
@@ -50,28 +45,19 @@ export function useInterstitialUnlock(context: Context, enabled = true) {
             } catch {}
             return;
           }
-          if (result === "error") {
-            // Visible fallback when ExoClick VAST fails / is blocked
-            await playLoaderNetworkAds(LOADER_AD_MS);
-          } else {
+          if (result !== "done") {
             try {
-              scrubAdsterraLoadingArtifacts();
+              stopVideoAd();
             } catch {}
           }
-        } else {
-          const reason = gate.reason;
-          if (reason === "disabled" || reason === "network") {
-            setPhase("ad");
-            await playLoaderNetworkAds(LOADER_AD_MS);
-          }
-        }
-      } catch {
-        if (!cancelled) {
-          setPhase("ad");
           try {
-            await playLoaderNetworkAds(LOADER_AD_MS);
+            scrubAdsterraLoadingArtifacts();
           } catch {}
         }
+      } catch {
+        try {
+          stopVideoAd();
+        } catch {}
       }
 
       try {
