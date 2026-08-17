@@ -8,7 +8,7 @@ import {
 
 export const TERMS_TITLE = 'Terms of Service';
 export const PRIVACY_TITLE = 'Privacy Policy';
-export const DMCA_TITLE = 'DMCA / Copyright Policy';
+export const DMCA_TITLE = 'Copyright Policy';
 
 export const TERMS_BODY = `Last Updated / Effective Date: ${LEGAL_EFFECTIVE}
 Document Version: ${LEGAL_VERSION}
@@ -17,31 +17,33 @@ IMPORTANT — PLEASE READ CAREFULLY
 
 These Terms of Service (the "Terms") form a legally binding agreement between you ("you," "your," or "User") and the operators of PeteZah / Arc Glass Browser and related domains, mirrors, embeds, link-distribution tools, games, apps, and services (collectively, the "Service," "we," "us," or "our").
 
-BY ACCESSING OR USING THE SERVICE — INCLUDING COMPLETING ANY VERIFICATION GATE, CREATING AN ACCOUNT, CLICKING "I AGREE," CHECKING AN ACCEPTANCE BOX, OR CONTINUING TO USE THE SERVICE AFTER NOTICE OF THESE TERMS — YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD, AND AGREE TO BE BOUND BY THESE TERMS, OUR PRIVACY POLICY, AND OUR DMCA / COPYRIGHT POLICY. IF YOU DO NOT AGREE, DO NOT USE THE SERVICE.
+BY ACCESSING OR USING THE SERVICE — INCLUDING COMPLETING ANY VERIFICATION GATE, CREATING AN ACCOUNT, CLICKING "I AGREE," CHECKING AN ACCEPTANCE BOX, OR CONTINUING TO USE THE SERVICE AFTER NOTICE OF THESE TERMS — YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD, AND AGREE TO BE BOUND BY THESE TERMS, OUR PRIVACY POLICY, AND OUR COPYRIGHT POLICY. IF YOU DO NOT AGREE, DO NOT USE THE SERVICE.
 
-These Terms are intended to allocate risk clearly. They are not a license to break the law, violate institutional policies, or harm others.
+These Terms allocate risk clearly. They are not a license to break the law, violate institutional policies, or harm others.
 
 
-1. Nature of the Service; Privacy / Safe-Haven Purpose
+1. Nature of the Service; Privacy Purpose
 
-1.1 The Service is offered as a privacy-oriented access and browsing tool, including proxy/relay features, optional account features, educational and entertainment content catalogs (games, apps, and similar embeds), optional link-related utilities, virtual-machine style tools, chat or community features, and advertising-supported free access.
+1.1 The Service is a privacy-oriented browsing and access tool. It includes a full-internet proxy/relay, optional accounts, entertainment catalogs (games and apps), a movie/TV directory that points to licensed streaming services, optional background-music embeds, alternative-URL utilities, experimental virtual-machine tools, community features, and advertising-supported free access.
 
-1.2 We may distribute or publish alternative URLs, mirrors, embeds, or "unblocked" access points so people can reach privacy-oriented tooling when mainstream paths are filtered. THAT CAPABILITY DOES NOT MEAN WE CONDONE, ENCOURAGE, AUTHORIZE, OR ASSUME RESPONSIBILITY FOR VIOLATING SCHOOL, EMPLOYER, LIBRARY, GOVERNMENT, ISP, PARENTAL, OR OTHER NETWORK, DEVICE, OR ACCEPTABLE-USE POLICIES. THE SERVICE IS A TECHNICAL SAFE-HAVEN / PRIVACY TOOL, NOT PERMISSION TO CIRCUMVENT RULES THAT APPLY TO YOU.
+1.2 We may publish alternative hostnames, mirrors, embeds, or continuity links so people can still reach THIS Service when a particular domain of ours is filtered. That is access continuity for our own properties. IT IS NOT PERMISSION TO VIOLATE SCHOOL, EMPLOYER, LIBRARY, GOVERNMENT, ISP, PARENTAL, OR OTHER NETWORK, DEVICE, OR ACCEPTABLE-USE POLICIES. Using the Service on a managed device or network remains solely your responsibility.
 
-1.3 You alone decide whether your use is lawful and permitted under every policy that binds you. If your school, workplace, parent/guardian, or network forbids this Service or similar tools, you must not use it on those systems or under those rules.
+1.3 You alone decide whether your use is lawful and permitted under every policy that binds you. If your school, workplace, parent/guardian, or network forbids this Service or similar tools, you must not use it on those systems.
 
-1.4 We do not guarantee anonymity, undetectability, unblockability, or that any filter, firewall, MDM, or monitoring system will fail to detect your use.
+1.4 We do not guarantee anonymity, undetectability, or that any filter, firewall, MDM, or monitoring system will fail to notice your use. We do not market the Service as a way to hide misconduct.
 
 
 2. Eligibility; Accounts; Age
 
-2.1 You must be legally able to form a binding contract where you live. If you are under the age of majority, you may use the Service only with verifiable parental/guardian consent where required, and only if permitted by applicable law.
+2.1 You must be at least 13 years old to use the Service. If you are 13 or older but under the age of majority where you live, you may use the Service only with a parent or guardian's permission, and only if permitted by applicable law. A parent or guardian who permits such use is responsible for that use.
 
-2.2 The Service is not directed to children under 13 (or under 16 where a higher digital-consent age applies). Do not create an account or submit personal data if you are below the applicable age.
+2.2 The Service is a general-audience product. It is not directed to children under 13, is not intended as a children's app, and we do not knowingly collect personal information from children under 13 (or under 16 where a higher digital-consent age applies). Do not create an account or submit personal data if you are below that age.
 
-2.3 You are responsible for the accuracy of account information, safeguarding credentials and session cookies, and all activity under your account or device. Notify us promptly of unauthorized access.
+2.3 Advertising, third-party websites you open, and some catalog items may include material that is inappropriate for younger users. We are not an 18+ service, but we do not claim the Service is suitable for every age. Parents and guardians should supervise minors.
 
-2.4 We may refuse, suspend, rate-limit, shadow-limit, or terminate access or accounts at any time, with or without notice, for any reason permitted by law, including suspected abuse, fraud, ToS breach, legal risk, or operational need.
+2.4 You are responsible for the accuracy of account information, safeguarding credentials and session cookies, and all activity under your account or device. Notify us promptly of unauthorized access.
+
+2.5 We may refuse, suspend, rate-limit, or terminate access or accounts at any time, with or without notice, for reasons permitted by law, including suspected abuse, fraud, legal risk, or operational need.
 
 
 3. User Responsibilities; Acceptable Use
@@ -59,42 +61,53 @@ You agree you will NOT, and will not assist others to:
 (i) resell, sublicense, or commercially exploit the Service without written permission;
 (j) misrepresent affiliation with us or use our branding in a misleading way;
 (k) use the Service to commit academic dishonesty, exam cheating, or unauthorized testing interference where prohibited;
-(l) use the Service in any way that creates legal, security, or reputational risk for us or other users.
+(l) use the Service to visit, host, or traffic in illegal websites or material, or to pirate copyrighted works.
 
 We may investigate and cooperate with schools, employers, ISPs, platforms, payment providers, and law enforcement as required or permitted by law.
 
 
-4. Network Policies; "Unblocked" Access; Get Links and Mirrors
+4. Access Continuity; Get Links and Mirrors
 
-4.1 Features that share alternative domains, embeds, QR codes, invite links, or similar ("Link Features") exist so users can find the Service when ordinary routes are blocked. Link Features are provided AS IS for privacy/access continuity.
+4.1 Features that share alternative domains, embeds, QR codes, or similar ("Link Features") exist so users can keep reaching OUR Service if a listed network filter blocks one of our hostnames. You may choose a filter category so we can return a mirror that we expect to work in that environment. Link Features are provided AS IS for access continuity. They are not advice to violate anyone's acceptable-use policy.
 
-4.2 We do NOT warrant that any link will remain online, unblocked, safe, or free of third-party interference. Links may be taken down, poisoned, parked, or replaced without notice.
+4.2 We do NOT warrant that any link will remain online, reachable, safe, or free of third-party interference. Links may be taken down, parked, or replaced without notice.
 
-4.3 You are solely responsible for how you obtain, share, or use links. Sharing links in violation of institutional rules, copyright, or law is your responsibility. We are not your attorney, compliance officer, or school administrator.
+4.3 You are solely responsible for how you obtain, share, or use links. Sharing or using links in violation of institutional rules or law is your responsibility. We are not your attorney, compliance officer, or school administrator.
 
-4.4 If you use the Service on a managed device (school Chromebook, corporate laptop, etc.), monitoring software may still log activity. You accept that risk entirely.
+4.4 If you use the Service on a managed device, monitoring software may still log activity. You accept that risk entirely.
 
 
 5. Proxy, Relay, and Third-Party Sites
 
-5.1 When you browse through our proxy/relay, you are requesting third-party content. We are not the publisher of that content. Third-party sites have their own terms and privacy practices.
+5.1 The proxy/relay is a general-purpose browsing tunnel. You may request the public internet through it. We are not the publisher of third-party sites you open. Those sites have their own terms and privacy practices.
 
-5.2 We do not endorse third-party sites. Content may be inaccurate, offensive, malicious, or illegal. You interact with third parties at your own risk.
+5.2 We do not endorse third-party sites and we do not condone illegal websites. Content may be inaccurate, offensive, malicious, or unlawful. You interact with third parties at your own risk and must follow the law and the destination site's rules.
 
-5.3 Proxying does not grant you rights in third-party content. Do not use the Service to pirate, traffic stolen credentials, or commit fraud.
+5.3 Proxying does not grant you rights in third-party content. Do not use the Service to pirate, steal credentials, commit fraud, or access material you are not allowed to access.
 
-5.4 We may block destinations, strip headers, rewrite URLs, terminate connections, or refuse proxying for safety, legal, or abuse reasons.
+5.4 We may block destinations, strip headers, rewrite URLs, terminate connections, or refuse proxying for safety, legal, or abuse reasons. Blocking is discretionary and is not a guarantee that remaining destinations are lawful.
 
 
-6. Games, Apps, Media, Embeds, and Catalogs
+6. Games, Apps, Movies, Music, and Catalogs
 
-6.1 Games, apps, emulators, media players, flash/HTML5 ports, and similar catalog items may be hosted by us, embedded from third parties, or loaded via user action. Copyright and trademarks belong to their respective owners unless expressly stated otherwise.
+6.1 The games catalog is an operator-maintained index assembled from third-party and public sources (including public lists, mirrors, embeds, and user suggestions). Appearance on the list is not ownership, not a license grant to you, and not a representation that we independently verified authorization for every playable copy in every jurisdiction.
 
-6.2 Catalog availability is not a representation that we own the underlying works, that distribution is authorized in every jurisdiction, or that a title will remain available.
+6.2 How a title is delivered matters, and we do not treat them as the same thing:
+(a) metadata or a listing alone is not a copy of the work;
+(b) some items are files or assets we store and serve (hosted copies);
+(c) some items load from a third-party URL through an embed or the proxy/relay;
+(d) some items are links or forms that send you to another site.
+Legal risk, if any, follows the playable copy and the method of delivery — not the fact that a title appears in a combined list.
 
-6.3 If you believe catalog or hosted material infringes your rights, use our DMCA / Copyright Policy. Do not send abusive or knowingly false notices.
+6.3 We do not claim that catalog games are "user-uploaded" or "user-submitted works stored at the direction of users" merely because suggestions, public lists, or request forms helped us find them. Staff and operators decide what is listed. Individual users may add private custom shortcuts in their own browser settings; those are that user's links, not our worldwide catalog, unless an operator later adds them globally.
 
-6.4 Virtual machine, remote browser, or sandboxed tools are experimental. They may fail, lose data, expose identifiers, or be withdrawn. Do not store secrets or illegal material in them.
+6.4 Copyrights, trademarks, and related rights in third-party games remain with their owners unless we expressly state otherwise. If you are a rights holder, use the Copyright Policy. A listing is not a warranty that the item will remain available. We disable or remove access after a complete, good-faith notice identifying material we host or control, keep a record of the complaint, and take reasonable steps so the same item is not casually restored.
+
+6.5 Movies and TV in the Service are a directory only. We do not host movie or TV files and we do not embed unauthorized streams. Buttons open official licensed services (for example Netflix, Prime Video, Hulu, or others listed for your region) so you can sign in and watch under THAT provider's terms.
+
+6.6 Optional music playback is a convenience overlay — official YouTube and SoundCloud embeds so you can listen while using other parts of the Service. It is not a dedicated music-download service, and we do not host audio files.
+
+6.7 Virtual machine, remote browser, or sandboxed tools are experimental. They may fail, lose data, expose identifiers, or be withdrawn. Do not store secrets or illegal material in them.
 
 
 7. Advertising; Ad Networks; Malicious or Misleading Ads
@@ -131,7 +144,7 @@ If you post comments, feedback, profiles, avatars, or other content ("User Conte
 
 11. Disclaimers
 
-THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, QUIET ENJOYMENT, ACCURACY, OR UNINTERRUPTED / ERROR-FREE / SECURE OPERATION. WE DO NOT WARRANT THAT THE SERVICE WILL REMAIN UNBLOCKED, PRIVATE, OR AVAILABLE IN YOUR LOCATION.
+THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, QUIET ENJOYMENT, ACCURACY, OR UNINTERRUPTED / ERROR-FREE / SECURE OPERATION. WE DO NOT WARRANT THAT THE SERVICE WILL REMAIN REACHABLE, PRIVATE, OR AVAILABLE IN YOUR LOCATION.
 
 
 12. Limitation of Liability
@@ -155,7 +168,7 @@ We may suspend or terminate the Service or your access immediately. Upon termina
 
 15. Changes
 
-We may update these Terms by posting a new version and updating the effective date / version identifier. Material changes may also be signaled via the Service. Continued use after the effective date constitutes acceptance. If you disagree, stop using the Service and delete your account.
+We may update these Terms by posting a new version and updating the effective date / version identifier. Material changes may also be signaled via the Service (including a required acceptance prompt). Continued use after the effective date constitutes acceptance. If you disagree, stop using the Service and delete your account.
 
 
 16. Governing Law; Disputes; Informal Resolution
@@ -165,21 +178,21 @@ To the extent permitted by law, these Terms are governed by the laws applicable 
 
 17. Miscellaneous
 
-If any provision is unenforceable, the remainder stays in effect. Our failure to enforce a provision is not a waiver. These Terms, the Privacy Policy, and the DMCA / Copyright Policy are the entire agreement regarding the Service and supersede prior understandings on that subject. You may not assign these Terms without our consent; we may assign them in connection with a reorganization or change of operators. Headings are for convenience only. "Including" means "including without limitation."
+If any provision is unenforceable, the remainder stays in effect. Our failure to enforce a provision is not a waiver. These Terms, the Privacy Policy, and the Copyright Policy are the entire agreement regarding the Service and supersede prior understandings on that subject. You may not assign these Terms without our consent; we may assign them in connection with a reorganization or change of operators. Headings are for convenience only. "Including" means "including without limitation."
 
 
 18. Contact
 
 Email: ${LEGAL_CONTACT_EMAIL}
-DMCA / copyright: ${LEGAL_DMCA_EMAIL}
+Copyright: ${LEGAL_DMCA_EMAIL}
 Community: ${LEGAL_DISCORD}
 
-By checking the agreement box on verification or signup, or by continuing to use the Service, you confirm acceptance of these Terms, the Privacy Policy, and the DMCA / Copyright Policy (version ${LEGAL_VERSION}).`;
+By checking the agreement box on verification or signup, accepting the in-app prompt, or continuing to use the Service, you confirm acceptance of these Terms, the Privacy Policy, and the Copyright Policy (version ${LEGAL_VERSION}).`;
 
 export const PRIVACY_BODY = `Last Updated / Effective Date: ${LEGAL_EFFECTIVE}
 Document Version: ${LEGAL_VERSION}
 
-This Privacy Policy explains what information PeteZah / Arc Glass Browser and related services (the "Service," "we," "us") collect, how we use it, and the choices you have. It should be read with our Terms of Service and DMCA / Copyright Policy.
+This Privacy Policy explains what information PeteZah / Arc Glass Browser and related services (the "Service," "we," "us") collect, how we use it, and the choices you have. It should be read with our Terms of Service and Copyright Policy.
 
 
 1. Scope
@@ -193,7 +206,7 @@ This Policy covers data processed when you visit our sites, pass verification, c
 
 2.2 Security, session, and anti-abuse data: IP addresses (and derived geolocation/ASN where available); user-agent and basic device/browser signals; timestamps of access, sign-in, sign-up, and sensitive actions; session identifiers and cookies (including authentication sessions and verification/legal-acceptance cookies); CAPTCHA / proof-of-work challenge metadata; rate-limit counters; ban and reputation signals; rough connection or presence signals used for live-site / capacity features; referral or landing path where relevant to abuse review.
 
-2.3 Service usage (operational): feature usage necessary to operate the product (e.g. settings sync payloads you choose to save; link-claim events and cooldowns; feedback/comments you submit; admin audit actions). We aim NOT to build a commercial advertising profile of your private browsing destinations, but technical logs needed for reliability and abuse prevention may incidentally include request metadata.
+2.3 Service usage (operational): feature usage necessary to operate the product (e.g. settings sync payloads you choose to save; link-claim events and cooldowns; feedback/comments you submit; copyright reports you submit; admin audit actions). We may keep operational catalog records such as game identifiers, delivery URLs, source or provider notes where we have them, exclusion/takedown status, and related timestamps. We aim NOT to build a commercial advertising profile of your private browsing destinations, but technical logs needed for reliability and abuse prevention may incidentally include request metadata.
 
 2.4 Proxy / technical transmission: while proxying, systems necessarily process URLs, headers, and content bytes in transit to fulfill your request. We do not sell your browsing history. Retention of detailed proxy destination logs, if any, is limited to what we reasonably need for security, debugging, capacity, and legal compliance, then discarded or aggregated.
 
@@ -206,7 +219,7 @@ This Policy covers data processed when you visit our sites, pass verification, c
 
 3. How We Use Information
 
-We use information to: provide and maintain the Service; authenticate users; verify email where required for certain features; enforce Terms; detect bots, fraud, credential stuffing, DDoS, scraping, and other abuse; apply bans and cooldowns; improve performance and UX; communicate service notices; comply with law and valid legal process; and protect users, operators, and the public.
+We use information to: provide and maintain the Service; authenticate users; verify email where required for certain features; enforce Terms; detect bots, fraud, credential stuffing, DDoS, scraping, and other abuse; apply bans and cooldowns; respond to copyright and legal notices; improve performance and UX; communicate service notices; comply with law and valid legal process; and protect users, operators, and the public.
 
 
 4. Anti-Abuse Philosophy (What "Generous but Firm" Means)
@@ -221,7 +234,7 @@ Where GDPR/UK GDPR or similar frameworks apply, we rely on one or more of: perfo
 
 6. Sharing and Disclosure
 
-We do not sell your personal information as "sale" is commonly understood for raw email lists. We may share data with: infrastructure and email providers acting on our instructions; Ad Partners and analytics vendors as needed to display/measure ads and traffic; professional advisors; and authorities or complainants when required by law or necessary to protect rights, safety, or the Service (including responding to valid DMCA or security reports). Business transfers (e.g. change of operators) may include user data as an asset under continued confidentiality commitments where feasible.
+We do not sell your personal information as "sale" is commonly understood for raw email lists. We may share data with: infrastructure and email providers acting on our instructions; Ad Partners and analytics vendors as needed to display/measure ads and traffic; professional advisors; and authorities or complainants when required by law or necessary to protect rights, safety, or the Service (including responding to valid copyright or security reports). Business transfers (e.g. change of operators) may include user data as an asset under continued confidentiality commitments where feasible.
 
 
 7. Cookies and Similar Technologies
@@ -231,7 +244,7 @@ We use essential cookies/tokens for sessions, security gates, and recording that
 
 8. Retention
 
-We retain account data while your account remains active and for a reasonable period afterward for security, dispute, and legal purposes. Security logs are kept for rolling windows appropriate to abuse investigation. You may request account deletion subject to residual backup/log copies and legal holds.
+We retain account data while your account remains active and for a reasonable period afterward for security, dispute, and legal purposes. Security logs are kept for rolling windows appropriate to abuse investigation. Copyright reports, catalog exclusions, and related provenance or takedown notes are kept as needed to handle notices, prevent casual re-listing of disabled items, and maintain repeat-infringer records. You may request account deletion subject to residual backup/log copies and legal holds.
 
 
 9. Security
@@ -253,7 +266,7 @@ California / similar U.S. state laws: we do not knowingly "sell" or "share" pers
 
 12. Children
 
-We do not knowingly collect personal information from children under 13 (or the applicable higher age). If you believe we have, contact us and we will take appropriate steps to delete it.
+The Service is not directed at children under 13. We do not knowingly collect personal information from children under 13 (or the applicable higher age). If you are a parent or guardian and believe a child under 13 provided personal information, contact us and we will take appropriate steps to delete it. Users 13–17 should have a parent or guardian review these policies. Advertising and third-party sites may not be appropriate for younger users.
 
 
 13. Do Not Track
@@ -268,7 +281,7 @@ We are not responsible for privacy practices of third-party sites, apps, ad land
 
 15. Changes
 
-We may update this Policy by posting a new version and version identifier. Continued use after the effective date means you accept the updated Policy. Re-acceptance may be required at the verification gate when the legal version changes.
+We may update this Policy by posting a new version and version identifier. Continued use after the effective date means you accept the updated Policy. Re-acceptance may be required via an in-app prompt or verification gate when the legal version changes.
 
 
 16. Contact
@@ -279,30 +292,53 @@ Community: ${LEGAL_DISCORD}`;
 export const DMCA_BODY = `Last Updated / Effective Date: ${LEGAL_EFFECTIVE}
 Document Version: ${LEGAL_VERSION}
 
-This DMCA / Copyright Policy describes how PeteZah / Arc Glass Browser (the "Service," "we," "us") responds to claims of copyright infringement and related intellectual-property complaints involving material on or linked from our properties, including games and apps catalogs, embeds, user-submitted content, and hosted files.
+This Copyright Policy describes how PeteZah / Arc Glass Browser (the "Service," "we," "us") handles claims of copyright infringement and related intellectual-property complaints involving material on or linked from our properties.
 
 
 1. Respect for Copyright
 
-We respect intellectual property rights. Games, applications, artwork, audio, video, brands, and other works accessible through the Service generally belong to their respective owners. Unless we expressly state otherwise, we do not claim ownership of third-party works. Catalog listings and embeds are provided as a convenience and technical conduit; availability is not a warranty of license in every jurisdiction.
+We respect intellectual property rights. Games, applications, artwork, audio, video, brands, and other works accessible through the Service generally belong to their respective owners. Unless we expressly state otherwise, we do not claim ownership of third-party works.
+
+Availability of a catalog item is not a claim that the work is licensed to us, public domain, or fair use. We do not independently verify a license for every playable copy. Movie and TV buttons open licensed services; we do not host those files.
 
 
-2. Role as Service Provider; Safe Harbor Intent
+2. How the Games Catalog Is Built (Provenance)
 
-Where applicable, we intend to operate consistent with the notice-and-takedown framework of the U.S. Digital Millennium Copyright Act, 17 U.S.C. § 512, and analogous laws. To the extent we qualify as a service provider that stores material at users' direction, caches, or transmits/routes material, we will act expeditiously to remove or disable access to material that is the subject of a valid infringement notice.
+The entertainment catalog is assembled by operators from third-party and public sources: public game lists, mirrors, embeds, partner or community catalogs, and suggestions (including a request form). Combining lists is not a license to redistribute the underlying works.
+
+We distinguish:
+(a) listings and metadata (title, artwork URL, categories);
+(b) hosted copies (files or assets we store and serve);
+(c) proxied or embedded third-party playable URLs;
+(d) outbound links to another site.
+
+A complete notice should identify the catalog title or ID and, where possible, the play URL. Primary risk, if any, attaches to (b) and (c), not to the existence of a combined list.
+
+This catalog is operator-maintained. It is not a user-upload locker, and we do not describe it as material stored solely at the direction of users merely because the public or a request form suggested titles.
 
 
-3. What This Policy Covers
+3. Notice-and-Takedown; Records We Keep
 
-This Policy covers allegedly infringing material that we host or control (for example: uploaded assets, mirrored game files we store, user avatars, comments). It may also guide how we handle clear notices about embedded third-party players or deep links when removal on our side is technically feasible. We cannot control the entire public internet reachable through a proxy; for purely third-party sites you browse, send notices to that site's operator as well.
+We operate a notice-and-takedown process. When we receive a complete, good-faith copyright notice that identifies material we host or control, we review it and disable or remove access (for example by excluding a game from the catalog).
+
+Where reasonably available, we record or retain: title or game ID; delivery URL; source or provider notes; who added or requested it if known; permission/license status if we have it (often "unverified"); when it was listed; takedown or exclusion status; and the complaint itself. The purpose is to identify the copy, disable it, preserve the notice, reduce accidental re-addition, and contact an upstream source when that is appropriate. Incomplete records do not mean we will ignore a locatable notice.
+
+This policy describes our operations. It does not claim that every kind of content on the Service automatically qualifies for a particular statutory safe harbor. We still honor valid notices.
+
+We cannot control the entire public internet reachable through the proxy. For sites we do not host, send notices to that site's operator as well.
 
 
-4. Filing a DMCA Takedown Notice
+4. What We Can Disable
 
-To be valid under 17 U.S.C. § 512(c)(3), a notice must include substantially the following:
+This Policy covers material we host or control (for example: game files or embeds in our catalog, user avatars, comments, mirrored assets we store). If our UI specifically embeds or hosts a copy, include that URL or catalog title in your notice. For purely third-party sites you browse through the proxy, we are a conduit, not the host.
 
-(1) Identification of the copyrighted work claimed to have been infringed (or a representative list if multiple works on a single site are covered by one notice);
-(2) Identification of the material that is claimed to be infringing, and information reasonably sufficient to permit us to locate it (direct URLs, screenshot paths, catalog titles, file names, and timestamps help enormously);
+
+5. Filing a Copyright Notice
+
+Please include substantially the following (modeled on 17 U.S.C. § 512(c)(3) so we can act quickly):
+
+(1) Identification of the copyrighted work claimed to have been infringed (or a representative list if multiple works are covered by one notice);
+(2) Identification of the material that is claimed to be infringing, and information reasonably sufficient to permit us to locate it (direct URLs, catalog titles, game IDs, file names, and timestamps help);
 (3) Your mailing address, telephone number, and email address;
 (4) A statement that you have a good-faith belief that use of the material in the manner complained of is not authorized by the copyright owner, its agent, or the law;
 (5) A statement that the information in the notice is accurate, and under penalty of perjury, that you are authorized to act on behalf of the owner of an exclusive right that is allegedly infringed;
@@ -311,54 +347,67 @@ To be valid under 17 U.S.C. § 512(c)(3), a notice must include substantially th
 Send notices to:
 Email: ${LEGAL_DMCA_EMAIL}
 CC (optional): ${LEGAL_CONTACT_EMAIL}
-Subject line: DMCA Takedown Notice
+Subject line: Copyright Takedown Notice
 
-We aim to review complete notices within approximately 48–72 hours of receipt, excluding weekends/holidays, but timing is not guaranteed.
-
-
-5. Counter-Notification
-
-If you believe material was removed or disabled by mistake or misidentification, you may send a counter-notification including: your signature; identification of the removed material and where it appeared before removal; a statement under penalty of perjury that you have a good-faith belief the material was removed or disabled by mistake or misidentification; your name, address, and telephone number; and a statement that you consent to the jurisdiction of the Federal District Court for your address (or other competent court as required by law), and that you will accept service of process from the complainant. See 17 U.S.C. § 512(g).
+You may also use the in-product report control on a game, or POST a report through our published report channel. Email with the statements above is the complete method. We aim to review complete notices within approximately 48–72 hours of receipt, excluding weekends/holidays, but timing is not guaranteed. We do not automatically disable items from incomplete or abusive reports.
 
 
-6. Repeat Infringer Policy
+6. What We Do After a Valid Notice
 
-In appropriate circumstances, we terminate accounts and access of users who are repeat infringers. We may also remove catalog items, mirrors, or embeds proactively when we become aware of clear infringement.
+For material we host or control, we aim to:
+(1) identify the listing, file path, or play URL;
+(2) disable access (catalog exclusion and/or removal of hosted or embedded delivery);
+(3) preserve the complaint and related identifiers;
+(4) note the source or provider if we have one, and contact that party when useful;
+(5) keep the item from being casually re-listed;
+(6) consider a counter-notification only if one is actually submitted and legally appropriate.
+
+Disablement is not an admission of liability or of infringement.
 
 
-7. Misrepresentation (Section 512(f))
+7. Counter-Notification
+
+If you believe material was removed or disabled by mistake or misidentification, you may send a counter-notification including: your signature; identification of the removed material and where it appeared before removal; a statement under penalty of perjury that you have a good-faith belief the material was removed or disabled by mistake or misidentification; your name, address, and telephone number; and a statement that you consent to the jurisdiction of the Federal District Court for your address (or other competent court as required by law), and that you will accept service of process from the complainant. See 17 U.S.C. § 512(g) where applicable.
+
+
+8. Repeat Infringer Policy
+
+In appropriate circumstances, we terminate accounts and access of users who are repeat infringers. We may also remove catalog items, mirrors, or embeds when we become aware of a valid claim.
+
+
+9. Misrepresentation
 
 Knowingly materially misrepresenting that material is infringing — or was removed by mistake — may expose the notifier to liability for damages, including costs and attorneys' fees. Do not send bad-faith notices.
 
 
-8. Trademarks and Other Rights
+10. Trademarks and Other Rights
 
-For trademark, right-of-publicity, or similar complaints that are not pure DMCA copyright claims, email ${LEGAL_DMCA_EMAIL} with "IP Complaint" in the subject, a description of your rights, and the precise URLs. We evaluate these in good faith but may require court orders for contested disputes.
-
-
-9. Games, Apps, and Fan Content
-
-Many titles in educational/entertainment catalogs are third-party works. If you are a rights holder for a game, app, ROM, soundtrack, or asset appearing on our Service, a complete DMCA notice is the correct channel. We may remove, geo-restrict, or replace items without admitting liability.
+For trademark, right-of-publicity, or similar complaints that are not copyright claims, email ${LEGAL_DMCA_EMAIL} with "IP Complaint" in the subject, a description of your rights, and the precise URLs. We evaluate these in good faith but may require court orders for contested disputes.
 
 
-10. Proxy Browsing Disclaimer
+11. Games and Fan Content
 
-Browsing arbitrary third-party websites through a proxy does not make us the host of that website's content. Notices solely about destinations we do not store should be directed to the destination operator. If our UI specifically embeds or hosts a copy, include that URL in your notice.
+Many titles in the entertainment catalog are third-party works found via public lists or suggestions. If you are a rights holder, a complete notice is the correct channel. We may disable, geo-restrict, or replace items without admitting liability. Restoration after a valid notice requires a genuine basis (for example a counter-notice, a license, or clear misidentification) — not a new copy from the same unverified dump.
 
 
-11. Fair Use and Other Defenses
+12. Proxy Browsing Disclaimer
+
+Browsing arbitrary third-party websites through a proxy does not make us the host of that website's content. Notices solely about destinations we do not store should be directed to the destination operator. If we specifically embed or reverse-proxy a playable game URL in our catalog, include that catalog entry in the notice so we can disable the listing.
+
+
+13. Fair Use and Other Defenses
 
 Before filing, consider whether the use may be fair use, licensed, public domain, or otherwise authorized. When unsure, consult counsel. We are not your lawyer.
 
 
-12. Advertising Creatives
+14. Advertising Creatives
 
 Ads are frequently served by Ad Partners. Copyright complaints about an ad creative should identify the creative and, where possible, be sent both to us and to the responsible ad network. We will cooperate within reason but do not control every creative in partner inventories.
 
 
-13. Contact
+15. Contact
 
-DMCA agent email: ${LEGAL_DMCA_EMAIL}
+Copyright email: ${LEGAL_DMCA_EMAIL}
 General: ${LEGAL_CONTACT_EMAIL}
 Community: ${LEGAL_DISCORD}`;
 

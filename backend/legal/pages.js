@@ -257,7 +257,7 @@ export function renderLegalHtml(kind) {
     <nav class="nav-links">
       <a class="nav-link${kind === 'terms' ? ' active' : ''}" href="/terms">Terms</a>
       <a class="nav-link${kind === 'privacy' ? ' active' : ''}" href="/privacy-policy">Privacy</a>
-      <a class="nav-link${kind === 'dmca' ? ' active' : ''}" href="/dmca">DMCA</a>
+      <a class="nav-link${kind === 'dmca' ? ' active' : ''}" href="/dmca">Copyright</a>
     </nav>
   </header>
   <main class="stage">

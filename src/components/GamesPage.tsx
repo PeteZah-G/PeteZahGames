@@ -797,6 +797,9 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
               <div className="pt-4 pb-2">
                 <AdResponsiveBanner />
                 <AdNativeBar />
+                <p className="text-[10px] text-white/35 leading-relaxed mt-3 max-w-xl">
+                  Titles belong to their owners. Rights holders can report an issue from a game&apos;s controls or email our copyright address. We disable access after a valid notice.
+                </p>
               </div>
               {hasMore && (
                 <div ref={loadMoreRef} className="flex justify-center py-8">

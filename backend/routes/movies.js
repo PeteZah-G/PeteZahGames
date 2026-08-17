@@ -7,11 +7,45 @@ const TMDB_BASE = 'https://api.themoviedb.org/3';
 
 const cache = new Map();
 const CACHE_TTL = 1000 * 60 * 12;
+const WATCH_TTL = 1000 * 60 * 60 * 18;
 
-function cacheGet(key) {
+const PROVIDER_HOME = {
+  8: 'https://www.netflix.com',
+  9: 'https://www.primevideo.com',
+  15: 'https://www.hulu.com',
+  337: 'https://www.disneyplus.com',
+  1899: 'https://www.max.com',
+  384: 'https://www.max.com',
+  350: 'https://tv.apple.com',
+  2: 'https://tv.apple.com',
+  386: 'https://www.peacocktv.com',
+  387: 'https://www.peacocktv.com',
+  531: 'https://www.paramountplus.com',
+  43: 'https://www.starz.com',
+  37: 'https://www.paramountplus.com',
+  283: 'https://www.crunchyroll.com',
+  73: 'https://tubitv.com',
+  300: 'https://pluto.tv',
+  11: 'https://mubi.com',
+  34: 'https://mubi.com',
+  207: 'https://www.shudder.com',
+  526: 'https://www.amcplus.com',
+  257: 'https://www.fubo.tv',
+  188: 'https://www.youtube.com',
+  192: 'https://www.youtube.com',
+  3: 'https://play.google.com/store/movies',
+  10: 'https://www.amazon.com/gp/video',
+  7: 'https://www.vudu.com',
+  68: 'https://www.microsoft.com/store/movies-and-tv',
+  1796: 'https://www.netflix.com',
+  1825: 'https://www.primevideo.com',
+  175: 'https://www.netflix.com',
+};
+
+function cacheGet(key, ttl = CACHE_TTL) {
   const hit = cache.get(key);
   if (!hit) return null;
-  if (Date.now() - hit.at > CACHE_TTL) {
+  if (Date.now() - hit.at > ttl) {
     cache.delete(key);
     return null;
   }
@@ -20,7 +54,7 @@ function cacheGet(key) {
 
 function cacheSet(key, data) {
   cache.set(key, { at: Date.now(), data });
-  if (cache.size > 400) {
+  if (cache.size > 2500) {
     const first = cache.keys().next().value;
     cache.delete(first);
   }
@@ -39,12 +73,57 @@ function sanitizeQuery(q) {
     .slice(0, 120);
 }
 
+function sanitizeRegion(raw) {
+  const v = String(raw || 'US').trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(v)) return 'US';
+  return v;
+}
+
+function mapOffers(block, link) {
+  const groups = [
+    ['flatrate', 'subscription'],
+    ['ads', 'free'],
+    ['free', 'free'],
+    ['rent', 'rent'],
+    ['buy', 'buy'],
+  ];
+  const seen = new Set();
+  const offers = [];
+  for (const [key, group] of groups) {
+    const list = Array.isArray(block?.[key]) ? block[key] : [];
+    for (const row of list) {
+      const id = Number(row.provider_id);
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      const name = String(row.provider_name || '').slice(0, 80);
+      const home = PROVIDER_HOME[id] || link || '';
+      if (!name || !home) continue;
+      offers.push({
+        id,
+        name,
+        logo: typeof row.logo_path === 'string' ? row.logo_path : null,
+        url: home,
+        group,
+      });
+    }
+  }
+  return offers;
+}
+
+async function watchPayload(kind, id, region) {
+  const data = await fetchTMDB(`/${kind}/${id}/watch/providers`);
+  const block = data?.results?.[region] || data?.results?.US || {};
+  const link = typeof block.link === 'string' && /^https:\/\//i.test(block.link) ? block.link : '';
+  return { region, offers: mapOffers(block, link), link };
+}
+
 async function fetchTMDB(endpoint) {
   const TMDB_API_KEY = process.env.TMDB_API_KEY;
   if (!TMDB_API_KEY) {
     throw new Error('TMDB_API_KEY not configured');
   }
-  const cached = cacheGet(endpoint);
+  const ttl = endpoint.includes('/watch/providers') ? WATCH_TTL : CACHE_TTL;
+  const cached = cacheGet(endpoint, ttl);
   if (cached) return cached;
   const url = `${TMDB_BASE}${endpoint}${endpoint.includes('?') ? '&' : '?'}api_key=${TMDB_API_KEY}`;
   const res = await fetch(url, {
@@ -163,6 +242,30 @@ router.get('/tv/search', async (req, res) => {
   if (!q) return res.status(400).json({ error: 'Missing query parameter' });
   try {
     const data = await fetchTMDB(`/search/tv?query=${encodeURIComponent(q)}&include_adult=false`);
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/movie/:id/watch', async (req, res) => {
+  const id = sanitizeId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'Invalid id' });
+  try {
+    const data = await watchPayload('movie', id, sanitizeRegion(req.query.region));
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/tv/:id/watch', async (req, res) => {
+  const id = sanitizeId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'Invalid id' });
+  try {
+    const data = await watchPayload('tv', id, sanitizeRegion(req.query.region));
+    res.setHeader('Cache-Control', 'public, max-age=3600');
     res.json(data);
   } catch (e) {
     res.status(500).json({ error: e.message });

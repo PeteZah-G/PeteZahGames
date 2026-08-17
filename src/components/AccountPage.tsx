@@ -355,7 +355,7 @@ const NAV: { id: Section; label: string; icon: any; adminOnly?: boolean }[] = [
   { id: "get-links",  label: "Get Links",   icon: Link2 },
   { id: "achievements", label: "Achievements", icon: Trophy },
   { id: "appearance", label: "Appearance",  icon: Palette },
-  { id: "cloaking",   label: "Cloaking",    icon: Shield },
+  { id: "cloaking",   label: "Tab appearance", icon: Shield },
   { id: "behavior",   label: "Behavior",    icon: Sliders },
   { id: "shortcuts",  label: "Shortcuts",   icon: Keyboard },
   { id: "data",       label: "Data",        icon: Download },
@@ -541,6 +541,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   const [gameLive, setGameLive] = useState<any>(null);
   const [excludedGames, setExcludedGames] = useState<any[]>([]);
   const [excludedLoading, setExcludedLoading] = useState(false);
+  const [copyrightReports, setCopyrightReports] = useState<any[]>([]);
   const [resendBusy, setResendBusy] = useState(false);
 
   function hydrateProfile(u: AuthUser) {
@@ -950,12 +951,14 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
         fetch(url, { credentials: "include" }).then((r) => r.json()),
         fetch("/api/admin/game-live", { credentials: "include" }).then((r) => r.json()),
         fetch("/api/admin/games/excluded", { credentials: "include" }).then((r) => r.json()),
+        fetch("/api/admin/copyright/reports", { credentials: "include" }).then((r) => r.json()).catch(() => ({})),
       ])
-        .then(([stats, live, excl]) => {
+        .then(([stats, live, excl, reports]) => {
           if (cancelled) return;
           setGameStats(stats);
           setGameLive(live);
           setExcludedGames(Array.isArray(excl?.excluded) ? excl.excluded : []);
+          setCopyrightReports(Array.isArray(reports?.reports) ? reports.reports : []);
         })
         .catch(() => {
           if (!cancelled) {
@@ -1131,7 +1134,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
     e.preventDefault();
     setAuthErr(""); setAuthOk("");
     if (authMode === "signup" && !acceptedLegal) {
-      setAuthErr("Agree to the Terms, Privacy Policy, and DMCA Policy to create an account.");
+      setAuthErr("Agree to the Terms, Privacy Policy, and Copyright Policy to create an account.");
       return;
     }
     if (authMode === "signup") {
@@ -1995,7 +1998,8 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                 I agree to the{" "}
                 <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: C.text }} onClick={(e) => e.stopPropagation()}>Terms</a>,{" "}
                 <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{ color: C.text }} onClick={(e) => e.stopPropagation()}>Privacy</a>, and{" "}
-                <a href="/dmca" target="_blank" rel="noopener noreferrer" style={{ color: C.text }} onClick={(e) => e.stopPropagation()}>DMCA</a>.
+                <a href="/dmca" target="_blank" rel="noopener noreferrer" style={{ color: C.text }} onClick={(e) => e.stopPropagation()}>Copyright Policy</a>.
+                You must be 13 or older. If you are under 18, a parent or guardian should review these terms.
               </span>
             </label>
           )}
@@ -2540,8 +2544,8 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
             {section === "get-links" && (
               <div style={{ maxWidth: "520px" }}>
                 <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: "0 0 3px" }}>Get Links</h2>
-                <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 18px" }}>
-                  Verified accounts get {linksStatus?.weeklyLimit ?? 2} links per week. This week&apos;s claims stay visible until the week resets.
+                <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 18px", lineHeight: 1.5 }}>
+                  If one of our domains is filtered on a network, verified accounts can request a continuity link for that environment. {linksStatus?.weeklyLimit ?? 2} links per week. This is so you can keep reaching our Service — not permission to break a school or workplace policy.
                 </p>
 
                 {linksLoading && !linksStatus ? (
@@ -2686,7 +2690,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                       Request a link
                     </p>
                     <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
-                      <label style={{ display: "block", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: C.textMuted }}>Blocker</label>
+                      <label style={{ display: "block", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: C.textMuted }}>Network filter</label>
                       <select
                         value={selectedBlocker}
                         onChange={(e) => setSelectedBlocker(e.target.value)}
@@ -2779,8 +2783,10 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
 
             {section === "cloaking" && (
               <div style={{ maxWidth: "440px" }}>
-                <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: "0 0 3px" }}>Cloaking</h2>
-                <p style={{ fontSize: "11px", color: C.textSub, margin: "0 0 20px" }}>Disguise the tab to look like another site</p>
+                <h2 style={{ fontSize: "15px", fontWeight: 700, color: C.text, margin: "0 0 3px" }}>Tab appearance</h2>
+                <p style={{ fontSize: "11px", color: C.textSub, margin: "0 0 20px", lineHeight: 1.5 }}>
+                  Optional tab title and icon — the same kind of customization browsers allow. This does not hide activity from network monitoring.
+                </p>
 
                 <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px" }}>Quick Presets</p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", marginBottom: "18px" }}>
@@ -2803,14 +2809,14 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
-                  <Field label="Custom tab title" value={s.siteTitle || ""} onChange={(e: any) => setVal("siteTitle", e.target.value)} placeholder="e.g. Google Classroom" />
+                  <Field label="Custom tab title" value={s.siteTitle || ""} onChange={(e: any) => setVal("siteTitle", e.target.value)} placeholder="e.g. Research" />
                   <Field label="Custom favicon URL" value={s.siteLogo || ""} onChange={(e: any) => setVal("siteLogo", e.target.value)} placeholder="https://..." icon={Lock} />
                 </div>
 
                 <Divider />
-                <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "14px 0 6px" }}>About:Blank</p>
+                <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "14px 0 6px" }}>Blank window</p>
                 <p style={{ fontSize: "11px", color: C.textSub, margin: "0 0 10px" }}>
-                  Open the site disguised inside an about:blank popup. Any PeteZah link ending in <code style={{ fontSize: 10 }}>/#blank</code> does this automatically.
+                  Open this Service in a blank browser window. Links ending in <code style={{ fontSize: 10 }}>/#blank</code> do the same. This is a windowing preference, not a claim that activity is hidden.
                 </p>
                 <button onClick={openAboutBlank} style={{
                   display: "flex", alignItems: "center", gap: "8px", padding: "9px 16px", borderRadius: "8px", marginBottom: "18px",
@@ -2823,7 +2829,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
 
                 <Divider />
                 <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "14px 0 6px" }}>Panic Key</p>
-                <p style={{ fontSize: "11px", color: C.textSub, margin: "0 0 10px" }}>Press a key to instantly redirect the browser</p>
+                <p style={{ fontSize: "11px", color: C.textSub, margin: "0 0 10px" }}>Keyboard shortcut to leave this tab quickly</p>
                 <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: "10px", marginBottom: "4px" }}>
                   <Field label="Key" value={s.panicKey || ""} onChange={(e: any) => setVal("panicKey", e.target.value)} placeholder="q" maxLength={1} icon={KeyRound} />
                   <Field label="Redirect URL" value={s.panicUrl || ""} onChange={(e: any) => setVal("panicUrl", e.target.value)} placeholder="https://google.com" icon={Lock} />
@@ -3917,6 +3923,31 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                     ))}
                   </div>
                 )}
+
+                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "18px 0 8px" }}>
+                  Copyright reports ({copyrightReports.length})
+                </p>
+                {!copyrightReports.length ? (
+                  <p style={{ fontSize: 12, color: C.textMuted, margin: 0 }}>No reports yet. After a valid notice, suspend the game from the catalog.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: "32vh", overflowY: "auto" }}>
+                    {copyrightReports.map((r: any) => (
+                      <div key={r.id} style={{
+                        padding: "10px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.border}`,
+                      }}>
+                        <p style={{ margin: 0, fontSize: 12, color: C.text, fontWeight: 650 }}>
+                          {r.title || r.targetId || "Untitled"} · {r.status || "open"}
+                        </p>
+                        <p style={{ margin: "4px 0 0", fontSize: 10, color: C.textMuted }}>
+                          {r.email || "no email"} · {r.work || "work unspecified"} · {r.createdAt ? new Date(r.createdAt).toLocaleString() : ""}
+                        </p>
+                        <p style={{ margin: "6px 0 0", fontSize: 11, color: C.textSub, lineHeight: 1.4, whiteSpace: "pre-wrap" }}>
+                          {r.statement}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -3927,7 +3958,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                   Link Stats
                 </h2>
                 <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 16px" }}>
-                  Distribution across blockers · refreshes every 15s
+                  Distribution across continuity-link pools · refreshes every 15s
                 </p>
                 {linkStatsLoading && !linkStats ? (
                   <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
@@ -4196,8 +4227,8 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                   </button>
                 </div>
                 <p style={{ margin: "0 0 14px", fontSize: 12, color: C.textSub, lineHeight: 1.55, overflowWrap: "anywhere", wordBreak: "break-word" }}>
-                  PeteZah is a glass browser built for school-friendly browsing, games, music, and more.
-                  Huge thanks to the open projects that make the stack possible.
+                  PeteZah is a privacy-oriented browser with games, a licensed movie directory, optional music overlay, and general web access.
+                  Thanks to the open projects that make the stack possible.
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
                   {[
@@ -4222,7 +4253,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                   {[
                     ["/terms", "Terms of Service"],
                     ["/privacy-policy", "Privacy Policy"],
-                    ["/dmca", "DMCA"],
+                    ["/dmca", "Copyright Policy"],
                   ].map(([href, label]) => (
                     <a
                       key={href}

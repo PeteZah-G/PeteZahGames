@@ -143,6 +143,11 @@ import { createCapGateMiddleware, sendVerifyPage, requireGateUpgrade } from './m
 import { cleanupCapStore } from './cap/store.js';
 import { legalAcceptHandler, legalStatusHandler } from './legal/accept.js';
 import { redirectLegal, sendLegalPage } from './legal/pages.js';
+import {
+  copyrightReportHandler,
+  copyrightReportsAdminHandler,
+  copyrightReportLimiter,
+} from './api/copyright.js';
 
 const { createBareServer } = bareServerPkg;
 const SqliteStore = BetterSqlite3Session(session);
@@ -252,6 +257,8 @@ app.get('/privacy', redirectLegal('/privacy-policy'));
 app.get('/copyright', redirectLegal('/dmca'));
 app.get('/api/legal/status', legalStatusHandler);
 app.post('/api/legal/accept', legalAcceptHandler);
+app.post('/api/copyright/report', copyrightReportLimiter, copyrightReportHandler);
+app.get('/api/admin/copyright/reports', copyrightReportsAdminHandler);
 app.use('/cap', capRouter);
 app.use('/vendor/three', express.static(path.join(__dirname, '../node_modules/three/build'), { index: false, maxAge: '7d' }));
 app.use('/vendor/vanta', express.static(path.join(__dirname, '../node_modules/vanta/dist'), { index: false, maxAge: '7d' }));

@@ -13,7 +13,7 @@ export function legalStatusHandler(req, res) {
 export function legalAcceptHandler(req, res) {
   const accepted = req.body?.accepted === true || req.body?.accepted === 'true' || req.body?.accepted === 1;
   if (!accepted) {
-    return res.status(400).json({ error: 'You must accept the Terms, Privacy Policy, and DMCA Policy to continue.' });
+    return res.status(400).json({ error: 'You must accept the Terms, Privacy Policy, and Copyright Policy to continue.' });
   }
 
   const version = typeof req.body?.version === 'string' ? req.body.version.trim() : '';

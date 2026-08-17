@@ -49,7 +49,7 @@ const OPEN_EXACT = new Set([
   '/4f66ddd48bf4ee436b4ca095a86f40ff.html',
 ]);
 
-const OPEN_PREFIX = ['/cap/', '/api/verify-email', '/api/legal', '/vendor/', '/fonts/', '/storage/ag/'];
+const OPEN_PREFIX = ['/cap/', '/api/verify-email', '/api/legal', '/api/copyright', '/vendor/', '/fonts/', '/storage/ag/'];
 
 function isOpenPath(p) {
   if (OPEN_EXACT.has(p)) return true;
@@ -88,6 +88,10 @@ export function createCapGateMiddleware() {
     }
 
     if (p.startsWith('/assets/') || p.endsWith('.js') || p.endsWith('.css') || p.endsWith('.map') || p.endsWith('.woff2') || p.endsWith('.woff') || p.endsWith('.ttf')) {
+      return next();
+    }
+
+    if (hasValidGate(req) && wantsHtml(req)) {
       return next();
     }
 

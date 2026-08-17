@@ -70,7 +70,7 @@ export async function signupHandler(req, res) {
 
   if (!acceptedLegal) {
     return res.status(400).json({
-      error: 'You must agree to the Terms of Service, Privacy Policy, and DMCA Policy to create an account.',
+      error: 'You must agree to the Terms of Service, Privacy Policy, and Copyright Policy to create an account.',
     });
   }
 

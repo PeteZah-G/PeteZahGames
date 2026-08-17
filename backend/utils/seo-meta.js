@@ -13,11 +13,11 @@ export function isPeteZahHomeHost(host) {
 }
 
 export const EDU_SEO = {
-  title: "HypeStudy — Secure Study Platform for Students",
+  title: "HypeStudy — Private Research Browser",
   description:
-    "Create flashcards, take quizzes, track your progress with advanced analytics, and master any subject with confidence. Online learning tools for K-12, college, and lifelong learners.",
+    "A privacy-oriented browser for reading, research, and personal use. Browse with fewer interruptions when other hosts are filtered. Not a flashcard or quiz LMS.",
   keywords:
-    "study, flashcards, quiz, analytics, HypeStudy, learning, education, study tools, exam prep, student platform, online learning, academic success, tutoring, homework help, SAT prep, ACT prep, STEM education, curriculum, academic resources, e-learning",
+    "HypeStudy, private browser, research browser, reading, homework research, study, education, privacy, personal browsing, student research, K-12 resources, college reading",
   siteName: "HypeStudy",
   author: "HypeStudy",
   themeColor: "#f8f6f1",
@@ -26,27 +26,28 @@ export const EDU_SEO = {
   ogImage: "https://hypestudy.com/logo.png",
   ogImageWidth: "496",
   ogImageHeight: "503",
-  ogImageAlt: "HypeStudy Logo - Secure Study Platform",
+  ogImageAlt: "HypeStudy — private research browser",
   twitter: "@hypestudy",
   jsonLd: {
     "@context": "https://schema.org",
-    "@type": "EducationalOrganization",
+    "@type": "WebApplication",
     name: "HypeStudy",
+    applicationCategory: "BrowserApplication",
+    operatingSystem: "Web",
     description:
-      "Secure study platform offering flashcards, quizzes, analytics, and academic resources for students.",
+      "Privacy-oriented research browser for reading, homework, and personal browsing.",
     url: "https://hypestudy.com/",
     logo: "https://hypestudy.com/logo.png",
     image: "https://hypestudy.com/logo.png",
-    areaServed: "Worldwide",
   },
 };
 
 export const HOME_SEO = {
-  title: "PeteZah Games — Free Unblocked Games, Apps & Private Browser",
+  title: "PeteZah — Privacy Browser, Games, and the Open Web",
   description:
-    "Play free unblocked games, apps, movies, and music in a fast private browser. PeteZah Games is your all-in-one unblocked gaming and web hub — no downloads, works at school and work.",
+    "PeteZah is a privacy-oriented browser with HTML5 games, a licensed streaming-service movie directory, optional music overlay, and full-internet browsing. Use it lawfully.",
   keywords:
-    "PeteZah, PeteZah Games, unblocked games, free online games, unblocked apps, private browser, proxy browser, unblocked movies, free music, browser games, school games, unblocked at school, web games, HTML5 games",
+    "PeteZah, PeteZah Games, privacy browser, private browser, HTML5 games, online games, research browser, licensed streaming, movies directory, web browser, apps",
   siteName: "PeteZah Games",
   author: "PeteZah",
   themeColor: "#020810",
@@ -55,7 +56,7 @@ export const HOME_SEO = {
   ogImage: "https://petezahgames.com/og-share.png",
   ogImageWidth: "1200",
   ogImageHeight: "630",
-  ogImageAlt: "PeteZah Games — Free Unblocked Games and Private Browser",
+  ogImageAlt: "PeteZah — privacy browser and games",
   twitter: "@petezahgames",
   jsonLd: {
     "@context": "https://schema.org",
@@ -65,7 +66,7 @@ export const HOME_SEO = {
         name: "PeteZah Games",
         url: "https://petezahgames.com/",
         description:
-          "Free unblocked games, apps, and a private browser for school and everyday use.",
+          "Privacy-oriented browser with games, a licensed movie directory, and general web access.",
         image: {
           "@type": "ImageObject",
           url: "https://petezahgames.com/og-share.png",
@@ -85,7 +86,7 @@ export const HOME_SEO = {
         operatingSystem: "Web",
         offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
         description:
-          "A privacy-oriented browser with unblocked games, apps, movies, music, and AI tools.",
+          "A privacy-oriented browser with games, licensed streaming-service links, music overlay, and web access.",
         image: "https://petezahgames.com/og-share.png",
       },
       {
@@ -126,7 +127,7 @@ function stripSensitiveInlineScripts(html) {
     if (/type\s*=\s*["']application\/ld\+json["']/i.test(full)) return full;
     if (/src\s*=/i.test(full) && !body.trim()) return full;
     if (
-      /petezahgames|PeteZah|proxy browser|unblocked games|private browser/i.test(body) &&
+      /petezahgames|PeteZah|proxy browser|unblocked games|private browser|privacy browser/i.test(body) &&
       (/location\.hostname|seo\s*=|jsonLd|og:title|canonical/i.test(body) ||
         /petezahgames\.com/i.test(body))
     ) {
@@ -194,7 +195,7 @@ export function applySeoToHtml(html, host) {
   if (home) {
     out = out.replace(
       /<div class="education-is-key"[\s\S]*?<\/div>/gi,
-      `<div class="education-is-key" aria-hidden="true"><h1>PeteZah Games</h1><p>Free unblocked games, private browser, apps, movies, and music online.</p></div>`
+      `<div class="education-is-key" aria-hidden="true"><h1>PeteZah</h1><p>Privacy-oriented browser with games, a licensed movie directory, and general web access.</p></div>`
     );
   }
 

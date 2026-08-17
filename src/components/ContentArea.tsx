@@ -1258,6 +1258,7 @@ function TabPane({
         <GameViewerPage
           url={gameUrl}
           title={gameTitle}
+          gameId={params.get("gid")}
           onBack={() => onNavigate("petezah://games")}
         />
       </div>
