@@ -2060,6 +2060,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       }}
     >
       <motion.div
+        className="account-settings-nav"
         initial={{ x: -28, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
@@ -2077,7 +2078,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
           overflow: "hidden",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", marginBottom: "16px", paddingBottom: "14px", borderBottom: `1px solid ${C.border}` }}>
+        <div className="account-settings-nav-header" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", marginBottom: "16px", paddingBottom: "14px", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ position: "relative" }}>
             <div style={{
               width: "46px", height: "46px", borderRadius: "13px", overflow: "hidden",
@@ -2113,7 +2114,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
           </div>
         </div>
 
-        <nav style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: "2px", scrollbarWidth: "thin" }}>
+        <nav className="account-settings-nav-list" style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: "2px", scrollbarWidth: "thin" }}>
           {visibleSections.map(({ id, label, icon: Icon }, idx) => {
             const active = section === id;
             return (
@@ -2141,7 +2142,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
           })}
         </nav>
 
-        <button onClick={signout} style={{
+        <button onClick={signout} className="account-settings-signout" style={{
           display: "flex", alignItems: "center", gap: "7px", padding: "8px 10px", borderRadius: "7px",
           background: "transparent", border: `1px solid transparent`,
           color: C.textMuted, fontSize: "11px", fontWeight: 500, cursor: "pointer", marginTop: "6px", transition: "all 0.12s",
@@ -2152,7 +2153,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
         </button>
       </motion.div>
 
-      <div style={{
+      <div className="account-settings-content" style={{
         flex: 1,
         overflowY: "auto",
         padding: "26px 30px",
