@@ -36,8 +36,12 @@ export function toIPv4(ip, req = null) {
     const xff = req.headers['x-forwarded-for'];
     const cf = req.headers['cf-connecting-ip'];
     const real = req.headers['x-real-ip'];
-    if (xff) ip = xff.split(',')[0].trim();
-    else if (cf) ip = cf;
+    // cf-connecting-ip is set by cloudflare's edge and can't be spoofed by the
+    // client, x-forwarded-for can, a client can just send their own value and
+    // we'd trust it. check cf first so rate limits/bans/reputation can't be
+    // bypassed by forging the header.
+    if (cf) ip = cf;
+    else if (xff) ip = xff.split(',')[0].trim();
     else if (real) ip = real;
     else if (req.socket?.remoteAddress) ip = req.socket.remoteAddress;
   }
