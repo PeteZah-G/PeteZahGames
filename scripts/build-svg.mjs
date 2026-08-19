@@ -7,7 +7,6 @@ import dotenv from 'dotenv';
 import { baremuxPath } from '@mercuryworkshop/bare-mux/node';
 import { epoxyPath } from '@mercuryworkshop/epoxy-transport';
 import { libcurlPath } from '@mercuryworkshop/libcurl-transport';
-import { scramjetPath } from '@mercuryworkshop/scramjet/path';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 dotenv.config({ path: path.join(root, 'backend', '.env.production') });
@@ -54,7 +53,7 @@ function rmIf(p) {
 
 function writeWispConfig(file, wispPath) {
   const js =
-    '(()=>{var o=(window.__PZ_ORIGIN__||(location.protocol+"//"+location.host)).replace(/\\/+$/,"");var u=new URL(o);var ws=(u.protocol==="https:"?"wss://":"ws://")+u.host;window._CONFIG={wispurl:localStorage.getItem("proxServer")||ws+"' +
+    '(()=>{var o=(window.__PZ_ORIGIN__||(location.protocol+"//"+location.host)).replace(/\\/+$/,"");var u=new URL(o);var ws=(u.protocol==="https:"?"wss://":"ws://")+u.host;window._CONFIG={streamurl:localStorage.getItem("proxServer")||ws+"' +
     wispPath +
     '",bareurl:o+"/api/edge/"};})();\n';
   writeFileSync(file, js);
@@ -72,7 +71,7 @@ const out = path.join(root, 'svg');
 
 await run('npx', ['vite', 'build', '--mode', 'svg']);
 
-copyInto(scramjetPath, path.join(out, 'q9vx'));
+copyInto(path.join(root, 'public', 'q9vx'), path.join(out, 'q9vx'));
 copyInto(baremuxPath, path.join(out, 'm4thx'));
 copyInto(epoxyPath, path.join(out, 'e7px'));
 copyInto(libcurlPath, path.join(out, 'l9cx'));
@@ -104,14 +103,14 @@ for (const d of drop) rmIf(path.join(out, d));
 rmIf(path.join(out, 'static', 'uv'));
 
 const cfg = [
-  ['config.js', '/wisp/'],
-  ['static/alt-config-1.js', '/api/alt-wisp-1/'],
-  ['static/alt-config-2.js', '/api/alt-wisp-2/'],
-  ['static/alt-config-3.js', '/api/alt-wisp-3/'],
-  ['static/alt-config-4.js', '/api/alt-wisp-4/'],
-  ['static/alt-config-5.js', '/api/alt-wisp-5/'],
-  ['static/tor-config.js', '/api/wisp-tor/'],
-  ['static/google-config.js', '/api/wisp-premium/'],
+  ['config.js', '/api/websocket/'],
+  ['static/alt-config-1.js', '/api/websocket-1/'],
+  ['static/alt-config-2.js', '/api/websocket-2/'],
+  ['static/alt-config-3.js', '/api/websocket-3/'],
+  ['static/alt-config-4.js', '/api/websocket-4/'],
+  ['static/alt-config-5.js', '/api/websocket-5/'],
+  ['static/tor-config.js', '/api/websocket-tor/'],
+  ['static/google-config.js', '/api/websocket-premium/'],
 ];
 for (const [rel, wisp] of cfg) {
   const f = path.join(out, rel);

@@ -186,7 +186,7 @@ export default function ArcBrowser() {
     };
     const onMessage = (e: MessageEvent) => {
       const d = e.data;
-      if (d && d.source === "pz-scramjet-error" && d.action === "navigate" && typeof d.url === "string") {
+      if (d && d.source === "pz-duskline-error" && d.action === "navigate" && typeof d.url === "string") {
         let url = d.url.trim();
         if (/^petezah:\/\/[a-z0-9][a-z0-9+.-]*(?:[/?#][^\s]*)?$/i.test(url)) {
           if (url === "petezah://newtab") url = getHomeUrl();

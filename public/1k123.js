@@ -8,11 +8,26 @@ if (navigator.userAgent.includes('Firefox')) {
 var _base = self.location.pathname.replace(/[^/]*$/, '');
 var _p = _base + ['q', '9vx/'].join('');
 var _f = ['sj', '.all', '.js'].join('');
-importScripts(_p + _f);
+var _v = ['dl', '5'].join('');
+try {
+  importScripts(_p + _f + '?v=' + _v);
+} catch (e) {}
 
-var _lw = ['$', 'scr', 'amjet', 'Load', 'Worker'].join('');
-var _sw = ['Scr', 'amjet', 'Service', 'Worker'].join('');
-var _exports = self[_lw]();
+var _lw = ['$', 'dusk', 'line', 'Load', 'Worker'].join('');
+var _sw = ['Dusk', 'line', 'Service', 'Worker'].join('');
+var _boot = self[_lw];
+if (typeof _boot !== 'function') {
+  self.addEventListener('install', function (event) {
+    event.waitUntil(self.skipWaiting());
+  });
+  self.addEventListener('activate', function (event) {
+    event.waitUntil(self.clients.claim());
+  });
+  self.addEventListener('fetch', function (event) {
+    event.respondWith(fetch(event.request));
+  });
+} else {
+var _exports = _boot();
 var _engine = new _exports[_sw]();
 
 var _pref = _base + ['afs', 'd123', 'k2/'].join('');
@@ -33,7 +48,10 @@ function isAppShellRequest(request, url) {
   if (path.indexOf(_pref) === 0) return false;
   if (path === _base || path === _base + 'index.html' || path === _base + 'index.svg' || path === _base + 'new.svg' || path === _base + '1k123.js') return true;
   if (path.indexOf(_base + 'assets/') === 0) return true;
-  if (path.indexOf(_base + 'q9vx/') === 0) return true;
+  if (path.indexOf(_base + 'q9vx/') === 0) {
+    if (path.indexOf('.wasm') !== -1) return false;
+    return true;
+  }
   if (path.indexOf(_base + 'm4thx/') === 0) return true;
   if (path.indexOf(_base + 'e7px/') === 0) return true;
   if (path.indexOf(_base + 'l9cx/') === 0) return true;
@@ -177,7 +195,7 @@ self.addEventListener('message', function (msg) {
   if (data.type === 'playgroundData') {
     playgroundData = data;
   }
-  if (data.scramjet$type === 'loadConfig') {
+  if (data[['dusk', 'line', '$type'].join('')] === 'loadConfig') {
     var p = applyConfigMessage(data);
     if (typeof msg.waitUntil === 'function') {
       try {
@@ -213,3 +231,4 @@ _engine.addEventListener('request', function (e) {
     e.response.finalURL = e.url.toString();
   }
 });
+}

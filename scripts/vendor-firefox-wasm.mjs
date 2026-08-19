@@ -78,16 +78,20 @@ function patchJs(jsPath) {
   const oldWisp =
     'de=new URL("wisp/",location.href);de.protocol=location.protocol==="https:"?"wss:":"ws:";let y=de.href;const F=!0;F&&await fetch("https://sensible-ship-8305.puter.work/").then(r=>r.text()).then(r=>{y=r.trim()});';
   const neuWisp =
-    'de=new URL("/api/alt-wisp-3/",location.origin);de.protocol=location.protocol==="https:"?"wss:":"ws:";let y=de.href;const F=!1;';
+    'de=new URL("/api/websocket-3/",location.origin);de.protocol=location.protocol==="https:"?"wss:":"ws:";let y=de.href;const F=!1;';
   const legacyUkWisp =
+    'de=new URL("/api/websocket-1/",location.origin);de.protocol=location.protocol==="https:"?"wss:":"ws:";let y=de.href;const F=!1;';
+  const legacyAlt3 =
+    'de=new URL("/api/alt-wisp-3/",location.origin);de.protocol=location.protocol==="https:"?"wss:":"ws:";let y=de.href;const F=!1;';
+  const legacyAlt1 =
     'de=new URL("/api/alt-wisp-1/",location.origin);de.protocol=location.protocol==="https:"?"wss:":"ws:";let y=de.href;const F=!1;';
   if (s.includes(oldWisp)) {
     s = s.replace(oldWisp, neuWisp);
-    console.log('Patched wisp → /api/alt-wisp-3/ (Virginia)');
-  } else if (s.includes(legacyUkWisp)) {
-    s = s.replace(legacyUkWisp, neuWisp);
-    console.log('Migrated wisp UK → Virginia /api/alt-wisp-3/');
-  } else if (!(s.includes('/api/alt-wisp-3/') && s.includes('const F=!1;'))) {
+    console.log('Patched stream → /api/websocket-3/ (Virginia)');
+  } else if (s.includes(legacyUkWisp) || s.includes(legacyAlt1) || s.includes(legacyAlt3)) {
+    s = s.replace(legacyUkWisp, neuWisp).replace(legacyAlt1, neuWisp).replace(legacyAlt3, neuWisp);
+    console.log('Migrated stream → Virginia /api/websocket-3/');
+  } else if (!(s.includes('/api/websocket-3/') && s.includes('const F=!1;'))) {
     throw new Error('Could not find Puter wisp bootstrap to patch');
   }
 

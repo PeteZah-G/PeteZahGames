@@ -60,13 +60,13 @@
             return String.fromCharCode(n);
           }).join("");
         }
-        var loadCtrl = c([36, 115, 99, 114, 97, 109, 106, 101, 116, 76, 111, 97, 100, 67, 111, 110, 116, 114, 111, 108, 108, 101, 114]);
-        var ctrlName = c([83, 99, 114, 97, 109, 106, 101, 116, 67, 111, 110, 116, 114, 111, 108, 108, 101, 114]);
-        var muxName = c([66, 97, 114, 101, 77, 117, 120]);
-        var muxConn = c([66, 97, 114, 101, 77, 117, 120, 67, 111, 110, 110, 101, 99, 116, 105, 111, 110]);
-        var setT = c([115, 101, 116, 84, 114, 97, 110, 115, 112, 111, 114, 116]);
-        var streamKey = c([119, 105, 115, 112]);
-        var makeFrame = c([99, 114, 101, 97, 116, 101, 70, 114, 97, 109, 101]);
+        var loadCtrl = c([36, 100, 117, 115, 107, 108, 105, 110, 101, 76, 111, 97, 100, 67, 111, 110, 116, 114, 111, 108, 108, 101, 114]);
+        var ctrlName = c([68, 117, 115, 107, 108, 105, 110, 101, 67, 111, 110, 116, 114, 111, 108, 108, 101, 114]);
+        var muxName = c([67, 108, 105, 112, 77, 117, 120]);
+        var muxConn = c([67, 108, 105, 112, 77, 117, 120, 67, 111, 110, 110, 101, 99, 116, 105, 111, 110]);
+        var setT = c([98, 105, 110, 100, 84, 114, 97, 110, 115, 102, 101, 114]);
+        var streamKey = c([108, 105, 110, 107]);
+        var makeFrame = c([111, 112, 101, 110, 83, 117, 114, 102, 97, 99, 101]);
 
         var factory = window[loadCtrl];
         var packed = factory();
@@ -84,12 +84,12 @@
         var connection = new Mux[muxConn]("/m4thx/worker.js");
 
         var store = {
-          wispurl:
-            (typeof _CONFIG !== "undefined" && _CONFIG.wispurl) ||
+          streamurl:
+            (typeof _CONFIG !== "undefined" && _CONFIG.streamurl) ||
             (location.protocol === "https:" ? "wss" : "ws") +
               "://" +
               location.host +
-              "/wisp/",
+              "/api/websocket/",
           bareurl:
             (typeof _CONFIG !== "undefined" && _CONFIG.bareurl) ||
             location.protocol + "//" + location.host + "/api/edge/",
@@ -149,13 +149,13 @@
           while (attempts < maxAttempts) {
             try {
               var o1 = {};
-              o1[streamKey] = store.wispurl;
+              o1[streamKey] = store.streamurl;
               await connection[setT]("/e7px/index.mjs", [o1]);
               return;
             } catch (e1) {
               try {
                 var o2 = {};
-                o2[streamKey] = store.wispurl;
+                o2[streamKey] = store.streamurl;
                 await connection[setT]("/l9cx/index.mjs", [o2]);
                 return;
               } catch (e2) {

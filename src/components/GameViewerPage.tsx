@@ -66,7 +66,7 @@ function ControlBtn({
   );
 }
 
-function needsScramjetProxy(raw: string): boolean {
+function needsRemoteFrame(raw: string): boolean {
   try {
     const u = new URL(raw, window.location.origin);
     if (u.protocol !== "http:" && u.protocol !== "https:") return false;
@@ -155,7 +155,7 @@ export default function GameViewerPage({
   const [controlsVisible, setControlsVisible] = useState(true);
   const [muted, setMuted] = useState(false);
   const { unlocked, phase, finishLoading } = useInterstitialUnlock("game");
-  const useProxy = needsScramjetProxy(url);
+  const useProxy = needsRemoteFrame(url);
   const displayTitle = title?.trim() || "Game";
 
   const getActiveFrame = useCallback(() => {

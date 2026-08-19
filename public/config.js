@@ -1,7 +1,6 @@
-
 let host = location.protocol + '//' + location.host;
 
 let _CONFIG = {
-  wispurl: localStorage.getItem('proxServer') || (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/wisp/',
+  streamurl: localStorage.getItem('proxServer') || (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/api/websocket/',
   bareurl: host + '/api/edge/'
 };

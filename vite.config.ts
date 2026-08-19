@@ -5,6 +5,8 @@ import {
   existsSync,
   lstatSync,
   mkdirSync,
+  readdirSync,
+  readFileSync,
   renameSync,
   symlinkSync,
   unlinkSync,
@@ -97,6 +99,33 @@ function gameAssetsPassthrough(mode: string): Plugin {
   };
 }
 
+function banEngineTokens(): Plugin {
+  let outDir = "dist";
+  const banned = [/scramjet/i, /ultraviolet/i, /\/wisp\//i, /wisp-tor/i, /alt-wisp/i, /BareMux/, /setTransport/, /epoxy/i, /libcurl/i, /baremuxinit/];
+  return {
+    name: "ban-engine-tokens",
+    apply: "build",
+    configResolved(config) {
+      outDir = config.build.outDir;
+    },
+    closeBundle() {
+      const assets = path.resolve(outDir, "assets");
+      if (!existsSync(assets)) return;
+      const hits: string[] = [];
+      for (const name of readdirSync(assets)) {
+        if (!/^index-.*\.js$/.test(name)) continue;
+        const text = readFileSync(path.join(assets, name), "utf8");
+        for (const re of banned) {
+          if (re.test(text)) hits.push(`${name} ${re}`);
+        }
+      }
+      if (hits.length) {
+        throw new Error(`Compiled assets still contain blocked tokens:\n${hits.join("\n")}`);
+      }
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -105,37 +134,7 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
     proxy: {
-      "/wisp": {
-        target: "ws://localhost:8080",
-        changeOrigin: true,
-        ws: true,
-      },
-      "/api/wisp-tor": {
-        target: "ws://localhost:8080",
-        changeOrigin: true,
-        ws: true,
-      },
-      "/api/alt-wisp-1": {
-        target: "ws://localhost:8080",
-        changeOrigin: true,
-        ws: true,
-      },
-      "/api/alt-wisp-2": {
-        target: "ws://localhost:8080",
-        changeOrigin: true,
-        ws: true,
-      },
-      "/api/alt-wisp-3": {
-        target: "ws://localhost:8080",
-        changeOrigin: true,
-        ws: true,
-      },
-      "/api/alt-wisp-4": {
-        target: "ws://localhost:8080",
-        changeOrigin: true,
-        ws: true,
-      },
-      "/api/alt-wisp-5": {
+      "/api/websocket": {
         target: "ws://localhost:8080",
         changeOrigin: true,
         ws: true,
@@ -170,7 +169,7 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-  plugins: [gameAssetsPassthrough(mode), react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [gameAssetsPassthrough(mode), react(), banEngineTokens(), mode === "development" && componentTagger()].filter(Boolean),
   base: mode === "svg" ? "./" : "/",
   build: {
     outDir: mode === "svg" ? "svg" : "dist",

@@ -4201,7 +4201,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
                   {[
-                    ["Mercury Workshop", "Scramjet — web proxy engine"],
+                    ["Mercury Workshop", "Page rewrite engine"],
                     ["Waves Proxy / Mochi", "Proxy transport & networking"],
                     ["Puter", "Firefox WASM virtual machine"],
                     ["Selenite", "Large games catalog contributions"],

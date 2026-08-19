@@ -16,6 +16,7 @@ import {
   resolveUserAgent,
 } from "@/lib/siteThemes";
 import { applyVpnRegion } from "@/lib/vpn";
+import { PX } from "@/lib/px";
 import { originWsHost } from "@/lib/siteOrigin";
 import {
   SHORTCUT_META,
@@ -733,7 +734,7 @@ export function ShortcutsSettings({ C }: { C: C }) {
 
 export function ProxySettings(props: Props) {
   const { C, s, setS, setVal, applySettings, settingsSaved, applySettingsNow, toggle } = props;
-  const defaultWisp = useMemo(() => `${originWsHost()}/wisp/`, []);
+  const defaultRelay = useMemo(() => `${originWsHost()}${PX.stream}`, []);
 
   const uaPreview = resolveUserAgent();
   const eng = SEARCH_ENGINES.find((e) => e.id === (s.searchEngine || "ddg")) || SEARCH_ENGINES[0];
@@ -747,7 +748,7 @@ export function ProxySettings(props: Props) {
       </p>
 
       <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px" }}>
-        Custom Wisp
+        Custom relay
       </p>
       <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 8px", lineHeight: 1.45 }}>
         Default endpoint is shown below. Setting a custom server adds it as your preferred VPN option.
@@ -765,7 +766,7 @@ export function ProxySettings(props: Props) {
           wordBreak: "break-all",
         }}
       >
-        Default · {defaultWisp}
+        Default · {defaultRelay}
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         <div style={{ position: "relative", flex: 1 }}>
@@ -773,7 +774,7 @@ export function ProxySettings(props: Props) {
           <input
             value={s.proxServer || ""}
             onChange={(e) => setVal("proxServer", e.target.value)}
-            placeholder={defaultWisp}
+            placeholder={defaultRelay}
             style={{
               width: "100%",
               boxSizing: "border-box",
@@ -807,7 +808,7 @@ export function ProxySettings(props: Props) {
               const u = new URL(raw);
               if (u.protocol !== "wss:" && u.protocol !== "ws:") throw new Error("bad");
             } catch {
-              alert("Invalid Wisp URL");
+              alert("Invalid websocket URL");
               return;
             }
             localStorage.setItem("proxServer", raw);

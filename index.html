@@ -26,6 +26,58 @@ If you want to make the website better, the repository is open source, and my dm
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script>
+      (function () {
+        var k = String.fromCharCode(112, 122, 45, 101, 103);
+        var g = "dl5";
+        try {
+          if (localStorage.getItem(k) === g) return;
+        } catch (e) {
+          return;
+        }
+        window.__pzEgMig = 1;
+        try {
+          window.stop();
+        } catch (e) {}
+        var old = String.fromCharCode(36, 115, 99, 114, 97, 109, 106, 101, 116);
+        var neu = String.fromCharCode(36, 100, 117, 115, 107, 108, 105, 110, 101);
+        try {
+          indexedDB.deleteDatabase(old);
+          indexedDB.deleteDatabase(neu);
+        } catch (e) {}
+        var jobs = [];
+        if (navigator.serviceWorker) {
+          jobs.push(
+            navigator.serviceWorker.getRegistrations().then(function (rs) {
+              return Promise.all(
+                rs.map(function (r) {
+                  return r.unregister();
+                })
+              );
+            })
+          );
+        }
+        if (window.caches) {
+          jobs.push(
+            caches.keys().then(function (ks) {
+              return Promise.all(
+                ks.map(function (x) {
+                  return caches.delete(x);
+                })
+              );
+            })
+          );
+        }
+        Promise.all(jobs)
+          .catch(function () {})
+          .then(function () {
+            try {
+              localStorage.setItem(k, g);
+            } catch (e) {}
+            location.reload();
+          });
+      })();
+    </script>
+    <script>
       !(function (e, t, a, n) {
         ((e[n] = e[n] || []),
           e[n].push({ "gtm.start": new Date().getTime(), event: "gtm.js" }));

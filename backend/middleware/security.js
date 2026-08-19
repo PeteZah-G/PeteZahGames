@@ -260,7 +260,7 @@ function needsToken(reqPath) {
   if (reqPath.startsWith('/api/changelog')) return false;
   if (reqPath.startsWith('/api/settings')) return false;
   if (reqPath.startsWith('/api/me')) return false;
-  if (reqPath.startsWith('/api/websocket/')) return false;
+  if (reqPath.startsWith('/api/websocket')) return false;
   return false;
 }
 

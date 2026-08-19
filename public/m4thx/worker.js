@@ -36,7 +36,7 @@
   function c() {
     return new Error('there are no bare clients', {
       cause:
-        'No BareTransport was set. Try creating a BareMuxConnection and calling setTransport() or setManualTransport() on it before using BareClient.'
+        'No ClipTransport was set. Try creating a ClipMuxConnection and calling bindTransfer() or bindManualTransfer() on it before using ClipClient.'
     });
   }
   function r(t, a) {
@@ -52,7 +52,7 @@
       else if ('set' === i.type)
         try {
           const t = async function () {}.constructor;
-          if ('bare-mux-remote' === i.client.function) ((s = i.client.args[0]), (o = `bare-mux-remote (${i.client.args[1]})`));
+          if ('clip-mux-remote' === i.client.function) ((s = i.client.args[0]), (o = `clip-mux-remote (${i.client.args[1]})`));
           else {
             const e = new t(i.client.function),
               [a, n] = await e();
@@ -106,10 +106,10 @@
         }
     };
   }
-  (new BroadcastChannel('bare-mux').postMessage({ type: 'refreshPort' }),
+  (new BroadcastChannel('clip-mux').postMessage({ type: 'refreshPort' }),
     (self.onconnect = (e) => {
       l(e.ports[0]);
     }),
-    console.debug('bare-mux: running v2.1.7 (build c56d286)'));
+    console.debug('clip-mux: running v2.1.7 (build c56d286)'));
 })();
-//# sourceMappingURL=worker.js.map
+

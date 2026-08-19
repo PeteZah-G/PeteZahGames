@@ -1,7 +1,3 @@
-import { baremuxPath } from '@mercuryworkshop/bare-mux/node';
-import { epoxyPath } from '@mercuryworkshop/epoxy-transport';
-import { libcurlPath } from '@mercuryworkshop/libcurl-transport';
-import { scramjetPath } from '@mercuryworkshop/scramjet/path';
 import { server as wisp, logging } from '@mercuryworkshop/wisp-js/server';
 import bareServerPkg from '@tomphttp/bare-server-node';
 import compression from 'compression';
@@ -19,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import process from 'process';
 import BetterSqlite3Session from 'better-sqlite3-session-store';
 import httpProxy from 'http-proxy';
-import { PX } from './px-paths.js';
+import { PX, isStreamUpgrade, toWispLibUrl } from './px-paths.js';
 import { applySeoToHtml } from './utils/seo-meta.js';
 import fs, { existsSync } from 'node:fs';
 
@@ -172,7 +168,6 @@ wisp.options.parse_real_ip_from = ['127.0.0.1', '::1'];
 const bare = createBareServer(PX.edge, { websocket: { maxPayloadLength: 4096 } });
 const barePremium = createBareServer('/api/bare-premium/', { websocket: { maxPayloadLength: 4096 } });
 const app = express();
-const sciencePath = path.join(__dirname, '../public/science');
 const mathPath = path.join(__dirname, '../public/math');
 const q9Path = path.join(__dirname, '../public/q9vx');
 const m4Path = path.join(__dirname, '../public/m4thx');
@@ -310,16 +305,15 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(PX.core, express.static(q9Path, { index: false }));
-app.use(PX.core, express.static(sciencePath, { index: false }));
-app.use(PX.core, express.static(scramjetPath, { index: false }));
-app.use(PX.mux, express.static(m4Path, { index: false }));
+function engineNoStore(res) {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+}
+app.use(PX.core, express.static(q9Path, { index: false, setHeaders: engineNoStore }));
+app.use(PX.mux, express.static(m4Path, { index: false, setHeaders: engineNoStore }));
 app.use(PX.mux, express.static(mathPath, { index: false }));
-app.use(PX.mux, express.static(baremuxPath, { index: false }));
-app.use(PX.epoxy, express.static(e7Path, { index: false }));
-app.use(PX.epoxy, express.static(epoxyPath, { index: false }));
-app.use(PX.curl, express.static(l9Path, { index: false }));
-app.use(PX.curl, express.static(libcurlPath, { index: false }));
+app.use(PX.epoxy, express.static(e7Path, { index: false, setHeaders: engineNoStore }));
+app.use(PX.curl, express.static(l9Path, { index: false, setHeaders: engineNoStore }));
 app.use('/uploads', createUploadGuard(), express.static(path.join(__dirname, '../uploads'), { dotfiles: 'deny', index: false }));
 
 const firefoxWasmCandidates = [
@@ -352,16 +346,17 @@ if (firefoxWasmPath) {
   );
 }
 
-app.get(PX.sw, (_req, res) => {
+function sendSw(res) {
   res.setHeader('Content-Type', 'application/javascript');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.sendFile(path.join(__dirname, '../dist/1k123.js'));
-});
-app.get('/1k123.js', (_req, res) => {
-  res.setHeader('Content-Type', 'application/javascript');
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.sendFile(path.join(__dirname, '../dist/1k123.js'));
-});
+  res.setHeader('Pragma', 'no-cache');
+  const pub = path.join(__dirname, '../public/1k123.js');
+  const built = path.join(__dirname, '../dist/1k123.js');
+  res.sendFile(existsSync(pub) ? pub : built);
+}
+
+app.get(PX.sw, (_req, res) => sendSw(res));
+app.get('/1k123.js', (_req, res) => sendSw(res));
 
 app.use('/api', challengeRouter);
 app.use('/api', elevated2faGate);
@@ -631,11 +626,7 @@ server.on('upgrade', (req, socket, head) => {
     return socket.destroy();
   }
 
-  const isWispUrl =
-    url.startsWith(PX.stream) ||
-    url.startsWith('/ws-stream/') ||
-    /^\/api\/(stream-premium|alt-stream-\d+)\//.test(url) ||
-    /^\/api\/(wisp-premium|alt-wisp-\d+)\//.test(url);
+  const isWispUrl = isStreamUpgrade(url);
   const isBareUrl = bare.shouldRoute(req) || barePremium.shouldRoute(req);
 
   if (!isWispUrl && !isBareUrl) return socket.destroy();
@@ -664,13 +655,7 @@ server.on('upgrade', (req, socket, head) => {
   if (barePremium.shouldRoute(req)) return barePremium.routeUpgrade(req, socket, head);
 
   if (!url.startsWith('/wisp/')) {
-    req.url =
-      '/wisp/' +
-      url
-        .replace(/^\/ws-stream\//, '')
-        .replace(new RegExp('^' + PX.stream.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), '')
-        .replace(/^\/api\/(stream-premium|alt-stream-\d+)\//, '')
-        .replace(/^\/api\/(wisp-premium|alt-wisp-\d+)\//, '');
+    req.url = toWispLibUrl(url);
   }
   wisp.routeRequest(req, socket, head);
 });

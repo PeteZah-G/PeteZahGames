@@ -30,10 +30,10 @@ async function c() {
   } catch (e) {
     if (e instanceof AggregateError)
       throw (
-        console.error('bare-mux: failed to get a bare-mux SharedWorker MessagePort as all clients returned an invalid MessagePort.'),
+        console.error('clip-mux: failed to get a clip-mux SharedWorker MessagePort as all clients returned an invalid MessagePort.'),
         new Error('All clients returned an invalid MessagePort.')
       );
-    return (console.warn('bare-mux: failed to get a bare-mux SharedWorker MessagePort within 1s, retrying'), await c());
+    return (console.warn('clip-mux: failed to get a clip-mux SharedWorker MessagePort within 1s, retrying'), await c());
   }
 }
 function i(e) {
@@ -42,18 +42,18 @@ function i(e) {
       ((t.port1.onmessage = (t) => {
         'pong' === t.data.type && e();
       }),
-        setTimeout(r, 1500));
+      setTimeout(r, 4000));
     });
   return (o.call(e, { message: { type: 'ping' }, port: t.port2 }, [t.port2]), r);
 }
 function l(e, t) {
-  const a = new r(e, 'bare-mux-worker');
+  const a = new r(e, 'clip-mux-worker');
   return (
     t &&
       s.addEventListener('message', (t) => {
         if ('getPort' === t.data.type && t.data.port) {
-          console.debug('bare-mux: recieved request for port from sw');
-          const a = new r(e, 'bare-mux-worker');
+          console.debug('clip-mux: recieved request for port from sw');
+          const a = new r(e, 'clip-mux-worker');
           o.call(t.data.port, a.port, [a.port]);
         }
       }),
@@ -77,7 +77,7 @@ function d() {
 }
 class p {
   constructor(e) {
-    ((this.channel = new BroadcastChannel('bare-mux')),
+    ((this.channel = new BroadcastChannel('clip-mux')),
       e instanceof MessagePort || e instanceof Promise ? (this.port = e) : this.createChannel(e, !0));
   }
   createChannel(e, t) {
@@ -88,13 +88,13 @@ class p {
         }));
     else if (e && SharedWorker) {
       if (!e.startsWith('/') && !e.includes('://')) throw new Error('Invalid URL. Must be absolute or start at the root.');
-      ((this.port = l(e, t)), console.debug('bare-mux: setting localStorage bare-mux-path to', e), (a['bare-mux-path'] = e));
+      ((this.port = l(e, t)), console.debug('clip-mux: setting localStorage clip-mux-path to', e), (a['clip-mux-path'] = e));
     } else {
       if (!SharedWorker) throw new Error('Unable to get a channel to the SharedWorker.');
       {
-        const e = a['bare-mux-path'];
-        if ((console.debug('bare-mux: got localStorage bare-mux-path:', e), !e))
-          throw new Error('Unable to get bare-mux workerPath from localStorage.');
+        const e = a['clip-mux-path'];
+        if ((console.debug('clip-mux: got localStorage clip-mux-path:', e), !e))
+          throw new Error('Unable to get clip-mux workerPath from localStorage.');
         this.port = l(e, t);
       }
     }
@@ -105,7 +105,7 @@ class p {
       await i(this.port);
     } catch {
       return (
-        console.warn('bare-mux: Failed to get a ping response from the worker within 1.5s. Assuming port is dead.'),
+        console.warn('clip-mux: Failed to get a ping response from the worker within 1.5s. Assuming port is dead.'),
         this.createChannel(),
         await this.sendMessage(e, t)
       );
@@ -187,15 +187,15 @@ class m {
   async getTransport() {
     return (await this.worker.sendMessage({ type: 'get' })).name;
   }
-  async setTransport(e, t, r) {
-    await this.setManualTransport(
-      `\n\t\t\tconst { default: BareTransport } = await import("${e}");\n\t\t\treturn [BareTransport, "${e}"];\n\t\t`,
+  async bindTransfer(e, t, r) {
+    await this.bindManualTransfer(
+      `\n\t\t\tconst { default: ClipTransport } = await import("${e}");\n\t\t\treturn [ClipTransport, "${e}"];\n\t\t`,
       t,
       r
     );
   }
-  async setManualTransport(e, t, r) {
-    if ('bare-mux-remote' === e) throw new Error('Use setRemoteTransport.');
+  async bindManualTransfer(e, t, r) {
+    if ('clip-mux-remote' === e) throw new Error('Use setRemoteTransport.');
     await this.worker.sendMessage({ type: 'set', client: { function: e, args: t } }, r);
   }
   async setRemoteTransport(e, t) {
@@ -251,7 +251,7 @@ class m {
           u(r, e, 'websocket');
         }
     }),
-      await this.worker.sendMessage({ type: 'set', client: { function: 'bare-mux-remote', args: [r.port2, t] } }, [r.port2]));
+      await this.worker.sendMessage({ type: 'set', client: { function: 'clip-mux-remote', args: [r.port2, t] } }, [r.port2]));
   }
   getInnerPort() {
     return this.worker.port;
@@ -313,10 +313,10 @@ class k {
     }
   }
 }
-console.debug('bare-mux: running v2.1.7 (build c56d286)');
+console.debug('clip-mux: running v2.1.7 (build c56d286)');
 export {
-  k as BareClient,
-  m as BareMuxConnection,
+  k as ClipClient,
+  m as ClipMuxConnection,
   w as BareWebSocket,
   n as WebSocketFields,
   p as WorkerConnection,
@@ -325,4 +325,4 @@ export {
   e as maxRedirects,
   g as validProtocol
 };
-//# sourceMappingURL=index.mjs.map
+

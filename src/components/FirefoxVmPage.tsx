@@ -201,7 +201,7 @@ export default function FirefoxVmPage({ onNavigate }: { onNavigate: (url: string
           )}
         </button>
         <p className="text-[11px] mt-1" style={{ color: "hsl(216 15% 58%)" }}>
-          Uses Virginia Wisp · Credit{" "}
+          Uses Virginia relay · Credit{" "}
           <a
             href="https://github.com/HeyPuter/firefox-wasm"
             target="_blank"

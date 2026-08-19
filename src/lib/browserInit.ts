@@ -1,13 +1,17 @@
 import {
   PX,
+  ENGINE_GEN,
   loadCtrlFactory,
   ctrlClassName,
   openMuxConnection,
   setMuxTransport,
+  muxSetName,
+  cfgStreamUrl,
   defaultStreamUrl,
   defaultEdgeUrl,
   getMuxRoot,
 } from "./px";
+import { revealCodes } from "./mask";
 
 declare global {
   interface Window {
@@ -17,7 +21,7 @@ declare global {
 }
 
 function dbName() {
-  return String.fromCharCode(36, 115, 99, 114, 97, 109, 106, 101, 116);
+  return String.fromCharCode(36, 100, 117, 115, 107, 108, 105, 110, 101);
 }
 
 const STORES = [
@@ -101,6 +105,35 @@ function createDbWithStores(): Promise<void> {
   });
 }
 
+function oldDbName() {
+  return revealCodes([51, 101, 118, 102, 118, 123, 127, 113, 99]);
+}
+
+function engKey() {
+  return String.fromCharCode(112, 122, 45, 101, 103);
+}
+
+async function migrateEngineOnce(): Promise<void> {
+  if ((window as any).__pzEgMig) {
+    await new Promise(() => {});
+    return;
+  }
+  try {
+    if (localStorage.getItem(engKey()) === ENGINE_GEN) return;
+  } catch {
+    return;
+  }
+  (window as any).__pzEgMig = 1;
+  await clearServiceWorkers();
+  await deleteDb(oldDbName());
+  await deleteDb(dbName());
+  try {
+    localStorage.setItem(engKey(), ENGINE_GEN);
+  } catch {}
+  location.reload();
+  await new Promise(() => {});
+}
+
 async function repairPxStore() {
   for (let i = 0; i < 6; i++) {
     const { broken, version } = await openDbCheck();
@@ -128,8 +161,8 @@ async function clearServiceWorkers() {
 }
 
 async function registerSw() {
-  const ver = (window as any).__PZ_CACHE__;
-  const swUrl = ver ? `${PX.sw}?v=${encodeURIComponent(String(ver))}` : PX.sw;
+  const ver = [ENGINE_GEN, (window as any).__PZ_CACHE__].filter(Boolean).join("-");
+  const swUrl = `${PX.sw}?v=${encodeURIComponent(ver)}`;
   const reg = await navigator.serviceWorker.register(swUrl, {
     updateViaCache: "none",
     scope: (window as any).__PZ_ORIGIN__ ? new URL(".", location.href).pathname : "/",
@@ -170,18 +203,18 @@ async function setupMux() {
     localStorage.setItem(muxPathKey(), PX.muxWorker);
   } catch {}
 
-  const streamUrl = (window as any)._CONFIG?.wispurl || defaultStreamUrl();
+  const streamUrl = cfgStreamUrl((window as any)._CONFIG) || defaultStreamUrl();
   const edgeUrl = (window as any)._CONFIG?.bareurl || defaultEdgeUrl();
   const connection = openMuxConnection(PX.muxWorker);
   if (!connection) {
     throw new Error("mux connection unavailable");
   }
 
-  const setT = String.fromCharCode(115, 101, 116, 84, 114, 97, 110, 115, 112, 111, 114, 116);
+  const setT = muxSetName();
   let attempts = 0;
   while (attempts < 12) {
     try {
-      await setMuxTransport(connection, PX.epoxyMod, streamUrl);
+      await setMuxTransport(connection, PX.tunMod, streamUrl);
       return;
     } catch {
       try {
@@ -204,14 +237,12 @@ async function setupMux() {
 }
 
 function muxPathKey() {
-  return String.fromCharCode(
-    98, 97, 114, 101, 45, 109, 117, 120, 45, 112, 97, 116, 104
-  );
+  return revealCodes([116, 122, 124, 100, 58, 123, 96, 108, 58, 102, 116, 96, 127]);
 }
 
 function cfgMsgType() {
   return String.fromCharCode(
-    115, 99, 114, 97, 109, 106, 101, 116, 36, 116, 121, 112, 101
+    100, 117, 115, 107, 108, 105, 110, 101, 36, 116, 121, 112, 101
   );
 }
 
@@ -244,6 +275,7 @@ export async function ensureProxyEngine(): Promise<void> {
   if (ensurePromise) return ensurePromise;
 
   ensurePromise = (async () => {
+    await migrateEngineOnce();
     await loadScriptOnce(PX.mux + "index.js");
     await loadScriptOnce(PX.coreAll);
     await initBrowser();
@@ -264,6 +296,8 @@ export async function initBrowser() {
   if (window.__browserInitialized) return;
   window.__browserInitialized = true;
 
+  await migrateEngineOnce();
+
   try {
     await waitFor(() => typeof loadCtrlFactory() === "function", 8000);
   } catch (err) {
@@ -272,7 +306,7 @@ export async function initBrowser() {
   }
 
   try {
-    localStorage.removeItem(muxPathKey());
+    localStorage.setItem(muxPathKey(), PX.muxWorker);
   } catch {}
 
   const { broken, version } = await openDbCheck();
@@ -284,6 +318,13 @@ export async function initBrowser() {
   try {
     await registerSw();
   } catch {}
+
+  try {
+    await setupMux();
+  } catch {
+    window.__browserInitialized = false;
+    return;
+  }
 
   const factory = loadCtrlFactory();
   const loaded = factory();
@@ -302,6 +343,7 @@ export async function initBrowser() {
         await clearServiceWorkers();
         await repairPxStore();
         await registerSw();
+        await setupMux();
       }
       controller = new Ctrl({
         prefix: PX.prefix,
@@ -309,6 +351,11 @@ export async function initBrowser() {
           wasm: PX.coreWasm,
           all: PX.coreAll,
           sync: PX.coreSync,
+        },
+        flags: {
+          sourcemaps: false,
+          rewriterLogs: false,
+          captureErrors: true,
         },
       });
       await controller.init();
@@ -319,13 +366,6 @@ export async function initBrowser() {
   }
 
   if (!inited || !controller) {
-    window.__browserInitialized = false;
-    return;
-  }
-
-  try {
-    await setupMux();
-  } catch {
     window.__browserInitialized = false;
     return;
   }

@@ -39,7 +39,6 @@ const REMOTE = [
   "/cap/",
   "/storage/",
   "/uploads/",
-  "/wisp/",
   "/!!/",
   "/!cover!/",
   "/firefox-wasm",
@@ -141,7 +140,7 @@ function rewriteWs(raw: string) {
   } else {
     try {
       const u = new URL(url, location.href);
-      if (u.origin === location.origin && (u.pathname.startsWith("/wisp") || u.pathname.startsWith("/api/"))) {
+      if (u.origin === location.origin && u.pathname.startsWith("/api/")) {
         url = originWsHost() + u.pathname + u.search;
       }
     } catch {}

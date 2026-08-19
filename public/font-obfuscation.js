@@ -1,19 +1,19 @@
-const KEYWORDS = [
-  "games",
-  "game",
-  "proxy",
-  "proxies",
-  "petezah",
-  "scramjet",
-  "ultraviolet",
-  "unblocked",
-  "unblocker",
-  "bypass",
-  "unblock",
-  "filter",
-  "gaming",
-  "arcade",
-];
+function revealCodes(codes) {
+  let out = "";
+  for (let i = 0; i < codes.length; i++) {
+    out += String.fromCharCode(codes[i] ^ 23 ^ (i & 3));
+  }
+  return out;
+}
+
+const KEYWORDS = revealCodes([
+  112, 119, 120, 113, 107, 113, 116, 121, 114, 101, 105, 100, 101, 121, 109, 109, 107, 102, 103, 123,
+  111, 127, 112, 103, 107, 102, 112, 96, 114, 108, 116, 124, 107, 101, 118, 102, 118, 123, 127, 113,
+  99, 106, 96, 120, 99, 100, 116, 98, 126, 121, 121, 113, 99, 106, 96, 122, 117, 122, 122, 119, 124,
+  115, 113, 104, 98, 120, 119, 120, 120, 117, 126, 113, 101, 106, 119, 109, 103, 119, 102, 103, 107,
+  99, 123, 118, 123, 121, 118, 127, 107, 112, 124, 120, 99, 115, 103, 104, 112, 119, 120, 125, 121,
+  113, 105, 117, 101, 117, 116, 112, 114,
+]).split("|");
 
 const EXCLUDE =
   "script,style,noscript,code,pre,svg,svg *,textarea,option,iframe,canvas,title,head,head *,meta,link,[data-no-obfuscate],.no-obfuscate,[data-lucide],.lucide,.lucide-icon";

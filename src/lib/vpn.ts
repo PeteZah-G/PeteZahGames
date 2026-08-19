@@ -1,4 +1,4 @@
-import { PX, getMuxRoot, openMuxConnection, setMuxTransport } from "@/lib/px";
+import { PX, getMuxRoot, openMuxConnection, setMuxTransport, cfgStreamUrl } from "@/lib/px";
 import { ensureProxyEngine } from "@/lib/browserInit";
 import { originWsHost } from "@/lib/siteOrigin";
 
@@ -6,7 +6,7 @@ export type VpnRegionDef = {
   id: string;
   label: string;
   sublabel: string;
-  wisp: string;
+  relay: string;
   config: string;
   requiresAuth?: boolean;
 };
@@ -16,42 +16,42 @@ export const VPN_REGION_DEFS: VpnRegionDef[] = [
     id: "default",
     label: "Default",
     sublabel: "International",
-    wisp: "/wisp/",
+    relay: PX.stream,
     config: "config.js",
   },
   {
     id: "1",
     label: "Quebec",
     sublabel: "Canada",
-    wisp: "/api/alt-wisp-5/",
+    relay: "/api/websocket-5/",
     config: "/static/alt-config-5.js",
   },
   {
     id: "3",
     label: "Phoenix",
     sublabel: "USA",
-    wisp: "/api/alt-wisp-2/",
+    relay: "/api/websocket-2/",
     config: "/static/alt-config-2.js",
   },
   {
     id: "4",
     label: "Virginia",
     sublabel: "USA",
-    wisp: "/api/alt-wisp-3/",
+    relay: "/api/websocket-3/",
     config: "/static/alt-config-3.js",
   },
   {
     id: "5",
     label: "Durham",
     sublabel: "UK",
-    wisp: "/api/alt-wisp-1/",
+    relay: "/api/websocket-1/",
     config: "/static/alt-config-1.js",
   },
   {
     id: "tor",
     label: "Tor",
     sublabel: "Onion relay",
-    wisp: "/api/wisp-tor/",
+    relay: "/api/websocket-tor/",
     config: "/static/tor-config.js",
     requiresAuth: true,
   },
@@ -65,8 +65,8 @@ export function getVpnRegions(): VpnRegionDef[] {
       list.unshift({
         id: "custom",
         label: "Custom",
-        sublabel: "Your Wisp",
-        wisp: custom,
+        sublabel: "Your relay",
+        relay: custom,
         config: "config.js",
       });
     }
@@ -84,8 +84,8 @@ export async function applyVpnRegion(regionId: string) {
       ? {
           id: "custom",
           label: "Custom",
-          sublabel: "Your Wisp",
-          wisp: (localStorage.getItem("proxServer") || "").trim(),
+          sublabel: "Your relay",
+          relay: (localStorage.getItem("proxServer") || "").trim(),
           config: "config.js",
         }
       : VPN_REGION_DEFS.find((r) => r.id === regionId);
@@ -106,25 +106,27 @@ export async function applyVpnRegion(regionId: string) {
     });
 
     const cfg = (window as any)._CONFIG;
-    const wispUrl =
+    const streamUrl =
       regionId === "custom"
-        ? region.wisp
-        : cfg?.wispurl ?? originWsHost() + region.wisp;
+        ? region.relay
+        : cfgStreamUrl(cfg) ?? originWsHost() + region.relay;
     if (regionId === "custom") {
       try {
-        localStorage.setItem("proxServer", region.wisp);
-        if ((window as any)._CONFIG) (window as any)._CONFIG.wispurl = region.wisp;
+        localStorage.setItem("proxServer", region.relay);
+        if (cfg) {
+          cfg.streamurl = region.relay;
+        }
       } catch {}
     }
 
     if (getMuxRoot()) {
       const conn = openMuxConnection(PX.muxWorker);
-      await setMuxTransport(conn, PX.epoxyMod, wispUrl).catch(() => {});
+      await setMuxTransport(conn, PX.tunMod, streamUrl).catch(() => {});
     } else {
       await ensureProxyEngine().catch(() => {});
       if (getMuxRoot()) {
         const conn = openMuxConnection(PX.muxWorker);
-        await setMuxTransport(conn, PX.epoxyMod, wispUrl).catch(() => {});
+        await setMuxTransport(conn, PX.tunMod, streamUrl).catch(() => {});
       }
     }
 

@@ -15,7 +15,7 @@ export interface ProxyFrame {
   addEventListener?: (event: string, handler: (e: any) => void) => void;
 }
 
-export type ScramjetFrame = ProxyFrame;
+export type EngineFrame = ProxyFrame;
 
 export interface Tab {
   id: string;
