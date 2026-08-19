@@ -10,7 +10,7 @@ function dir() {
   }
 }
 
-export const ENGINE_GEN = "dl5";
+export const ENGINE_GEN = "dl6";
 
 export const PX = {
   get prefix() {
@@ -36,14 +36,20 @@ export const PX = {
   get coreWasm() {
     return dir() + "q9vx/sj.wasm.wasm";
   },
+  get muxIndex() {
+    return dir() + "m4thx/index.js?v=" + ENGINE_GEN;
+  },
+  get muxMod() {
+    return dir() + "m4thx/index.mjs?v=" + ENGINE_GEN;
+  },
   get muxWorker() {
-    return dir() + "m4thx/worker.js";
+    return dir() + "m4thx/worker.js?v=" + ENGINE_GEN;
   },
   get tunMod() {
-    return dir() + "e7px/index.mjs";
+    return dir() + "e7px/index.mjs?v=" + ENGINE_GEN;
   },
   get curlMod() {
-    return dir() + "l9cx/index.mjs";
+    return dir() + "l9cx/index.mjs?v=" + ENGINE_GEN;
   },
 };
 

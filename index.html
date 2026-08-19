@@ -28,8 +28,14 @@ If you want to make the website better, the repository is open source, and my dm
     <script>
       (function () {
         var k = String.fromCharCode(112, 122, 45, 101, 103);
-        var g = "dl5";
+        var g = "dl6";
         try {
+          var u = new URL(location.href);
+          if (u.searchParams.get("_eg") === g) {
+            u.searchParams.delete("_eg");
+            history.replaceState(null, "", u.pathname + u.search + u.hash);
+            return;
+          }
           if (localStorage.getItem(k) === g) return;
         } catch (e) {
           return;
@@ -67,13 +73,24 @@ If you want to make the website better, the repository is open source, and my dm
             })
           );
         }
+        [
+          "/q9vx/sj.all.js?v=" + g,
+          "/m4thx/index.js?v=" + g,
+          "/m4thx/worker.js?v=" + g,
+          "/e7px/index.mjs?v=" + g,
+          "/1k123.js?v=" + g,
+        ].forEach(function (src) {
+          jobs.push(fetch(src, { cache: "reload", credentials: "same-origin" }).catch(function () {}));
+        });
         Promise.all(jobs)
           .catch(function () {})
           .then(function () {
             try {
               localStorage.setItem(k, g);
             } catch (e) {}
-            location.reload();
+            var n = new URL(location.href);
+            n.searchParams.set("_eg", g);
+            location.replace(n.toString());
           });
       })();
     </script>

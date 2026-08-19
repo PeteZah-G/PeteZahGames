@@ -119,6 +119,12 @@ async function migrateEngineOnce(): Promise<void> {
     return;
   }
   try {
+    const u = new URL(location.href);
+    if (u.searchParams.get("_eg") === ENGINE_GEN) {
+      u.searchParams.delete("_eg");
+      history.replaceState(null, "", u.pathname + u.search + u.hash);
+      return;
+    }
     if (localStorage.getItem(engKey()) === ENGINE_GEN) return;
   } catch {
     return;
@@ -128,9 +134,18 @@ async function migrateEngineOnce(): Promise<void> {
   await deleteDb(oldDbName());
   await deleteDb(dbName());
   try {
+    await Promise.all(
+      [PX.coreAll, PX.muxIndex, PX.muxWorker, PX.tunMod, PX.sw + "?v=" + ENGINE_GEN].map((src) =>
+        fetch(src, { cache: "reload", credentials: "same-origin" }).catch(() => {})
+      )
+    );
+  } catch {}
+  try {
     localStorage.setItem(engKey(), ENGINE_GEN);
   } catch {}
-  location.reload();
+  const next = new URL(location.href);
+  next.searchParams.set("_eg", ENGINE_GEN);
+  location.replace(next.toString());
   await new Promise(() => {});
 }
 
@@ -218,7 +233,7 @@ async function setupMux() {
       return;
     } catch {
       try {
-        await connection[setT](PX.mux + "index.mjs", [edgeUrl]);
+        await connection[setT](PX.muxMod, [edgeUrl]);
         return;
       } catch {
         try {
@@ -276,7 +291,7 @@ export async function ensureProxyEngine(): Promise<void> {
 
   ensurePromise = (async () => {
     await migrateEngineOnce();
-    await loadScriptOnce(PX.mux + "index.js");
+    await loadScriptOnce(PX.muxIndex);
     await loadScriptOnce(PX.coreAll);
     await initBrowser();
     if (!(window as any).__pz) {

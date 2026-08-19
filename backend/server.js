@@ -305,15 +305,14 @@ app.use((req, res, next) => {
   next();
 });
 
-function engineNoStore(res) {
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
+function engineCache(res) {
+  res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
 }
-app.use(PX.core, express.static(q9Path, { index: false, setHeaders: engineNoStore }));
-app.use(PX.mux, express.static(m4Path, { index: false, setHeaders: engineNoStore }));
+app.use(PX.core, express.static(q9Path, { index: false, setHeaders: engineCache }));
+app.use(PX.mux, express.static(m4Path, { index: false, setHeaders: engineCache }));
 app.use(PX.mux, express.static(mathPath, { index: false }));
-app.use(PX.epoxy, express.static(e7Path, { index: false, setHeaders: engineNoStore }));
-app.use(PX.curl, express.static(l9Path, { index: false, setHeaders: engineNoStore }));
+app.use(PX.epoxy, express.static(e7Path, { index: false, setHeaders: engineCache }));
+app.use(PX.curl, express.static(l9Path, { index: false, setHeaders: engineCache }));
 app.use('/uploads', createUploadGuard(), express.static(path.join(__dirname, '../uploads'), { dotfiles: 'deny', index: false }));
 
 const firefoxWasmCandidates = [
@@ -558,7 +557,9 @@ if (IS_DEV) {
       res.setHeader('Expires', '0');
     }
     const raw = readIndexHtml();
-    if (!raw) return res.sendFile(indexPath);
+    if (!raw) {
+      return res.status(503).type('text/plain').send('Site updating, retry in a moment');
+    }
     res.type('html').send(applySeoToHtml(raw, req.headers.host || req.hostname));
   });
 }
