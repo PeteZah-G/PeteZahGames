@@ -12,6 +12,7 @@ import {
   getMuxRoot,
 } from "./px";
 import { revealCodes } from "./mask";
+import { urlCodecDecode, urlCodecEncode } from "./urlCodec";
 
 declare global {
   interface Window {
@@ -423,6 +424,10 @@ export async function initBrowser() {
           sourcemaps: false,
           rewriterLogs: false,
           captureErrors: true,
+        },
+        codec: {
+          encode: urlCodecEncode,
+          decode: urlCodecDecode,
         },
       });
       await controller.init();
