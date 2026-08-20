@@ -36,6 +36,56 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+let proxyArmed = false;
+let proxyArmWaiters: Array<() => void> = [];
+
+function markProxyArmed() {
+  if (proxyArmed) return;
+  proxyArmed = true;
+  const waiters = proxyArmWaiters;
+  proxyArmWaiters = [];
+  for (const w of waiters) w();
+}
+
+function installProxyArmCapture() {
+  if (typeof document === "undefined") return;
+  const arm = () => markProxyArmed();
+  for (const evt of ["pointerdown", "keydown", "click"] as const) {
+    document.addEventListener(evt, arm, { capture: true, passive: true });
+  }
+}
+
+installProxyArmCapture();
+
+export function armProxySession() {
+  markProxyArmed();
+}
+
+async function waitForProxyArm(timeoutMs = 120000): Promise<void> {
+  if (proxyArmed) return;
+  try {
+    if (navigator.serviceWorker?.controller) {
+      markProxyArmed();
+      return;
+    }
+  } catch {}
+  await new Promise<void>((resolve, reject) => {
+    if (proxyArmed) {
+      resolve();
+      return;
+    }
+    const timer = setTimeout(() => {
+      proxyArmWaiters = proxyArmWaiters.filter((w) => w !== done);
+      reject(new Error("proxy arm timeout"));
+    }, timeoutMs);
+    const done = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    proxyArmWaiters.push(done);
+  });
+}
+
 function deleteDb(name: string): Promise<void> {
   return new Promise((resolve) => {
     try {
@@ -176,6 +226,7 @@ async function clearServiceWorkers() {
 }
 
 async function registerSw() {
+  await waitForProxyArm();
   const ver = [ENGINE_GEN, (window as any).__PZ_CACHE__].filter(Boolean).join("-");
   const swUrl = `${PX.sw}?v=${encodeURIComponent(ver)}`;
   const reg = await navigator.serviceWorker.register(swUrl, {
@@ -290,6 +341,7 @@ export async function ensureProxyEngine(): Promise<void> {
   if (ensurePromise) return ensurePromise;
 
   ensurePromise = (async () => {
+    await waitForProxyArm();
     await migrateEngineOnce();
     await loadScriptOnce(PX.muxIndex);
     await loadScriptOnce(PX.coreAll);
