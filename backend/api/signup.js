@@ -102,13 +102,17 @@ export async function signupHandler(req, res) {
     const now = Date.now();
     const ip = clientIp || 'unknown';
 
-    const isFirstUser = db.prepare('SELECT COUNT(*) AS count FROM users').get().count === 0;
-    const isAdmin = isFirstUser || isOwnerEmail(email);
-
-    db.prepare(`
-      INSERT INTO users (id, email, password_hash, username, created_at, updated_at, is_admin, email_verified, school, age, ip)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(userId, email, passwordHash, username, now, now, isAdmin ? 1 : 0, 0, school || null, age || null, ip);
+    const insertUser = db.transaction(() => {
+      const count = db.prepare('SELECT COUNT(*) AS count FROM users').get().count;
+      const isFirstUser = count === 0;
+      const isAdmin = isFirstUser || isOwnerEmail(email);
+      db.prepare(`
+        INSERT INTO users (id, email, password_hash, username, created_at, updated_at, is_admin, email_verified, school, age, ip)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(userId, email, passwordHash, username, now, now, isAdmin ? 1 : 0, 0, school || null, age || null, ip);
+      return { isAdmin };
+    });
+    insertUser();
 
     let emailSent = true;
     try {

@@ -1,10 +1,9 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
 import * as OTPAuth from 'otpauth';
+import { getAppPepper } from './secrets.js';
 
 function totpKey() {
-  return createHash('sha256')
-    .update(String(process.env.SESSION_SECRET || process.env.TOKEN_SECRET || 'petezah-totp'))
-    .digest();
+  return createHash('sha256').update(getAppPepper('totp')).digest();
 }
 
 export function encryptTotpSecret(plain) {

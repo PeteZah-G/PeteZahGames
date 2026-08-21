@@ -24,12 +24,20 @@ pub fn is_blocked_target(url: &Url) -> bool {
             let h = host.to_ascii_lowercase();
             h == "localhost"
                 || h == "metadata.google.internal"
+                || h == "metadata.google"
+                || h == "kubernetes.default"
+                || h == "kubernetes.default.svc"
                 || h.ends_with(".localhost")
                 || h.ends_with(".local")
                 || h.ends_with(".internal")
                 || h.ends_with(".lan")
                 || h.ends_with(".home")
                 || h.ends_with(".corp")
+                || h.ends_with(".intranet")
+                || h.ends_with(".localdomain")
+                || h.ends_with(".svc")
+                || h.ends_with(".cluster.local")
+                || h == "0.0.0.0"
         }
         Some(url::Host::Ipv4(ip)) => {
             ip.is_loopback()

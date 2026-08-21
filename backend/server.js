@@ -1,10 +1,10 @@
+import './load-env.js';
 import { server as wisp, logging } from '@mercuryworkshop/wisp-js/server';
 import bareServerPkg from '@tomphttp/bare-server-node';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import { Client, GatewayIntentBits } from 'discord.js';
-import dotenv from 'dotenv';
 import express from 'express';
 import session from 'express-session';
 import { randomBytes } from 'crypto';
@@ -23,7 +23,8 @@ import { createRouteTimingMiddleware } from './utils/route-metrics.js';
 import { createCorsConfig, createSecurityHeaders, createUploadGuard, wrapCrossSiteCookies } from './middleware/http-security.js';
 import { attachSvgSessionSid, injectSvgSessionCookie } from './utils/svg-session.js';
 import { ddosShield } from './security/ddos-shield.js';
-import { toIPv4, systemState, createGateMiddleware, createMemoryProtection, checkCircuitBreaker, checkSystemPressure, cleanupSecurityMaps, isTrustedWS, adjustPowDifficulty, isKillSwitchUrlExempt, updateIPReputation } from './middleware/security.js';
+import { toIPv4, systemState, createGateMiddleware, createMemoryProtection, checkCircuitBreaker, checkSystemPressure, cleanupSecurityMaps, isTrustedWS, adjustPowDifficulty, isKillSwitchUrlExempt, updateIPReputation, getTokenSecret } from './middleware/security.js';
+import { assertProductionSecrets } from './utils/secrets.js';
 import { setShieldRef } from './utils/shield-ref.js';
 import {
   getAdminOverviewHandler,
@@ -31,7 +32,7 @@ import {
   setKillSwitchHandler,
   getAdminRouteMetricsHandler,
 } from './api/admin-dashboard.js';
-import { authLimiter, createApiLimiter, createAiLimiter, signupLimiter, localStorageLimiter, pfpLimiter, securityActionLimiter, adminOverviewLimiter, aiConversationsLimiter, musicBrowseLimiter, musicSearchLimiter, musicPlayLimiter } from './middleware/rate-limit.js';
+import { authLimiter, signinLimiter, createApiLimiter, createAiLimiter, signupLimiter, localStorageLimiter, pfpLimiter, securityActionLimiter, adminOverviewLimiter, aiConversationsLimiter, musicBrowseLimiter, musicSearchLimiter, musicPlayLimiter } from './middleware/rate-limit.js';
 import challengeRouter from './routes/challenge.js';
 import aiRouter from './routes/ai.js';
 import moviesRouter from './routes/movies.js';
@@ -146,14 +147,8 @@ const { createBareServer } = bareServerPkg;
 const SqliteStore = BetterSqlite3Session(session);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-dotenv.config({ path: path.join(__dirname, '.env.production') });
-dotenv.config({ path: path.join(__dirname, '.env') });
-
-if (!process.env.TOKEN_SECRET) throw new Error('TOKEN_SECRET must be set');
-if (!process.env.TMDB_API_KEY) throw new Error('TMDB_API_KEY must be set');
-if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
-  throw new Error('SESSION_SECRET must be set in production');
-}
+assertProductionSecrets();
+getTokenSecret();
 
 logging.set_level(process.env.WISP_DEBUG === '1' ? logging.INFO : logging.ERROR);
 wisp.options.allow_private_ips = false;
@@ -233,10 +228,10 @@ app.use(session({
   saveUninitialized: false,
   name: 'pz.sid',
   cookie: {
-    secure: 'auto',
+    secure: process.env.NODE_ENV === 'production' ? true : 'auto',
     httpOnly: true,
     sameSite: 'lax',
-    maxAge: 14 * 24 * 60 * 60 * 1000,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
   },
   rolling: true,
 }));
@@ -384,7 +379,7 @@ app.use('/api/music', musicRouter);
 app.use('/api/search', searchSuggestRouter);
 
 app.post('/api/signup', signupLimiter, signupHandler);
-app.post('/api/signin', signinHandler);
+app.post('/api/signin', signinLimiter, signinHandler);
 app.post('/api/signout', signoutHandler);
 app.get('/api/verify-email', verifyEmailHandler);
 app.post('/api/verify-email/resend', authLimiter, resendVerificationHandler);

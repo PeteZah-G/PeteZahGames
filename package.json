@@ -89,7 +89,7 @@
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
     "node-fetch": "^3.3.2",
-    "nodemailer": "^8.0.1",
+    "nodemailer": "^9.0.5",
     "otpauth": "^9.5.1",
     "pako": "2.1.0",
     "qrcode": "^1.5.4",

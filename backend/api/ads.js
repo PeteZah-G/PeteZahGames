@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import db from '../db.js';
 import { getClientIP } from '../utils/client-ip.js';
 import { toIPv4 } from '../middleware/security.js';
+import { getAppPepper } from '../utils/secrets.js';
 
 const WINDOW_MS = 5 * 60 * 1000;
 const MAX_PER_WINDOW = 2;
@@ -51,7 +52,7 @@ function subjectKey(req) {
 }
 
 function visitorHash(key) {
-  const pepper = String(process.env.SESSION_SECRET || process.env.TOKEN_SECRET || 'pz').slice(0, 64);
+  const pepper = getAppPepper('ads').slice(0, 64);
   return createHash('sha256').update(`${pepper}\0${key}`).digest('hex').slice(0, 24);
 }
 

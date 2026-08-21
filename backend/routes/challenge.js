@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { randomBytes, createHmac } from 'crypto';
 import rateLimit from 'express-rate-limit';
-import { toIPv4, createToken, verifyToken, extractToken, systemState, TOKEN_SECRET, checkSystemPressure } from '../middleware/security.js';
+import { toIPv4, createToken, systemState, getTokenSecret } from '../middleware/security.js';
 
 const router = Router();
 
@@ -28,7 +28,8 @@ router.post('/bot-verify', (req, res) => {
 
   if (leading >= required && timingOk) {
     const ip = toIPv4(null, req);
-    const fp = createHmac('sha256', TOKEN_SECRET).update(ip + (req.headers['user-agent'] || '')).digest('hex').slice(0, 16);
+    const secret = getTokenSecret();
+    const fp = createHmac('sha256', secret).update(ip + (req.headers['user-agent'] || '')).digest('hex').slice(0, 16);
     const token = createToken({ http: true, ws: true, fp });
     systemState.lastPowSolve.set(ip, Date.now());
     systemState.trustedClients.add(fp);

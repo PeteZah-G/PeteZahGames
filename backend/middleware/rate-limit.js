@@ -13,6 +13,18 @@ export const authLimiter = rateLimit({
   }
 });
 
+export const signinLimiter = rateLimit({
+  windowMs: 15 * 60000,
+  max: 10,
+  keyGenerator: req => toIPv4(null, req),
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    updateIPReputation(toIPv4(null, req), -10);
+    res.status(429).json({ error: 'Too many sign-in attempts. Try again later.' });
+  },
+});
+
 export const signupLimiter = rateLimit({
   windowMs: 3600000,
   max: 3,

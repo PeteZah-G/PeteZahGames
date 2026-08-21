@@ -13,6 +13,9 @@ cd backend/mochi
 cargo build --release
 # point your process manager at:
 #   backend/mochi/target/release/mochi
+# with MOCHI_PORT=3005
 ```
 
 Do not run `target/debug/mochi` in production.
+
+Mochi blocks private/loopback/metadata hosts and common admin ports on upstream fetches.

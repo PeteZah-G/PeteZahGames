@@ -2,7 +2,18 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import fetch from 'node-fetch';
 import { blockIPKernel } from '../security/xdp-integration.js';
 
+export function getTokenSecret() {
+  const s = process.env.TOKEN_SECRET || '';
+  if (!s || s.length < 24) {
+    throw new Error('TOKEN_SECRET must be set (24+ characters)');
+  }
+  TOKEN_SECRET = s;
+  return s;
+}
+
+/** @deprecated Prefer getTokenSecret(); refreshed on first getTokenSecret() call. */
 export let TOKEN_SECRET = process.env.TOKEN_SECRET || '';
+
 const TOKEN_VALIDITY = 3600000;
 const BASE_POW_DIFFICULTY = 16;
 const MAX_POW_DIFFICULTY = 22;
@@ -49,8 +60,19 @@ export function toIPv4(ip, req = null) {
 
 export function createToken(features = { http: true, ws: true }) {
   const now = Date.now();
-  const payload = JSON.stringify({ iat: now, exp: now + TOKEN_VALIDITY, features });
-  const sig = createHmac('sha256', TOKEN_SECRET).update(payload).digest('base64url');
+  const secret = getTokenSecret();
+  const { fp, ...feats } = features && typeof features === 'object' ? features : {};
+  const body = {
+    iat: now,
+    exp: now + TOKEN_VALIDITY,
+    features: {
+      http: !!feats.http,
+      ws: !!feats.ws,
+    },
+  };
+  if (typeof fp === 'string' && fp.length >= 8 && fp.length <= 64) body.fp = fp;
+  const payload = JSON.stringify(body);
+  const sig = createHmac('sha256', secret).update(payload).digest('base64url');
   return `${Buffer.from(payload).toString('base64url')}.${sig}`;
 }
 
@@ -59,10 +81,11 @@ export function verifyToken(token, req) {
   const parts = token.split('.');
   if (parts.length !== 2) return null;
   try {
+    const secret = getTokenSecret();
     if (parts[0].length > 512 || parts[1].length > 128) return null;
     const payload = Buffer.from(parts[0], 'base64url').toString('utf8');
     if (payload.length > 1024) return null;
-    const expected = createHmac('sha256', TOKEN_SECRET).update(payload).digest('base64url');
+    const expected = createHmac('sha256', secret).update(payload).digest('base64url');
     if (parts[1].length !== expected.length) return null;
     if (!timingSafeEqual(Buffer.from(parts[1]), Buffer.from(expected))) return null;
     const data = JSON.parse(payload);
@@ -73,7 +96,7 @@ export function verifyToken(token, req) {
     if (req && data.fp) {
       const ip = toIPv4(null, req);
       const ua = req.headers['user-agent'] || '';
-      const fp = createHmac('sha256', TOKEN_SECRET).update(ip + ua).digest('hex').slice(0, 16);
+      const fp = createHmac('sha256', secret).update(ip + ua).digest('hex').slice(0, 16);
       if (data.fp.length !== fp.length) return null;
       if (!timingSafeEqual(Buffer.from(data.fp), Buffer.from(fp))) return null;
     }
