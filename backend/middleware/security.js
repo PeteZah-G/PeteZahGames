@@ -334,10 +334,19 @@ export function createMemoryProtection(shield) {
       shield.incrementBlocked(toIPv4(null, req), 'payload_oversized');
       return res.status(413).json({ error: 'Request too large' });
     }
-    const totalHeaderSize = Object.entries(req.headers).reduce((sum, [k, v]) => {
-      if (k.toLowerCase() === 'cookie') return sum;
-      return sum + k.length + (Array.isArray(v) ? v.join('').length : String(v).length);
-    }, 0);
+    let totalHeaderSize = 0;
+    const headers = req.headers;
+    for (const k in headers) {
+      if (k === 'cookie' || k === 'Cookie') continue;
+      const v = headers[k];
+      totalHeaderSize += k.length;
+      if (Array.isArray(v)) {
+        for (let i = 0; i < v.length; i++) totalHeaderSize += String(v[i]).length;
+      } else if (v != null) {
+        totalHeaderSize += String(v).length;
+      }
+      if (totalHeaderSize > MAX_HEADER_SIZE) break;
+    }
     if (totalHeaderSize > MAX_HEADER_SIZE) {
       updateIPReputation(toIPv4(null, req), -15);
       shield.incrementBlocked(toIPv4(null, req), 'header_oversized');

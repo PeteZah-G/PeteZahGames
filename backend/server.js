@@ -19,6 +19,7 @@ import { PX, isStreamUpgrade, toWispLibUrl } from './px-paths.js';
 import { applySeoToHtml } from './utils/seo-meta.js';
 import fs, { existsSync } from 'node:fs';
 
+import { createRouteTimingMiddleware } from './utils/route-metrics.js';
 import { createCorsConfig, createSecurityHeaders, createUploadGuard, wrapCrossSiteCookies } from './middleware/http-security.js';
 import { attachSvgSessionSid, injectSvgSessionCookie } from './utils/svg-session.js';
 import { ddosShield } from './security/ddos-shield.js';
@@ -28,6 +29,7 @@ import {
   getAdminOverviewHandler,
   setAttackModeHandler,
   setKillSwitchHandler,
+  getAdminRouteMetricsHandler,
 } from './api/admin-dashboard.js';
 import { authLimiter, createApiLimiter, createAiLimiter, signupLimiter, localStorageLimiter, pfpLimiter, securityActionLimiter, adminOverviewLimiter, aiConversationsLimiter, musicBrowseLimiter, musicSearchLimiter, musicPlayLimiter } from './middleware/rate-limit.js';
 import challengeRouter from './routes/challenge.js';
@@ -208,11 +210,21 @@ app.use(compression({
 app.use(cors(createCorsConfig()));
 const jsonParser = express.json({ limit: '512kb' });
 const generateJsonParser = express.json({ limit: '10mb' });
+const urlencodedParser = express.urlencoded({ extended: true, limit: '64kb', parameterLimit: 50 });
+const BODY_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 app.use((req, res, next) => {
-  if (req.path.startsWith('/api/generate')) return next();
+  if (!BODY_METHODS.has(req.method)) return next();
+  const p = req.path || '';
+  if (!p.startsWith('/api/') && p !== '/cap' && !p.startsWith('/cap/')) return next();
+  if (p.startsWith('/api/generate')) return next();
   return jsonParser(req, res, next);
 });
-app.use(express.urlencoded({ extended: true, limit: '64kb', parameterLimit: 50 }));
+app.use((req, res, next) => {
+  if (!BODY_METHODS.has(req.method)) return next();
+  const p = req.path || '';
+  if (!p.startsWith('/api/') && p !== '/cap' && !p.startsWith('/cap/')) return next();
+  return urlencodedParser(req, res, next);
+});
 
 app.use(session({
   store: new SqliteStore({ client: db }),
@@ -229,6 +241,7 @@ app.use(session({
   rolling: true,
 }));
 app.use(attachSvgSessionSid());
+app.use(createRouteTimingMiddleware());
 
 app.use(createMemoryProtection(shield));
 app.use(createIpBanMiddleware());
@@ -435,6 +448,7 @@ app.get('/api/admin/users', getAdminUsersHandler);
 app.get('/api/admin/users/:id', getAdminUserHandler);
 app.get('/api/admin/badge-rarity', getBadgeRarityLeaderboardHandler);
 app.get('/api/admin/overview', adminOverviewLimiter, getAdminOverviewHandler);
+app.get('/api/admin/route-metrics', adminOverviewLimiter, getAdminRouteMetricsHandler);
 app.post('/api/admin/security/attack-mode', securityActionLimiter, setAttackModeHandler);
 app.post('/api/admin/security/kill-switch', securityActionLimiter, setKillSwitchHandler);
 app.get('/api/admin/live-sites', getLiveSitesHandler);
@@ -490,12 +504,15 @@ if (IS_DEV) {
   const storageAgPublic = path.join(__dirname, '../public/storage/ag');
   const storageAgDist = path.join(distPath, 'storage', 'ag');
   const storageAgPath = fs.existsSync(storageAgPublic) ? storageAgPublic : storageAgDist;
-  let indexCache = { mtime: 0, html: '' };
+  let indexCache = { mtime: 0, html: '', checkedAt: 0 };
   function readIndexHtml() {
     try {
+      const now = Date.now();
+      if (indexCache.html && now - indexCache.checkedAt < 2000) return indexCache.html;
       const st = fs.statSync(indexPath);
+      indexCache.checkedAt = now;
       if (st.mtimeMs !== indexCache.mtime || !indexCache.html) {
-        indexCache = { mtime: st.mtimeMs, html: fs.readFileSync(indexPath, 'utf8') };
+        indexCache = { mtime: st.mtimeMs, html: fs.readFileSync(indexPath, 'utf8'), checkedAt: now };
       }
       return indexCache.html;
     } catch {

@@ -180,12 +180,13 @@ export function recordTimeHeartbeat(userId, deltaMs = 12000) {
   if (!userId) return;
   const now = Date.now();
   const stats = ensureStats(userId);
-  let add = Math.min(Math.max(0, deltaMs), 20000);
-  if (stats.last_heartbeat && now - stats.last_heartbeat < 5000) add = 0;
+  if (stats.last_heartbeat && now - stats.last_heartbeat < 5000) return;
 
+  let add = Math.min(Math.max(0, deltaMs), 20000);
   const today = dayKey(now);
   let streak = stats.streak_days || 0;
-  if (stats.last_active_day !== today) {
+  const dayChanged = stats.last_active_day !== today;
+  if (dayChanged) {
     if (stats.last_active_day === yesterdayKey(now)) streak = Math.max(1, streak) + 1;
     else streak = 1;
   }
@@ -200,7 +201,7 @@ export function recordTimeHeartbeat(userId, deltaMs = 12000) {
      WHERE user_id = ?`
   ).run(add, now, streak, today, now, userId);
 
-  if (add > 0 || stats.last_active_day !== today) evaluateAchievements(userId);
+  if (add > 0 || dayChanged) evaluateAchievements(userId);
 }
 
 export function recordVmSession(userId) {
@@ -235,8 +236,19 @@ export function bumpStat(userId, column, by = 1) {
   evaluateAchievements(userId);
 }
 
+const proxyHostThrottle = new Map();
+
 export function trackProxyHosts(userId, urls) {
   if (!userId || !Array.isArray(urls) || !urls.length) return;
+  const now = Date.now();
+  const last = proxyHostThrottle.get(userId) || 0;
+  if (now - last < 30000) return;
+  proxyHostThrottle.set(userId, now);
+  if (proxyHostThrottle.size > 20000) {
+    for (const [k, t] of proxyHostThrottle) {
+      if (now - t > 120000) proxyHostThrottle.delete(k);
+    }
+  }
   ensureStats(userId);
   const stats = db.prepare('SELECT proxy_hosts FROM user_stats WHERE user_id = ?').get(userId);
   if ((stats?.proxy_hosts || 0) >= 2000) return;

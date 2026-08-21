@@ -2,9 +2,9 @@
 import { exec } from 'child_process';
 import { EmbedBuilder } from 'discord.js';
 import dotenv from 'dotenv';
-import os from 'node:os';
 import process from 'process';
 import { promisify } from 'util';
+import { sampleCpuPercent } from '../utils/runtime-metrics.js';
 
 const execAsync = promisify(exec);
 
@@ -27,11 +27,15 @@ const ALERT_COOLDOWN = 600000;
 const ATTACK_END_TIMEOUT = 300000;
 const WINDOW_SIZE = 10000;
 const CPU_THRESHOLD = 75;
-const MEMORY_THRESHOLD = 1024 * 1024 * 1024 * 2.2;
-const MEMORY_CRITICAL = 1024 * 1024 * 1024 * 1.8;
+const MEMORY_THRESHOLD = 1024 * 1024 * 1024 * 8;
+const MEMORY_CRITICAL = 1024 * 1024 * 1024 * 2;
+const RSS_CRITICAL = 1024 * 1024 * 1024 * 12;
+const RSS_SPIKE_MIN = 1024 * 1024 * 1024;
 const PATTERN_DETECTION_WINDOW = 30000;
 const ATTACK_PATTERN_THRESHOLD = 50;
 const RESTART_HOUR_ET = 0;
+const NOON_HOUR_ET = 12;
+const GB = 1024 * 1024 * 1024;
 
 class DDoSShield {
   constructor(client) {
@@ -47,6 +51,7 @@ class DDoSShield {
     this.killSwitchActive = false;
     this.forceAttackMode = false;
     this.scheduleDailyRestart();
+    this.scheduleDailyStatus();
     setTimeout(() => {
       this.startupGracePeriod = false;
     }, 600000);
@@ -71,40 +76,63 @@ class DDoSShield {
     this.mitigationActions = [];
     this.trustedFingerprints = new Set();
     this.lastRSS = 0;
+    this.rssSeeded = false;
+    this.logChannelCache = null;
+    this.alertCooldowns = new Map();
+    this.critStreak = 0;
+    this.cpuHighStreak = 0;
+    this.lastRestartDay = '';
+    this.lastNoonDay = '';
 
-    this.cleanupInterval = setInterval(() => this.cleanupOldEntries(), 30000);
-    this.memoryMonitorInterval = setInterval(() => this.monitorMemory(), 15000);
-    this.patternDetectionInterval = setInterval(() => this.detectAttackPatterns(), 30000);
-    this.aggressiveCleanupInterval = setInterval(() => this.aggressiveCleanup(), 60000);
+    this.cleanupInterval = setInterval(() => this.cleanupOldEntries(), 60000);
+    this.memoryMonitorInterval = setInterval(() => this.monitorMemory(), 45000);
+    this.patternDetectionInterval = setInterval(() => this.detectAttackPatterns(), 60000);
+    this.aggressiveCleanupInterval = setInterval(() => this.aggressiveCleanup(), 90000);
+    for (const t of [
+      this.cleanupInterval,
+      this.memoryMonitorInterval,
+      this.patternDetectionInterval,
+      this.aggressiveCleanupInterval,
+    ]) {
+      if (t?.unref) t.unref();
+    }
   }
 
   setLogChannel(channelId) {
     this.logChannelId = channelId;
+    this.logChannelCache = null;
   }
 
-  async sendLog(content, embed = null) {
+  async sendLog(content, embed = null, cooldownKey = null, cooldownMs = 0) {
     if (!this.logChannelId) return;
+    if (cooldownKey && cooldownMs > 0) {
+      const now = Date.now();
+      const last = this.alertCooldowns.get(cooldownKey) || 0;
+      if (now - last < cooldownMs) return;
+      this.alertCooldowns.set(cooldownKey, now);
+      if (this.alertCooldowns.size > 40) {
+        for (const [k, t] of this.alertCooldowns) {
+          if (now - t > 3600000) this.alertCooldowns.delete(k);
+        }
+      }
+    }
     try {
-      const channel = await this.client.channels.fetch(this.logChannelId);
+      let channel = this.logChannelCache;
+      if (!channel || channel.id !== this.logChannelId) {
+        channel =
+          this.client.channels.cache.get(this.logChannelId) ||
+          (await this.client.channels.fetch(this.logChannelId));
+        this.logChannelCache = channel || null;
+      }
       if (channel) channel.send({ content, embeds: embed ? [embed] : [] });
     } catch (err) {
+      this.logChannelCache = null;
       console.error('Failed to send DDoS log:', err.message);
     }
   }
 
   getCpuUsage() {
-    const cpus = os.cpus();
-    let idleMs = 0;
-    let totalMs = 0;
-    cpus.forEach((cpu) => {
-      for (const type in cpu.times) {
-        totalMs += cpu.times[type];
-      }
-      idleMs += cpu.times.idle;
-    });
-    const idle = idleMs / cpus.length;
-    const total = totalMs / cpus.length;
-    return 100 - (100 * idle) / total;
+    return sampleCpuPercent();
   }
 
   entropy(str) {
@@ -337,7 +365,7 @@ class DDoSShield {
       : `CPU: ${cpuUsage}%\nMemory: ${memUsage}GB\nTotal Blocks: ${this.mitigatedCount}`;
 
     const embed = new EmbedBuilder()
-      .setTitle('🛡️ DDoS Attack Detected!')
+      .setTitle('DDoS attack detected')
       .setDescription('High volume of malicious traffic identified.\nStarting automated mitigation...')
       .addFields(
         { name: 'Top Abusers', value: topAbusers.map((a) => `${a.ip} — ${a.count} blocks (${a.primaryType})`).join('\n') || 'N/A', inline: false },
@@ -372,7 +400,7 @@ class DDoSShield {
     const mitigationSummary = this.mitigationActions.length > 0 ? this.mitigationActions.join(', ') : 'Standard protections';
 
     const embed = new EmbedBuilder()
-      .setTitle('✅ Attack Mitigated Successfully')
+      .setTitle('Attack mitigated')
       .setDescription(
         `DDoS attack neutralized after ${duration} seconds.\nTotal requests blocked: **${this.mitigatedCount.toLocaleString()}**\nMitigation actions: ${mitigationSummary}`
       )
@@ -542,33 +570,88 @@ class DDoSShield {
     const mem = process.memoryUsage();
     const heapUsed = mem.heapUsed;
     const rss = mem.rss;
-    const active = heapUsed > MEMORY_CRITICAL || rss > MEMORY_THRESHOLD;
+    const cpu = this.getCpuUsage();
+    const active =
+      heapUsed > MEMORY_CRITICAL * 0.75 ||
+      rss > MEMORY_THRESHOLD ||
+      cpu >= 90;
 
     const previousActive = this.memoryStats.active;
-    this.memoryStats = { heapUsed, rss, active, timestamp: Date.now() };
+    this.memoryStats = { heapUsed, rss, active, timestamp: Date.now(), cpu };
+
+    if (!this.rssSeeded) {
+      this.lastRSS = rss;
+      this.rssSeeded = true;
+      return;
+    }
+
+    if (this.startupGracePeriod) {
+      this.lastRSS = rss;
+      return;
+    }
 
     if (active && !previousActive) {
-      this.sendLog('🚨 Memory pressure detected!', null);
+      this.sendLog(
+        `Memory pressure\nCPU ${cpu.toFixed(1)}% | heap ${(heapUsed / GB).toFixed(2)}GB | RSS ${(rss / GB).toFixed(2)}GB`,
+        null,
+        'mem_pressure',
+        900000
+      );
     }
 
     const delta = rss - this.lastRSS;
     this.lastRSS = rss;
 
-    if (delta > 200 * 1024 * 1024 && !active) {
-      this.sendLog(`⚠️ RSS spike detected: +${(delta / 1024 / 1024).toFixed(2)}MB`, null);
+    if (delta > RSS_SPIKE_MIN && !active) {
+      this.sendLog(
+        `RSS spike +${(delta / 1024 / 1024).toFixed(0)}MB\nCPU ${cpu.toFixed(1)}% | heap ${(heapUsed / GB).toFixed(2)}GB | RSS ${(rss / GB).toFixed(2)}GB`,
+        null,
+        'rss_spike',
+        900000
+      );
     }
 
-    if (heapUsed > MEMORY_THRESHOLD * 1.1 || rss > MEMORY_THRESHOLD * 1.1) {
-      this.sendLog(
-        `💀 CRITICAL: Memory usage at ${(heapUsed / 1024 / 1024 / 1024).toFixed(2)}GB heap, ${(rss / 1024 / 1024 / 1024).toFixed(2)}GB RSS`,
-        null
-      );
+    const critical =
+      heapUsed > MEMORY_CRITICAL ||
+      rss > RSS_CRITICAL ||
+      cpu >= 95;
+    if (critical) this.critStreak += 1;
+    else this.critStreak = 0;
 
-      const uptime = process.uptime();
-      if (rss > MEMORY_THRESHOLD && uptime > 1800) {
-        this.sendLog('🔄 High RSS detected, restarting process...', null);
-        setTimeout(() => process.exit(0), 5000);
-      }
+    if (cpu >= 90) this.cpuHighStreak += 1;
+    else this.cpuHighStreak = 0;
+
+    if (this.critStreak >= 3) {
+      this.sendLog(
+        `CRITICAL sustained\nCPU ${cpu.toFixed(1)}% | heap ${(heapUsed / GB).toFixed(2)}GB | RSS ${(rss / GB).toFixed(2)}GB`,
+        null,
+        'mem_critical',
+        1800000
+      );
+    }
+
+    if (this.cpuHighStreak >= 4 && cpu >= 92) {
+      this.sendLog(
+        `High CPU sustained\nCPU ${cpu.toFixed(1)}% | heap ${(heapUsed / GB).toFixed(2)}GB | RSS ${(rss / GB).toFixed(2)}GB`,
+        null,
+        'cpu_high',
+        1800000
+      );
+    }
+
+    const uptime = process.uptime();
+    if (
+      heapUsed > MEMORY_CRITICAL &&
+      this.critStreak >= 5 &&
+      uptime > 3600
+    ) {
+      this.sendLog(
+        `High heap sustained — restarting process\nCPU ${cpu.toFixed(1)}% | heap ${(heapUsed / GB).toFixed(2)}GB | RSS ${(rss / GB).toFixed(2)}GB`,
+        null,
+        'mem_restart',
+        3600000
+      );
+      setTimeout(() => process.exit(0), 5000);
     }
   }
 
@@ -606,7 +689,7 @@ class DDoSShield {
         if (!this.isUnderAttack && !this.startupGracePeriod) {
           this.autoMitigationActive = true;
           this.attackVector = pattern.type;
-          this.sendLog(`🔍 Attack pattern detected: ${pattern.type} (${pattern.count} blocks from ${pattern.ips.length} IPs)`, null);
+          this.sendLog(`Attack pattern: ${pattern.type} (${pattern.count} blocks from ${pattern.ips.length} IPs)`, null, 'attack_pattern', 600000);
         }
       }
     }
@@ -643,28 +726,84 @@ class DDoSShield {
 
     if (pressure && this.isUnderAttack && !this.mitigationActions.includes('memory_mitigation')) {
       this.mitigationActions.push('memory_mitigation');
-      this.sendLog(`⚡ Memory mitigation activated (${(mem.heapUsed / 1024 / 1024 / 1024).toFixed(2)}GB used)`, null);
+      this.sendLog(`Memory mitigation active (heap ${(mem.heapUsed / GB).toFixed(2)}GB)`, null, 'mem_mitigation', 900000);
     }
   }
 
-  scheduleDailyRestart() {
-    const checkRestart = () => {
-      const etOffset = -5;
-      const now = new Date();
-      const etHour = (now.getUTCHours() + etOffset + 24) % 24;
+  etParts() {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(new Date());
+    const get = (type) => parts.find((p) => p.type === type)?.value || '0';
+    return {
+      day: `${get('year')}-${get('month')}-${get('day')}`,
+      hour: Number(get('hour')),
+      minute: Number(get('minute')),
+    };
+  }
 
-      if (etHour === RESTART_HOUR_ET && now.getMinutes() === 0) {
+  scheduleDailyRestart() {
+    const tick = () => {
+      const { day, hour, minute } = this.etParts();
+      if (hour === RESTART_HOUR_ET && minute === 0 && this.lastRestartDay !== day) {
+        this.lastRestartDay = day;
         this.performGracefulRestart();
       }
     };
+    const t = setInterval(tick, 30000);
+    if (t?.unref) t.unref();
+  }
 
-    setInterval(checkRestart, 60000);
+  scheduleDailyStatus() {
+    const tick = () => {
+      const { day, hour, minute } = this.etParts();
+      if (hour === NOON_HOUR_ET && minute === 0 && this.lastNoonDay !== day) {
+        this.lastNoonDay = day;
+        this.sendDailyStatus().catch(() => {});
+      }
+    };
+    const t = setInterval(tick, 30000);
+    if (t?.unref) t.unref();
+  }
+
+  async sendDailyStatus() {
+    const mem = process.memoryUsage();
+    const cpu = this.getCpuUsage();
+    const uptimeH = (process.uptime() / 3600).toFixed(1);
+    let status = 'Normal';
+    if (this.killSwitchActive) status = 'Kill switch active';
+    else if (this.isUnderAttack || this.forceAttackMode) status = 'Under attack / force mode';
+    else if (cpu >= 85 || mem.heapUsed > MEMORY_CRITICAL * 0.75) status = 'Elevated load';
+
+    const embed = new EmbedBuilder()
+      .setTitle('Daily server status (noon ET)')
+      .setDescription(
+        [
+          `Status: ${status}`,
+          `CPU: ${cpu.toFixed(1)}%`,
+          `Heap: ${(mem.heapUsed / GB).toFixed(2)}GB`,
+          `RSS: ${(mem.rss / GB).toFixed(2)}GB`,
+          `Uptime: ${uptimeH}h`,
+          `Blocks (session): ${this.mitigatedCount}`,
+          `Tracked IPs: ${this.ipBlocks.size}`,
+        ].join('\n')
+      )
+      .setColor('#3b82f6')
+      .setTimestamp();
+
+    await this.sendLog(null, embed, 'daily_status', 0);
   }
 
   async performGracefulRestart() {
     const embed = new EmbedBuilder()
-      .setTitle('🔄 Graceful Restart Initiated')
-      .setDescription('Server is performing scheduled restart.\nAll connections will be gracefully terminated.')
+      .setTitle('Graceful restart initiated')
+      .setDescription('Scheduled restart. Connections will be terminated cleanly.')
       .setColor('#ffaa00')
       .setTimestamp();
 
@@ -701,7 +840,7 @@ class DDoSShield {
       if (!interaction.isChatInputCommand()) return;
 
       if (interaction.user.id !== OWNER_ID) {
-        return interaction.reply({ content: '❌ You are not authorized to use this command.', ephemeral: true });
+        return interaction.reply({ content: 'You are not authorized to use this command.', ephemeral: true });
       }
 
       if (interaction.commandName === 'channel-setup') {
@@ -709,7 +848,7 @@ class DDoSShield {
         await interaction.reply({
           embeds: [
             new EmbedBuilder()
-              .setTitle('✅ Security Log Channel Set')
+              .setTitle('Security log channel set')
               .setDescription('This channel will now receive live DDoS alerts and mitigation updates.')
               .setColor('#00ff00')
           ]
@@ -717,7 +856,7 @@ class DDoSShield {
       }
 
       if (interaction.commandName === 'test-attack') {
-        await interaction.reply({ content: '🧪 Simulating DDoS attack for testing...', ephemeral: false });
+        await interaction.reply({ content: 'Simulating DDoS attack for testing...', ephemeral: false });
 
         for (let i = 0; i < 100; i++) {
           this.incrementBlocked(`192.168.1.${i % 10}`, i % 3 === 0 ? 'pow_fail' : i % 3 === 1 ? 'rate_limit' : 'ws_cap');
@@ -763,27 +902,27 @@ class DDoSShield {
           console.error('Failed to get context switches:', err.message);
         }
 
-        let statusText = '🟩 Normal';
+        let statusText = 'Normal';
         let statusColor = '#00ff00';
 
         if (this.killSwitchActive) {
-          statusText = '🔴 KILL SWITCH ACTIVE';
+          statusText = 'KILL SWITCH ACTIVE';
           statusColor = '#ff0000';
         } else if (this.isUnderAttack) {
-          statusText = '🟥 Under Attack';
+          statusText = 'Under attack';
           statusColor = '#ff0000';
         } else if (systemState.state === 'BUSY') {
-          statusText = '🟡 Busy (High Legitimate Load)';
+          statusText = 'Busy (high legitimate load)';
           statusColor = '#ffaa00';
         }
 
         if (this.forceAttackMode) {
-          statusText = '⚔️ Force Attack Mode';
+          statusText = 'Force attack mode';
           statusColor = '#ff0000';
         }
 
         const embed = new EmbedBuilder()
-          .setTitle('📊 Security Statistics')
+          .setTitle('Security statistics')
           .addFields(
             { name: 'Status', value: statusText, inline: true },
             { name: 'System Load', value: systemLoadOutput, inline: true },
@@ -816,10 +955,10 @@ class DDoSShield {
         const rss = (mem.rss / 1024 / 1024 / 1024).toFixed(2);
         const external = (mem.external / 1024 / 1024 / 1024).toFixed(2);
 
-        const status = this.memoryStats.active ? '🟥 High Pressure' : '🟩 Normal';
+        const status = this.memoryStats.active ? 'High pressure' : 'Normal';
 
         const embed = new EmbedBuilder()
-          .setTitle('💾 Memory Status')
+          .setTitle('Memory status')
           .addFields(
             { name: 'Status', value: status, inline: true },
             { name: 'Heap Used', value: `${heapUsed}GB`, inline: true },
@@ -850,7 +989,7 @@ class DDoSShield {
         const freed = ((beforeMem.heapUsed - afterMem.heapUsed) / 1024 / 1024).toFixed(2);
 
         const embed = new EmbedBuilder()
-          .setTitle('🧹 Forced Cleanup Complete')
+          .setTitle('Forced cleanup complete')
           .addFields(
             { name: 'Memory Freed', value: `${freed}MB`, inline: true },
             { name: 'IP Blocks', value: `${beforeIpBlocks} → ${this.ipBlocks.size}`, inline: true },
@@ -869,7 +1008,7 @@ class DDoSShield {
         this.setKillSwitch(true, { hardExit: true });
 
         const embed = new EmbedBuilder()
-          .setTitle('🔴 KILL SWITCH ACTIVATED')
+          .setTitle('Kill switch activated')
           .setDescription(
             'Server is now in emergency shutdown mode.\nAll incoming connections will be rejected.\nUse /startup to restore normal operations.'
           )
@@ -883,7 +1022,7 @@ class DDoSShield {
       if (interaction.commandName === 'startup') {
         if (!this.killSwitchActive) {
           return interaction.reply({
-            content: '✅ Kill switch is not active. Server is running normally.',
+            content: 'Kill switch is not active. Server is running normally.',
             ephemeral: true
           });
         }
@@ -891,7 +1030,7 @@ class DDoSShield {
         this.setKillSwitch(false);
 
         const embed = new EmbedBuilder()
-          .setTitle('✅ Server Restored')
+          .setTitle('Server restored')
           .setDescription('Kill switch deactivated.\nServer is now accepting connections normally.')
           .setColor('#00ff00')
           .setTimestamp();
@@ -901,7 +1040,7 @@ class DDoSShield {
       }
 
       if (interaction.commandName === 'graceful-restart') {
-        await interaction.reply({ content: '🔄 Initiating graceful restart...', ephemeral: false });
+        await interaction.reply({ content: 'Initiating graceful restart...', ephemeral: false });
         await this.performGracefulRestart();
       }
 
@@ -910,7 +1049,7 @@ class DDoSShield {
         this.setForceAttackMode(true, ss);
 
         const embed = new EmbedBuilder()
-          .setTitle('⚔️ Attack Mode Activated')
+          .setTitle('Attack mode activated')
           .setDescription(
             'Server is now in forced attack mode.\nAll traffic will be treated as hostile.\nUse /attack-mode-off to restore normal operations.'
           )
@@ -924,7 +1063,7 @@ class DDoSShield {
       if (interaction.commandName === 'attack-mode-off') {
         if (!this.forceAttackMode) {
           return interaction.reply({
-            content: '✅ Attack mode is not active.',
+            content: 'Attack mode is not active.',
             ephemeral: true
           });
         }
@@ -933,7 +1072,7 @@ class DDoSShield {
         this.setForceAttackMode(false, ss);
 
         const embed = new EmbedBuilder()
-          .setTitle('✅ Attack Mode Deactivated')
+          .setTitle('Attack mode deactivated')
           .setDescription('Server has returned to normal threat assessment mode.')
           .setColor('#00ff00')
           .setTimestamp();

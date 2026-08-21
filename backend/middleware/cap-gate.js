@@ -9,13 +9,16 @@ import { isSocialPreviewBot } from './security.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VERIFY_FILE = path.join(__dirname, '../../public/verify.html');
 
-let verifyCache = { mtime: 0, html: '' };
+let verifyCache = { mtime: 0, html: '', checkedAt: 0 };
 
 function readVerifyTemplate() {
   try {
+    const now = Date.now();
+    if (verifyCache.html && now - verifyCache.checkedAt < 5000) return verifyCache.html;
     const st = fs.statSync(VERIFY_FILE);
+    verifyCache.checkedAt = now;
     if (st.mtimeMs !== verifyCache.mtime || !verifyCache.html) {
-      verifyCache = { mtime: st.mtimeMs, html: fs.readFileSync(VERIFY_FILE, 'utf8') };
+      verifyCache = { mtime: st.mtimeMs, html: fs.readFileSync(VERIFY_FILE, 'utf8'), checkedAt: now };
     }
     return verifyCache.html;
   } catch {

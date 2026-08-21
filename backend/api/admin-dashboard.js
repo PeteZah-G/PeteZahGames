@@ -4,6 +4,7 @@ import { isOwnerEmail } from '../utils/auth-roles.js';
 import { getShield } from '../utils/shield-ref.js';
 import { systemState } from '../middleware/security.js';
 import { getApiLatencyStats, getMemoryStats, sampleCpuPercent, recordApiLatency } from '../utils/runtime-metrics.js';
+import { getRouteTimingStats } from '../utils/route-metrics.js';
 import { getUsageCounts } from '../utils/usage-daily.js';
 
 let getXDPBlockCount = () => 0;
@@ -195,6 +196,25 @@ export async function getAdminOverviewHandler(req, res) {
   } catch (err) {
     console.error('admin overview error:', err);
     return res.status(500).json({ error: 'Failed to load overview' });
+  }
+}
+
+export async function getAdminRouteMetricsHandler(req, res) {
+  const admin = requireAdminSession(req, res);
+  if (!admin) return;
+  try {
+    const stats = getRouteTimingStats();
+    const mem = getMemoryStats();
+    return res.json({
+      ok: true,
+      cpuPercent: sampleCpuPercent(),
+      memory: mem,
+      uptimeSec: Math.floor(process.uptime()),
+      ...stats,
+    });
+  } catch (err) {
+    console.error('admin route metrics error:', err);
+    return res.status(500).json({ error: 'Failed to load route metrics' });
   }
 }
 

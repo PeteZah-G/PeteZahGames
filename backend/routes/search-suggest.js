@@ -22,6 +22,11 @@ function clientKey(req) {
 function allow(req) {
   const key = clientKey(req);
   const now = Date.now();
+  if (buckets.size > 20000) {
+    for (const [k, v] of buckets) {
+      if (now > v.reset) buckets.delete(k);
+    }
+  }
   const b = buckets.get(key) || { n: 0, reset: now + 60_000 };
   if (now > b.reset) {
     b.n = 0;

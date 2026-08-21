@@ -96,14 +96,22 @@ export function createApiLimiter(shield) {
     windowMs: 60000,
     max: req => {
       if (req.session?.user?.id) return 2000;
-      const token = extractToken(req);
-      if (verifyToken(token, req)) return 1000;
+      if (req._pzTokOk === undefined) {
+        const token = extractToken(req);
+        req._pzTokOk = !!(token && verifyToken(token, req));
+        req._pzTok = token || null;
+      }
+      if (req._pzTokOk) return 1000;
       return 150;
     },
     keyGenerator: req => {
       if (req.session?.user?.id) return `user:${req.session.user.id}`;
-      const token = extractToken(req);
-      if (verifyToken(token, req)) return `token:${token.slice(0, 16)}`;
+      if (req._pzTokOk === undefined) {
+        const token = extractToken(req);
+        req._pzTokOk = !!(token && verifyToken(token, req));
+        req._pzTok = token || null;
+      }
+      if (req._pzTokOk && req._pzTok) return `token:${req._pzTok.slice(0, 16)}`;
       return toIPv4(null, req);
     },
     standardHeaders: true,
