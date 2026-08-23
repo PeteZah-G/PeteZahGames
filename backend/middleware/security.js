@@ -42,15 +42,25 @@ const requestFingerprints = new Map();
 const botVerificationCache = new Map();
 const requestRateTracker = { requests: [] };
 
+const LOOPBACK_PEERS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+
+// Trust forwarding headers only from the local reverse proxy peer. Matches
+// Express `trust proxy` = loopback. Otherwise a client can spoof its IP to evade
+// bans and rate limits (all keyed on toIPv4).
 export function toIPv4(ip, req = null) {
   if (req) {
-    const xff = req.headers['x-forwarded-for'];
-    const cf = req.headers['cf-connecting-ip'];
-    const real = req.headers['x-real-ip'];
-    if (xff) ip = xff.split(',')[0].trim();
-    else if (cf) ip = cf;
-    else if (real) ip = real;
-    else if (req.socket?.remoteAddress) ip = req.socket.remoteAddress;
+    const peer = req.socket?.remoteAddress || req.connection?.remoteAddress;
+    if (peer && LOOPBACK_PEERS.has(peer)) {
+      const xff = req.headers['x-forwarded-for'];
+      const cf = req.headers['cf-connecting-ip'];
+      const real = req.headers['x-real-ip'];
+      if (xff) ip = xff.split(',')[0].trim();
+      else if (cf) ip = cf;
+      else if (real) ip = real;
+      else ip = peer;
+    } else {
+      ip = peer;
+    }
   }
   if (!ip) return '127.0.0.1';
   if (typeof ip === 'string' && ip.includes(',')) ip = ip.split(',')[0].trim();

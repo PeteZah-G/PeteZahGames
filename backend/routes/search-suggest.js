@@ -3,6 +3,7 @@ import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getClientIP } from '../utils/client-ip.js';
 
 const router = express.Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -13,10 +14,9 @@ const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
 function clientKey(req) {
-  return String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown')
-    .split(',')[0]
-    .trim()
-    .slice(0, 64);
+  // Use the trusted client IP, not a raw spoofable header, so the limiter
+  // cannot be bypassed by rotating X-Forwarded-For.
+  return String(getClientIP(req) || 'unknown').slice(0, 64);
 }
 
 function allow(req) {
