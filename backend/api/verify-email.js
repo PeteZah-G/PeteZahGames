@@ -15,13 +15,16 @@ function hashToken(token) {
   return createHash('sha256').update(token).digest('hex');
 }
 
-function publicOrigin(req) {
-  const env = process.env.PUBLIC_ORIGIN;
-  if (env && /^https?:\/\//i.test(env)) return env.replace(/\/$/, '');
-  const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').toString().split(',')[0].trim();
-  const host = (req.headers['x-forwarded-host'] || req.headers.host || '').toString().split(',')[0].trim();
-  if (!host) return 'https://petezahgames.com';
-  return `${proto}://${host}`;
+function publicOrigin() {
+  // accept a bare hostname too (the .env.example ships one), don't discard it
+  const env = (process.env.PUBLIC_ORIGIN || '').trim();
+  if (env) {
+    const base = /^https?:\/\//i.test(env) ? env : `https://${env}`;
+    return base.replace(/\/$/, '');
+  }
+  // never build the link from Host / X-Forwarded-Host, an attacker sets those
+  // to point the emailed token at their own server. use the canonical origin.
+  return 'https://petezahgames.com';
 }
 
 export function issueVerificationToken(userId) {
@@ -36,7 +39,7 @@ export function issueVerificationToken(userId) {
 
 export async function sendUserVerificationEmail(req, userId, email) {
   const raw = issueVerificationToken(userId);
-  const url = `${publicOrigin(req)}/api/verify-email?token=${encodeURIComponent(raw)}`;
+  const url = `${publicOrigin()}/api/verify-email?token=${encodeURIComponent(raw)}`;
   await sendVerificationEmail(email, url);
 }
 
