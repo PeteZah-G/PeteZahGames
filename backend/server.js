@@ -134,6 +134,7 @@ import {
   adminUnexcludeGameHandler,
   adminAddGlobalGameHandler,
   adminRemoveGlobalGameHandler,
+  adminUpdateGameHandler,
   adminGamesLimiter,
 } from './api/game-catalog.js';
 import { websocketNormalHandler, websocketTorHandler } from './api/websocket-auth.js';
@@ -463,6 +464,7 @@ app.get('/api/admin/games/excluded', getAdminExcludedGamesHandler);
 app.post('/api/admin/games/exclude', adminGamesLimiter, adminExcludeGameHandler);
 app.delete('/api/admin/games/exclude/:gameId', adminGamesLimiter, adminUnexcludeGameHandler);
 app.post('/api/admin/games', adminGamesLimiter, adminAddGlobalGameHandler);
+app.put('/api/admin/games/:id', adminGamesLimiter, adminUpdateGameHandler);
 app.delete('/api/admin/games/:id', adminGamesLimiter, adminRemoveGlobalGameHandler);
 
 app.get('/api/achievements', getMyAchievementsHandler);

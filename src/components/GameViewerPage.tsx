@@ -154,7 +154,8 @@ export default function GameViewerPage({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [muted, setMuted] = useState(false);
-  const { unlocked, phase, finishLoading } = useInterstitialUnlock("game");
+  const { unlocked, phase, finishLoading, hadAd } = useInterstitialUnlock("game");
+  const canPreload = phase === "ad" || phase === "loading" || phase === "ready";
   const useProxy = needsRemoteFrame(url);
   const displayTitle = title?.trim() || "Game";
 
@@ -197,7 +198,7 @@ export default function GameViewerPage({
   }, [url]);
 
   useEffect(() => {
-    if (!unlocked || !useProxy) return;
+    if (!canPreload || !useProxy) return;
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
 
@@ -210,14 +211,17 @@ export default function GameViewerPage({
         const scFrame = pxCreateFrame();
         if (!scFrame) return false;
         scFrame.frame.style.cssText =
-          "position:absolute;inset:0;width:100%;height:100%;border:none;opacity:0;transition:opacity 0.25s ease;";
+          "position:absolute;inset:0;width:100%;height:100%;border:none;opacity:0;pointer-events:none;transition:opacity 0.25s ease;";
         scFrame.frame.src = pxEncode(url);
         scFrame.frame.onload = () => {
-          scFrame.frame.style.opacity = "1";
           applyMuteToFrame(scFrame.frame, muted);
         };
         frameHostRef.current = scFrame.frame;
         wrapper.appendChild(scFrame.frame);
+        if (unlocked) {
+          scFrame.frame.style.opacity = "1";
+          scFrame.frame.style.pointerEvents = "auto";
+        }
         requestAnimationFrame(() => applyZoom(zoomRef.current));
         return true;
       } catch {
@@ -244,9 +248,20 @@ export default function GameViewerPage({
       }
       frameHostRef.current = null;
     };
-    // muted intentionally omitted — mute effect handles ongoing mute state
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, unlocked, useProxy, applyZoom]);
+  }, [url, canPreload, useProxy, applyZoom]);
+
+  useEffect(() => {
+    const frame = frameHostRef.current;
+    if (!frame) return;
+    if (unlocked) {
+      frame.style.opacity = "1";
+      frame.style.pointerEvents = "auto";
+    } else {
+      frame.style.opacity = "0";
+      frame.style.pointerEvents = "none";
+    }
+  }, [unlocked]);
 
   useEffect(() => {
     const tick = () => applyMuteToFrame(getActiveFrame(), muted);
@@ -294,13 +309,15 @@ export default function GameViewerPage({
           {!useProxy && (
             <iframe
               ref={iframeRef}
-              src={unlocked ? url : "about:blank"}
+              src={canPreload ? url : "about:blank"}
               sandbox="allow-scripts allow-pointer-lock allow-forms allow-same-origin allow-downloads allow-popups allow-popups-to-escape-sandbox"
               style={{
                 width: "100%",
                 height: "100%",
                 border: "none",
                 display: "block",
+                opacity: unlocked ? 1 : 0,
+                pointerEvents: unlocked ? "auto" : "none",
               }}
               title={displayTitle}
               onLoad={() => applyMuteToFrame(iframeRef.current, muted)}
@@ -311,6 +328,7 @@ export default function GameViewerPage({
         <InterstitialOverlay
           phase={phase}
           title={displayTitle}
+          quickSplash={hadAd}
           onLoadingDone={finishLoading}
         />
 

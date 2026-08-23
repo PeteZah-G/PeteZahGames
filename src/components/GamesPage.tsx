@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Dices, Plus, Star, MoreVertical, X, Trash2, Share2, Copy, Check, Upload, ChevronLeft, ChevronRight, RefreshCw, Crown } from "lucide-react";
+import { Search, Dices, Plus, Star, MoreVertical, X, Trash2, Share2, Copy, Check, Upload, ChevronLeft, ChevronRight, RefreshCw, Crown, Pencil } from "lucide-react";
 import { requestSyncSoon } from "@/lib/settingsSync";
 import { AdResponsiveBanner, AdNativeBar } from "@/components/ads/Adsterra";
 import { armAdAudio } from "@/lib/exoclick";
@@ -217,7 +217,7 @@ function resolveGameUrl(url: string): string {
 
 
 
-function AddGameModal({ onAdd, onClose }: { onAdd: (g: Game) => void; onClose: () => void }) {
+function AddGameModal({ onAdd, onClose, publish = false }: { onAdd: (g: Game) => void; onClose: () => void; publish?: boolean }) {
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [category, setCategory] = useState("");
@@ -263,7 +263,7 @@ function AddGameModal({ onAdd, onClose }: { onAdd: (g: Game) => void; onClose: (
         className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl bg-card border border-border"
       >
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-sm font-semibold text-foreground">Add Custom Game</h3>
+          <h3 className="text-sm font-semibold text-foreground">{publish ? "Publish game" : "Add Custom Game"}</h3>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-accent text-muted-foreground transition-colors"><X size={14} /></button>
         </div>
         <div className="space-y-3">
@@ -296,7 +296,7 @@ function AddGameModal({ onAdd, onClose }: { onAdd: (g: Game) => void; onClose: (
           </div>
           <button onClick={handleSubmit} disabled={!title || !url || !imageData || !category}
             className="w-full py-2.5 rounded-xl bg-foreground/10 border border-foreground/20 text-foreground text-sm font-medium hover:bg-foreground/15 transition-colors disabled:opacity-40">
-            Add Game
+            {publish ? "Publish Game" : "Add Game"}
           </button>
         </div>
       </motion.div>
@@ -304,8 +304,103 @@ function AddGameModal({ onAdd, onClose }: { onAdd: (g: Game) => void; onClose: (
   );
 }
 
-function GameOptionsMenu({ game, isFav, onFav, onRemove, onShare, onClose, adminMode = false }: {
-  game: Game; isFav: boolean; onFav: () => void; onRemove: () => void; onShare: () => void; onClose: () => void; adminMode?: boolean;
+function EditGameModal({
+  game,
+  onSave,
+  onClose,
+}: {
+  game: Game;
+  onSave: (g: Game) => void;
+  onClose: () => void;
+}) {
+  const [title, setTitle] = useState(game.label);
+  const [url, setUrl] = useState(game.url);
+  const cat0 = game.categories?.[0] || "";
+  const matched = CATEGORIES.find((c) => c !== "All" && c.toLowerCase() === cat0.toLowerCase());
+  const [category, setCategory] = useState(matched || cat0 || "");
+  const [imageData, setImageData] = useState(game.imageUrl || "");
+  const [preview, setPreview] = useState(game.imageUrl || "");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      setImageData(result);
+      setPreview(result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = () => {
+    if (!title.trim() || !url.trim() || !imageData || !category) return;
+    let finalUrl = url.trim();
+    if (!finalUrl.startsWith("http") && !finalUrl.startsWith("/")) finalUrl = "https://" + finalUrl;
+    onSave({
+      ...game,
+      label: title.trim(),
+      url: finalUrl,
+      imageUrl: imageData,
+      categories: [category],
+    });
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(12px)" }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97, y: 6 }}
+        className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl bg-card border border-border"
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-sm font-semibold text-foreground">Edit game</h3>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-accent text-muted-foreground transition-colors"><X size={14} /></button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Title</label>
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Game name"
+              className="w-full mt-1 px-3 py-2 rounded-xl bg-accent border border-border text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-foreground/20" />
+          </div>
+          <div>
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider">URL</label>
+            <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com/game"
+              className="w-full mt-1 px-3 py-2 rounded-xl bg-accent border border-border text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-foreground/20" />
+          </div>
+          <div>
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Category</label>
+            <select value={category} onChange={e => setCategory(e.target.value)}
+              className="w-full mt-1 px-3 py-2 rounded-xl bg-accent border border-border text-sm text-foreground outline-none focus:ring-1 focus:ring-foreground/20">
+              <option value="">Select category</option>
+              {CATEGORIES.filter(c => c !== "All").map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Image</label>
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+            <button onClick={() => fileRef.current?.click()}
+              className="w-full mt-1 px-3 py-2 rounded-xl bg-accent border border-border text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors">
+              <Upload size={12} />{preview ? "Change image" : "Upload image"}
+            </button>
+            {preview && <img src={preview} alt="preview" className="mt-2 w-full h-24 object-cover rounded-xl" />}
+          </div>
+          <button onClick={handleSubmit} disabled={!title || !url || !imageData || !category}
+            className="w-full py-2.5 rounded-xl bg-foreground/10 border border-foreground/20 text-foreground text-sm font-medium hover:bg-foreground/15 transition-colors disabled:opacity-40">
+            Save changes
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function GameOptionsMenu({ game, isFav, onFav, onRemove, onShare, onEdit, onClose, adminMode = false }: {
+  game: Game; isFav: boolean; onFav: () => void; onRemove: () => void; onShare: () => void; onEdit?: () => void; onClose: () => void; adminMode?: boolean;
 }) {
   return (
     <motion.div
@@ -324,6 +419,12 @@ function GameOptionsMenu({ game, isFav, onFav, onRemove, onShare, onClose, admin
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors"><X size={14} /></button>
         </div>
         <div className="flex flex-col gap-2">
+          {adminMode && onEdit && (
+            <button onClick={onEdit}
+              className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-accent border border-border text-sm font-medium text-foreground hover:bg-accent/70 transition-all">
+              <Pencil size={13} className="text-muted-foreground" /> Edit game
+            </button>
+          )}
           {!adminMode && (
             <button onClick={onFav}
               className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-accent border border-border text-sm font-medium text-foreground hover:bg-accent/70 transition-all">
@@ -489,6 +590,7 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
   const [page, setPage] = useState(1);
   const PER_PAGE = 50;
   const [optionsGame, setOptionsGame] = useState<Game | null>(null);
+  const [editGame, setEditGame] = useState<Game | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [adminOk, setAdminOk] = useState(false);
@@ -549,10 +651,16 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
         const hidden = getHiddenGames();
         let exclusions: string[] = [];
         let globals: Game[] = [];
+        let overrides: Record<string, Partial<Game>> = {};
         if (catalogRes && catalogRes.ok) {
           const catalog = await catalogRes.json();
           if (Array.isArray(catalog?.exclusions)) exclusions = catalog.exclusions;
           if (Array.isArray(catalog?.globals)) globals = catalog.globals;
+          if (Array.isArray(catalog?.overrides)) {
+            for (const o of catalog.overrides) {
+              if (o?.gameId) overrides[o.gameId] = o;
+            }
+          }
         }
         const excluded = new Set(exclusions);
         let counts: Record<string, number> = {};
@@ -564,9 +672,19 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
         }
         setPlayCounts(counts);
         setAllGames(
-          [...globals, ...custom, ...remote].filter(
-            (g) => !hidden.includes(g.id) && !excluded.has(g.id),
-          ),
+          [...globals, ...custom, ...remote]
+            .map((g) => {
+              const o = overrides[g.id];
+              if (!o) return g;
+              return {
+                ...g,
+                label: o.label || g.label,
+                url: o.url || g.url,
+                imageUrl: o.imageUrl || g.imageUrl,
+                categories: Array.isArray(o.categories) && o.categories.length ? o.categories : g.categories,
+              };
+            })
+            .filter((g) => !hidden.includes(g.id) && !excluded.has(g.id)),
         );
         setListReady(true);
       } catch {
@@ -737,6 +855,34 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
     setShowAdd(false);
   }, [isAdminMode, adminBusy]);
 
+  const handleEditGame = useCallback(async (game: Game) => {
+    if (!isAdminMode || adminBusy) return;
+    setAdminBusy(true);
+    try {
+      const r = await fetch(`/api/admin/games/${encodeURIComponent(game.id)}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: game.label,
+          url: game.url,
+          imageUrl: game.imageUrl,
+          categories: game.categories || [],
+        }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data?.error || "fail");
+      const next = data?.game ? { ...game, ...data.game } : game;
+      setAllGames((prev) => prev.map((g) => (g.id === game.id ? next : g)));
+      setEditGame(null);
+      setOptionsGame(null);
+    } catch (e: any) {
+      alert(e?.message || "Could not save game.");
+    } finally {
+      setAdminBusy(false);
+    }
+  }, [isAdminMode, adminBusy]);
+
   const randomGame = () => {
     if (!filtered.length) return;
     handlePlay(filtered[Math.floor(Math.random() * filtered.length)]);
@@ -819,7 +965,7 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
           {isAdminMode && (
             <div className="mb-3 flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10">
               <p className="text-[11px] text-amber-100/90 font-medium">
-                Admin edit mode — deletes are global · adds are global for everyone
+                Admin edit mode — 3-dot menu to edit or suspend · publishes are global and final
               </p>
               <button
                 type="button"
@@ -888,7 +1034,14 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
       </div>
 
       <AnimatePresence>
-        {showAdd && <AddGameModal onAdd={handleAddGame} onClose={() => setShowAdd(false)} />}
+        {showAdd && <AddGameModal onAdd={handleAddGame} onClose={() => setShowAdd(false)} publish={isAdminMode} />}
+        {editGame && (
+          <EditGameModal
+            game={editGame}
+            onSave={handleEditGame}
+            onClose={() => setEditGame(null)}
+          />
+        )}
         {optionsGame && (
           <GameOptionsMenu
             game={optionsGame}
@@ -896,6 +1049,7 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
             onFav={() => handleFav(optionsGame.id)}
             onRemove={() => handleRemove(optionsGame)}
             onShare={() => { setShareUrl(resolveGameUrl(optionsGame.url)); setOptionsGame(null); }}
+            onEdit={isAdminMode ? () => { setEditGame(optionsGame); setOptionsGame(null); } : undefined}
             onClose={() => setOptionsGame(null)}
             adminMode={isAdminMode}
           />

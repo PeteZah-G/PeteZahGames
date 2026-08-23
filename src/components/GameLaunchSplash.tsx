@@ -70,9 +70,11 @@ async function loadTopCovers(): Promise<Cover[]> {
 export function GameLaunchSplash({
   title,
   onDone,
+  minMs = 2400,
 }: {
   title?: string;
   onDone: () => void;
+  minMs?: number;
 }) {
   const [covers, setCovers] = useState<Cover[]>(coverCache || []);
   const [exiting, setExiting] = useState(false);
@@ -96,9 +98,9 @@ export function GameLaunchSplash({
   }, [onDone]);
 
   useEffect(() => {
-    const t = window.setTimeout(() => finish(), 2400);
+    const t = window.setTimeout(() => finish(), Math.max(400, minMs));
     return () => window.clearTimeout(t);
-  }, [finish]);
+  }, [finish, minMs]);
 
   const rows: Cover[][] = [[], [], []];
   for (let i = 0; i < 9; i++) {

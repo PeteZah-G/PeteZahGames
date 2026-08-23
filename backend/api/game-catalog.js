@@ -52,6 +52,13 @@ function sanitizeGameUrl(raw) {
   if (typeof raw !== 'string') return null;
   let url = raw.trim().slice(0, MAX_URL);
   if (!url) return null;
+  if (
+    (url.startsWith('/storage/') || url.startsWith('/!!/') || url.startsWith('/iframe.html')) &&
+    !url.includes('..') &&
+    !/[\s<>"'`]/.test(url)
+  ) {
+    return url;
+  }
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
   try {
     const parsed = new URL(url);
@@ -121,6 +128,16 @@ export function ensureGameCatalogTables() {
       created_by TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS game_overrides (
+      game_id TEXT PRIMARY KEY,
+      label TEXT,
+      url TEXT,
+      image_url TEXT,
+      categories TEXT,
+      updated_at INTEGER NOT NULL,
+      updated_by TEXT
+    );
+
     CREATE INDEX IF NOT EXISTS idx_game_exclusions_at ON game_exclusions(excluded_at DESC);
     CREATE INDEX IF NOT EXISTS idx_game_global_adds_at ON game_global_adds(created_at DESC);
   `);
@@ -158,8 +175,30 @@ export function getGamesCatalogHandler(req, res) {
           isGlobal: true,
         };
       });
+    const overrides = db
+      .prepare(
+        `SELECT game_id as gameId, label, url, image_url as imageUrl, categories
+         FROM game_overrides`
+      )
+      .all()
+      .map((g) => {
+        let categories = [];
+        try {
+          categories = JSON.parse(g.categories || '[]');
+        } catch {
+          categories = [];
+        }
+        if (!Array.isArray(categories)) categories = [];
+        return {
+          gameId: g.gameId,
+          label: g.label || '',
+          url: g.url || '',
+          imageUrl: g.imageUrl || '',
+          categories,
+        };
+      });
     res.setHeader('Cache-Control', 'private, max-age=15');
-    return res.json({ exclusions, globals });
+    return res.json({ exclusions, globals, overrides });
   } catch (e) {
     console.error('games catalog error', e);
     return res.status(500).json({ error: 'Failed to load catalog' });
@@ -265,4 +304,52 @@ export function adminRemoveGlobalGameHandler(req, res) {
   const info = db.prepare('DELETE FROM game_global_adds WHERE id = ?').run(id);
   if (!info.changes) return res.status(404).json({ error: 'Not found' });
   return res.json({ ok: true, id });
+}
+
+export function adminUpdateGameHandler(req, res) {
+  const admin = requireAdmin(req, res);
+  if (!admin) return;
+
+  const id = typeof req.params?.id === 'string' ? req.params.id.trim().slice(0, 80) : '';
+  if (!id) return res.status(400).json({ error: 'Invalid id' });
+
+  const label = sanitizeLabel(req.body?.label);
+  const url = sanitizeGameUrl(req.body?.url);
+  const imageUrl = sanitizeImageUrl(req.body?.imageUrl || '');
+  const categories = sanitizeCategories(req.body?.categories);
+
+  if (!label) return res.status(400).json({ error: 'Title required' });
+  if (!url) return res.status(400).json({ error: 'Invalid game URL' });
+  if (!imageUrl) return res.status(400).json({ error: 'Image required' });
+
+  const now = Date.now();
+  if (/^global-[a-z0-9]+$/i.test(id)) {
+    const info = db
+      .prepare(
+        `UPDATE game_global_adds SET label = ?, url = ?, image_url = ?, categories = ? WHERE id = ?`
+      )
+      .run(label, url, imageUrl, JSON.stringify(categories), id);
+    if (!info.changes) return res.status(404).json({ error: 'Not found' });
+    return res.json({
+      ok: true,
+      game: { id, label, url, imageUrl, categories, isCustom: false, isGlobal: true },
+    });
+  }
+
+  db.prepare(
+    `INSERT INTO game_overrides (game_id, label, url, image_url, categories, updated_at, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(game_id) DO UPDATE SET
+       label = excluded.label,
+       url = excluded.url,
+       image_url = excluded.image_url,
+       categories = excluded.categories,
+       updated_at = excluded.updated_at,
+       updated_by = excluded.updated_by`
+  ).run(id, label, url, imageUrl, JSON.stringify(categories), now, admin.id);
+
+  return res.json({
+    ok: true,
+    game: { id, label, url, imageUrl, categories, isCustom: false, isGlobal: false },
+  });
 }

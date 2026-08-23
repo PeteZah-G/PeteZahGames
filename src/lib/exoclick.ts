@@ -4,8 +4,7 @@ import { getSiteOrigin, isSvgShell } from "@/lib/siteOrigin";
 const CONTAINER_ID = "pz-video-ad-root";
 const VAST_BASE = "https://s.magsrv.com/v1/vast.php";
 const VAST_ZONE = "6002278";
-const FILL_WAIT_MS = 14000;
-const VAST_RETRIES = 3;
+const FILL_WAIT_MS = 5000;
 const HARD_CAP_MS = 90000;
 const WINDOW_MS = 5 * 60 * 1000;
 const MAX_PER_WINDOW = 2;
@@ -98,7 +97,7 @@ function loadScript(src: string, id?: string) {
       const bad = () => reject(new Error(src));
       existing.addEventListener("load", ok, { once: true });
       existing.addEventListener("error", bad, { once: true });
-      window.setTimeout(() => (existing.dataset.pzAdLoaded === "1" ? ok() : bad()), 6000);
+      window.setTimeout(() => (existing.dataset.pzAdLoaded === "1" ? ok() : bad()), 4000);
     });
   }
   return new Promise<void>((resolve, reject) => {
@@ -215,13 +214,14 @@ export async function requestAdGate(
   if (!clientCanPlay()) {
     return { show: false, reason: "cooldown" };
   }
-  try {
-    const r = await fetch("/api/ads/gate", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ context }),
-    });
+    try {
+      const r = await fetch("/api/ads/gate", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ context }),
+        signal: AbortSignal.timeout(4000),
+      });
     const d = await r.json();
     if (!r.ok || !d?.show) {
       return { show: false, reason: d?.reason || "skip" };
@@ -412,20 +412,9 @@ async function playWithRetries(
   timerLabel: HTMLElement
 ): Promise<"done" | "skip" | "error"> {
   const unmuted = canUnmute();
-  const attempts: boolean[] = isSvgShell()
-    ? [unmuted ? false : true]
-    : unmuted
-      ? [false, true, true]
-      : [true, true, true];
-  let last: "done" | "skip" | "error" = "error";
-  const retries = isSvgShell() ? 1 : Math.min(VAST_RETRIES, attempts.length);
-  for (let i = 0; i < retries; i++) {
-    if (playGen !== myGen) return "skip";
-    last = await playViaImaSdk(myGen, video, adLayer, w, h, buildVastUrl(), attempts[i], timerLabel);
-    if (last === "done" || last === "skip") return last;
-    await new Promise((r) => setTimeout(r, 280 + i * 220));
-  }
-  return last;
+  const mutedPlay = isSvgShell() ? true : !unmuted;
+  if (playGen !== myGen) return "skip";
+  return playViaImaSdk(myGen, video, adLayer, w, h, buildVastUrl(), mutedPlay, timerLabel);
 }
 
 function playSession(myGen: number): Promise<"done" | "skip" | "error"> {

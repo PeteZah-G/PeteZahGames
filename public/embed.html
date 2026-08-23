@@ -39,6 +39,7 @@
       }
       #status.hide {
         opacity: 0;
+        pointer-events: none;
       }
       #status p {
         margin: 0;
@@ -46,8 +47,8 @@
         letter-spacing: 0.02em;
       }
     </style>
-    <script src="/m4thx/index.js"></script>
-    <script src="/q9vx/sj.all.js"></script>
+    <script src="/m4thx/index.js?v=dl7"></script>
+    <script src="/q9vx/sj.all.js?v=dl7"></script>
     <script src="/config.js"></script>
   </head>
   <body>
@@ -67,36 +68,38 @@
         var setT = c([98, 105, 110, 100, 84, 114, 97, 110, 115, 102, 101, 114]);
         var streamKey = c([108, 105, 110, 107]);
         var makeFrame = c([111, 112, 101, 110, 83, 117, 114, 102, 97, 99, 101]);
+        var codecKey = c([104, 121, 112, 101, 115, 116, 117, 100, 121, 95, 112, 120, 95, 107, 49]);
+        var alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
-        var factory = window[loadCtrl];
-        var packed = factory();
-        var Ctrl = packed[ctrlName];
-        var engine = new Ctrl({
-          prefix: "/afsd123k2/",
-          files: {
-            wasm: "/q9vx/sj.wasm.wasm",
-            all: "/q9vx/sj.all.js",
-            sync: "/q9vx/sj.sync.js",
-          },
-        });
-
-        var Mux = window[muxName];
-        var connection = new Mux[muxConn]("/m4thx/worker.js");
-
-        var store = {
-          streamurl:
-            (typeof _CONFIG !== "undefined" && _CONFIG.streamurl) ||
-            (location.protocol === "https:" ? "wss" : "ws") +
-              "://" +
-              location.host +
-              "/api/websocket/",
-          bareurl:
-            (typeof _CONFIG !== "undefined" && _CONFIG.bareurl) ||
-            location.protocol + "//" + location.host + "/api/edge/",
-        };
-
-        var readyPromise = null;
-        var frame = null;
+        function codecEncode(url) {
+          if (!url) return url;
+          var x = "";
+          for (var i = 0; i < url.length; i++) {
+            x += String.fromCharCode(url.charCodeAt(i) ^ codecKey.charCodeAt(i % codecKey.length));
+          }
+          var o = "";
+          for (var j = 0; j < x.length; j++) {
+            var ch = x.charCodeAt(j);
+            o += alphabet[(ch >> 12) & 63] + alphabet[(ch >> 6) & 63] + alphabet[ch & 63];
+          }
+          return o;
+        }
+        function codecDecode(url) {
+          if (!url) return url;
+          var x = "";
+          for (var i = 0; i + 2 < url.length; i += 3) {
+            var a = alphabet.indexOf(url[i]);
+            var b = alphabet.indexOf(url[i + 1]);
+            var cc = alphabet.indexOf(url[i + 2]);
+            if (a < 0 || b < 0 || cc < 0) break;
+            x += String.fromCharCode((a << 12) | (b << 6) | cc);
+          }
+          var o = "";
+          for (var j = 0; j < x.length; j++) {
+            o += String.fromCharCode(x.charCodeAt(j) ^ codecKey.charCodeAt(j % codecKey.length));
+          }
+          return o;
+        }
 
         function setStatus(text) {
           var el = document.getElementById("status");
@@ -127,25 +130,44 @@
           }
         }
 
-        async function ensureReady() {
-          if (readyPromise) return readyPromise;
-          readyPromise = (async function () {
-            await engine.init();
-            try {
-              await navigator.serviceWorker.register("/1k123.js", {
-                updateViaCache: "none",
-                scope: "/",
-              });
-              await navigator.serviceWorker.ready;
-            } catch (e) {}
-            await waitForTransport();
-          })();
-          return readyPromise;
+        function waitFor(fn, ms) {
+          return new Promise(function (resolve, reject) {
+            var start = Date.now();
+            var t = setInterval(function () {
+              try {
+                if (fn()) {
+                  clearInterval(t);
+                  resolve();
+                  return;
+                }
+              } catch (e) {}
+              if (Date.now() - start > ms) {
+                clearInterval(t);
+                reject(new Error("timeout"));
+              }
+            }, 50);
+          });
         }
 
-        async function waitForTransport() {
+        var store = {
+          streamurl:
+            (typeof _CONFIG !== "undefined" && _CONFIG.streamurl) ||
+            (location.protocol === "https:" ? "wss" : "ws") +
+              "://" +
+              location.host +
+              "/api/websocket/",
+          bareurl:
+            (typeof _CONFIG !== "undefined" && _CONFIG.bareurl) ||
+            location.protocol + "//" + location.host + "/api/edge/",
+        };
+
+        var readyPromise = null;
+        var frame = null;
+        var engine = null;
+
+        async function waitForTransport(connection) {
           var attempts = 0;
-          var maxAttempts = 12;
+          var maxAttempts = 40;
           while (attempts < maxAttempts) {
             try {
               var o1 = {};
@@ -166,12 +188,50 @@
                   attempts++;
                   if (attempts >= maxAttempts) throw new Error("transport");
                   await new Promise(function (r) {
-                    setTimeout(r, 120);
+                    setTimeout(r, 150);
                   });
                 }
               }
             }
           }
+        }
+
+        async function ensureReady() {
+          if (readyPromise) return readyPromise;
+          readyPromise = (async function () {
+            await waitFor(function () {
+              return typeof window[loadCtrl] === "function";
+            }, 12000);
+            var factory = window[loadCtrl];
+            var packed = factory();
+            var Ctrl = packed[ctrlName];
+            if (!Ctrl) throw new Error("controller");
+            engine = new Ctrl({
+              prefix: "/afsd123k2/",
+              files: {
+                wasm: "/q9vx/sj.wasm.wasm",
+                all: "/q9vx/sj.all.js?v=dl7",
+                sync: "/q9vx/sj.sync.js?v=dl7",
+              },
+              flags: { sourcemaps: false, rewriterLogs: false, captureErrors: true },
+              codec: { encode: codecEncode, decode: codecDecode },
+            });
+            try {
+              await navigator.serviceWorker.register("/1k123.js?v=dl7", {
+                updateViaCache: "none",
+                scope: "/",
+              });
+              await navigator.serviceWorker.ready;
+            } catch (e) {}
+            await waitFor(function () {
+              return !!(window[muxName] && window[muxName][muxConn]);
+            }, 8000);
+            var Mux = window[muxName];
+            var connection = new Mux[muxConn]("/m4thx/worker.js");
+            await waitForTransport(connection);
+            await engine.init();
+          })();
+          return readyPromise;
         }
 
         async function loadFromHash() {
@@ -184,6 +244,7 @@
           try {
             await ensureReady();
           } catch (e) {
+            readyPromise = null;
             setStatus("Could not start. Refresh and try again.");
             return;
           }
@@ -191,19 +252,29 @@
           container.innerHTML = "";
           frame = engine[makeFrame]();
           container.appendChild(frame.frame);
+          frame.frame.addEventListener("load", function () {
+            setStatus("");
+          });
           document.title = url.replace(/^https?:\/\//i, "").split("/")[0] || "PeteZah";
-          frame.go(url);
+          try {
+            frame.go(url);
+          } catch (e) {
+            setStatus("Could not open that page.");
+            return;
+          }
           setTimeout(function () {
             setStatus("");
-          }, 400);
+          }, 2500);
         }
 
         window.addEventListener("hashchange", function () {
           loadFromHash();
         });
-        window.addEventListener("load", function () {
+        if (document.readyState === "complete" || document.readyState === "interactive") {
           loadFromHash();
-        });
+        } else {
+          window.addEventListener("DOMContentLoaded", loadFromHash);
+        }
       })();
     </script>
   </body>

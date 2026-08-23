@@ -56,7 +56,7 @@ const SITE_PRESETS = [
   { id: "petezah",   label: "PeteZah",           favicon: "/logo.png" },
 ];
 
-type Section = "profile" | "proxy" | "get-links" | "achievements" | "appearance" | "cloaking" | "behavior" | "shortcuts" | "data" | "admin" | "users" | "live" | "firefox-vm" | "game-stats" | "link-stats" | "ad-reports" | "updates" | "ai-prompts";
+type Section = "profile" | "proxy" | "get-links" | "achievements" | "appearance" | "cloaking" | "behavior" | "shortcuts" | "data" | "admin" | "users" | "live" | "firefox-vm" | "game-stats" | "link-stats" | "ad-reports" | "monitoring" | "updates" | "ai-prompts";
 
 function applySettingsNow(s: Record<string, string>) {
   if (s.theme) {
@@ -367,6 +367,7 @@ const NAV: { id: Section; label: string; icon: any; adminOnly?: boolean }[] = [
   { id: "link-stats", label: "Link Stats",  icon: BarChart3, adminOnly: true },
   { id: "ai-prompts", label: "AI Prompts", icon: MessageSquare, adminOnly: true },
   { id: "ad-reports", label: "Ad reports", icon: TrendingUp, adminOnly: true },
+  { id: "monitoring", label: "Monitoring", icon: Activity, adminOnly: true },
   { id: "updates",    label: "Updates", icon: Megaphone, adminOnly: true },
 ];
 
@@ -495,7 +496,6 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   const [ffHistoryLoading, setFfHistoryLoading] = useState(false);
   const [announcements, setAnnouncements] = useState<{ id: string; title: string; content: string; active: number; created_at: number; target_user_id?: string | null; target_username?: string | null }[]>([]);
   const [aiPrompts, setAiPrompts] = useState<{ id: string; preview: string; createdAt: number }[]>([]);
-  const [updatesTab, setUpdatesTab] = useState<"posts" | "node">("posts");
   const [routeMetrics, setRouteMetrics] = useState<{
     routes: { route: string; count: number; totalMs: number; avgMs: number }[];
     cpuPercent?: number;
@@ -1002,15 +1002,14 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
 
   useEffect(() => {
     if (section !== "updates" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
-    if (updatesTab !== "posts") return;
     fetch("/api/admin/announcements", { credentials: "include" })
       .then((r) => r.json())
       .then((d) => setAnnouncements(d.announcements || []))
       .catch(() => {});
-  }, [section, user, updatesTab]);
+  }, [section, user]);
 
   useEffect(() => {
-    if (section !== "updates" || updatesTab !== "node" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
+    if (section !== "monitoring" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
     let cancelled = false;
     const load = () => {
       setRouteMetricsLoading(true);
@@ -1032,7 +1031,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       cancelled = true;
       clearInterval(iv);
     };
-  }, [section, user, updatesTab]);
+  }, [section, user]);
 
   useEffect(() => {
     if (section !== "ai-prompts" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
@@ -4063,65 +4062,65 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
 
             {section === "ad-reports" && isAdmin && <AdReportsPanel C={C} />}
 
-            {section === "updates" && isAdmin && (
+            {section === "monitoring" && isAdmin && (
               <div style={{ maxWidth: "560px" }}>
-                <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: "0 0 3px" }}>Updates</h2>
-                <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 12px" }}>
-                  Announcements and a lightweight Node load snapshot.
+                <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: "0 0 3px", display: "flex", alignItems: "center", gap: 8 }}>
+                  <Activity size={14} style={{ color: C.accent }} />
+                  Monitoring
+                </h2>
+                <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 16px" }}>
+                  Samples 1 in 4 API requests. Paths are collapsed (ids redacted). Auto-refreshes every 15s.
                 </p>
-                <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-                  {([
-                    ["posts", "Posts"],
-                    ["node", "Node load"],
-                  ] as const).map(([id, label]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => setUpdatesTab(id)}
+                {routeMetricsLoading && !routeMetrics ? (
+                  <div style={{ display: "flex", justifyContent: "center", padding: 32 }}>
+                    <Loader2 size={18} className="animate-spin" style={{ color: C.accent }} />
+                  </div>
+                ) : !routeMetrics ? (
+                  <p style={{ fontSize: 12, color: C.textMuted }}>No metrics yet</p>
+                ) : (
+                  <>
+                    <div
                       style={{
-                        padding: "6px 12px",
-                        borderRadius: 7,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        border: `1px solid ${updatesTab === id ? C.borderFocus : C.border}`,
-                        background: updatesTab === id ? C.accentDim : C.surface,
-                        color: updatesTab === id ? C.text : C.textMuted,
+                        display: "grid",
+                        gridTemplateColumns: "repeat(3, 1fr)",
+                        gap: 8,
+                        marginBottom: 14,
                       }}
                     >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                {updatesTab === "node" ? (
-                  <div>
-                    <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 12px" }}>
-                      Samples 1 in 4 API requests. Paths are collapsed (ids redacted). Auto-refreshes every 15s.
-                    </p>
-                    {routeMetricsLoading && !routeMetrics ? (
-                      <div style={{ display: "flex", justifyContent: "center", padding: 32 }}>
-                        <Loader2 size={18} className="animate-spin" style={{ color: C.accent }} />
-                      </div>
-                    ) : !routeMetrics ? (
-                      <p style={{ fontSize: 12, color: C.textMuted }}>No metrics yet</p>
-                    ) : (
-                      <>
+                      {[
+                        ["CPU", `${Number(routeMetrics.cpuPercent || 0).toFixed(1)}%`],
+                        ["Heap", `${routeMetrics.memory?.heapUsedMb ?? "—"} MB`],
+                        ["RSS", `${routeMetrics.memory?.rssMb ?? "—"} MB`],
+                      ].map(([k, v]) => (
                         <div
+                          key={k}
                           style={{
-                            display: "grid",
-                            gridTemplateColumns: "repeat(3, 1fr)",
-                            gap: 8,
-                            marginBottom: 14,
+                            padding: "10px 12px",
+                            borderRadius: 9,
+                            background: C.surface,
+                            border: `1px solid ${C.border}`,
                           }}
                         >
-                          {[
-                            ["CPU", `${Number(routeMetrics.cpuPercent || 0).toFixed(1)}%`],
-                            ["Heap", `${routeMetrics.memory?.heapUsedMb ?? "—"} MB`],
-                            ["RSS", `${routeMetrics.memory?.rssMb ?? "—"} MB`],
-                          ].map(([k, v]) => (
+                          <p style={{ margin: 0, fontSize: 10, color: C.textMuted, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                            {k}
+                          </p>
+                          <p style={{ margin: "4px 0 0", fontSize: 14, fontWeight: 700, color: C.text }}>{v}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px" }}>
+                      Top routes by time
+                    </p>
+                    {!routeMetrics.routes?.length ? (
+                      <p style={{ fontSize: 12, color: C.textMuted }}>Waiting for API traffic…</p>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {routeMetrics.routes.map((row) => {
+                          const max = routeMetrics.routes[0]?.totalMs || 1;
+                          const pct = Math.min(100, Math.round((row.totalMs / max) * 100));
+                          return (
                             <div
-                              key={k}
+                              key={row.route}
                               style={{
                                 padding: "10px 12px",
                                 borderRadius: 9,
@@ -4129,57 +4128,33 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                                 border: `1px solid ${C.border}`,
                               }}
                             >
-                              <p style={{ margin: 0, fontSize: 10, color: C.textMuted, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                                {k}
-                              </p>
-                              <p style={{ margin: "4px 0 0", fontSize: 14, fontWeight: 700, color: C.text }}>{v}</p>
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                                <span style={{ fontSize: 11, fontWeight: 650, color: C.text, wordBreak: "break-all" }}>
+                                  {row.route}
+                                </span>
+                                <span style={{ fontSize: 10, color: C.textMuted, flexShrink: 0 }}>
+                                  {row.avgMs} ms avg · {row.count} hits
+                                </span>
+                              </div>
+                              <div style={{ height: 4, borderRadius: 99, background: C.elevated, overflow: "hidden" }}>
+                                <div style={{ width: `${pct}%`, height: "100%", background: C.accent, opacity: 0.7 }} />
+                              </div>
                             </div>
-                          ))}
-                        </div>
-                        <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px" }}>
-                          Top routes by time
-                        </p>
-                        {!routeMetrics.routes?.length ? (
-                          <p style={{ fontSize: 12, color: C.textMuted }}>Waiting for API traffic…</p>
-                        ) : (
-                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                            {routeMetrics.routes.map((row) => {
-                              const max = routeMetrics.routes[0]?.totalMs || 1;
-                              const pct = Math.min(100, Math.round((row.totalMs / max) * 100));
-                              return (
-                                <div
-                                  key={row.route}
-                                  style={{
-                                    padding: "10px 12px",
-                                    borderRadius: 9,
-                                    background: C.surface,
-                                    border: `1px solid ${C.border}`,
-                                  }}
-                                >
-                                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
-                                    <span style={{ fontSize: 11, fontWeight: 650, color: C.text, wordBreak: "break-all" }}>
-                                      {row.route}
-                                    </span>
-                                    <span style={{ fontSize: 10, color: C.textMuted, flexShrink: 0 }}>
-                                      {row.avgMs} ms avg · {row.count} hits
-                                    </span>
-                                  </div>
-                                  <div style={{ height: 4, borderRadius: 99, background: C.elevated, overflow: "hidden" }}>
-                                    <div style={{ width: `${pct}%`, height: "100%", background: C.accent, opacity: 0.7 }} />
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                        <p style={{ marginTop: 10, fontSize: 10, color: C.textMuted }}>
-                          Uptime {Math.floor((routeMetrics.uptimeSec || 0) / 3600)}h · samples {routeMetrics.sampled ?? 0}
-                        </p>
-                      </>
+                          );
+                        })}
+                      </div>
                     )}
-                  </div>
-                ) : (
-                  <>
+                    <p style={{ marginTop: 10, fontSize: 10, color: C.textMuted }}>
+                      Uptime {Math.floor((routeMetrics.uptimeSec || 0) / 3600)}h · samples {routeMetrics.sampled ?? 0}
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+
+            {section === "updates" && isAdmin && (
+              <div style={{ maxWidth: "560px" }}>
+                <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: "0 0 3px" }}>Updates</h2>
                 <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 16px" }}>
                   Post a global popup, or send one straight to a specific user. Suspend anytime.
                 </p>
@@ -4257,8 +4232,6 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                       </div>
                     ))}
                   </div>
-                )}
-                  </>
                 )}
               </div>
             )}

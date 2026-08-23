@@ -16,16 +16,19 @@ const BEHIND_HOST_ID = "pz-loader-ad-behind";
 export function useInterstitialUnlock(context: Context, enabled = true) {
   const [unlocked, setUnlocked] = useState(!enabled);
   const [phase, setPhase] = useState<InterstitialPhase>(enabled ? "checking" : "ready");
+  const [hadAd, setHadAd] = useState(false);
 
   useEffect(() => {
     if (!enabled) {
       setUnlocked(true);
       setPhase("ready");
+      setHadAd(false);
       return;
     }
 
     let cancelled = false;
     setUnlocked(false);
+    setHadAd(false);
     setPhase("checking");
 
     (async () => {
@@ -35,6 +38,7 @@ export function useInterstitialUnlock(context: Context, enabled = true) {
 
         if (gate.show) {
           setPhase("ad");
+          setHadAd(true);
           await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
           if (cancelled) return;
           const behind = playLoaderNetworkAdsBehind(BEHIND_HOST_ID, HARD_BEHIND_MS);
@@ -45,19 +49,21 @@ export function useInterstitialUnlock(context: Context, enabled = true) {
             } catch {}
             return;
           }
-          if (result !== "done") {
-            try {
-              stopVideoAd();
-            } catch {}
-          }
+          try {
+            stopVideoAd();
+          } catch {}
           try {
             scrubAdsterraLoadingArtifacts();
           } catch {}
+          if (result === "error" || result === "skip") {
+            setHadAd(false);
+          }
         }
       } catch {
         try {
           stopVideoAd();
         } catch {}
+        setHadAd(false);
       }
 
       try {
@@ -91,18 +97,20 @@ export function useInterstitialUnlock(context: Context, enabled = true) {
     setPhase("ready");
   };
 
-  return { unlocked, phase, finishLoading };
+  return { unlocked, phase, finishLoading, hadAd };
 }
 
 export function InterstitialOverlay({
   phase,
   title,
   onLoadingDone,
+  quickSplash = false,
 }: {
   phase: InterstitialPhase;
   showBanner?: boolean;
   title?: string;
   onLoadingDone?: () => void;
+  quickSplash?: boolean;
 }) {
   if (phase === "ready") return null;
 
@@ -110,6 +118,7 @@ export function InterstitialOverlay({
     return (
       <GameLaunchSplash
         title={title}
+        minMs={quickSplash ? 900 : 2400}
         onDone={() => {
           onLoadingDone?.();
         }}

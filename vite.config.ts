@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, transformWithEsbuild, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import {
@@ -10,6 +10,7 @@ import {
   renameSync,
   symlinkSync,
   unlinkSync,
+  writeFileSync,
 } from "node:fs";
 import { spawn } from "node:child_process";
 import { componentTagger } from "lovable-tagger";
@@ -99,6 +100,36 @@ function gameAssetsPassthrough(mode: string): Plugin {
   };
 }
 
+async function minifyEngineMigrateHtml(html: string): Promise<string> {
+  const re = /<script>([\s\S]*?__pzEgMig[\s\S]*?)<\/script>/;
+  const m = html.match(re);
+  if (!m) return html;
+  const { code } = await transformWithEsbuild(m[1], "eg-migrate.js", {
+    minify: true,
+    legalComments: "none",
+  });
+  return html.replace(m[0], `<script>${code.trim()}</script>`);
+}
+
+function minifyEngineMigrate(): Plugin {
+  let outDir = "dist";
+  return {
+    name: "minify-engine-migrate",
+    apply: "build",
+    configResolved(config) {
+      outDir = config.build.outDir;
+    },
+    async transformIndexHtml(html) {
+      return minifyEngineMigrateHtml(html);
+    },
+    async closeBundle() {
+      const verifyPath = path.resolve(outDir, "verify.html");
+      if (!existsSync(verifyPath)) return;
+      writeFileSync(verifyPath, await minifyEngineMigrateHtml(readFileSync(verifyPath, "utf8")));
+    },
+  };
+}
+
 function banEngineTokens(): Plugin {
   let outDir = "dist";
   const banned = [/scramjet/i, /ultraviolet/i, /\/wisp\//i, /wisp-tor/i, /alt-wisp/i, /BareMux/, /setTransport/, /epoxy/i, /libcurl/i, /baremuxinit/];
@@ -169,7 +200,13 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-  plugins: [gameAssetsPassthrough(mode), react(), banEngineTokens(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [
+    gameAssetsPassthrough(mode),
+    react(),
+    minifyEngineMigrate(),
+    banEngineTokens(),
+    mode === "development" && componentTagger(),
+  ].filter(Boolean),
   base: mode === "svg" ? "./" : "/",
   build: {
     outDir: mode === "svg" ? "svg" : "dist",

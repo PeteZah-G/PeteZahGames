@@ -2,6 +2,9 @@
 import { exec } from 'child_process';
 import { EmbedBuilder } from 'discord.js';
 import dotenv from 'dotenv';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import path from 'path';
 import process from 'process';
 import { promisify } from 'util';
 import { sampleCpuPercent } from '../utils/runtime-metrics.js';
@@ -36,6 +39,7 @@ const ATTACK_PATTERN_THRESHOLD = 50;
 const RESTART_HOUR_ET = 0;
 const NOON_HOUR_ET = 12;
 const GB = 1024 * 1024 * 1024;
+const RESTART_MARKER = path.join(tmpdir(), 'petezah-daily-restart.day');
 
 class DDoSShield {
   constructor(client) {
@@ -50,6 +54,13 @@ class DDoSShield {
     this.startupGracePeriod = true;
     this.killSwitchActive = false;
     this.forceAttackMode = false;
+    this.lastRestartDay = '';
+    this.lastNoonDay = '';
+    try {
+      if (existsSync(RESTART_MARKER)) {
+        this.lastRestartDay = readFileSync(RESTART_MARKER, 'utf8').trim();
+      }
+    } catch {}
     this.scheduleDailyRestart();
     this.scheduleDailyStatus();
     setTimeout(() => {
@@ -81,8 +92,6 @@ class DDoSShield {
     this.alertCooldowns = new Map();
     this.critStreak = 0;
     this.cpuHighStreak = 0;
-    this.lastRestartDay = '';
-    this.lastNoonDay = '';
 
     this.cleanupInterval = setInterval(() => this.cleanupOldEntries(), 60000);
     this.memoryMonitorInterval = setInterval(() => this.monitorMemory(), 45000);
@@ -750,11 +759,22 @@ class DDoSShield {
 
   scheduleDailyRestart() {
     const tick = () => {
+      if (this.startupGracePeriod) return;
+      if (process.uptime() < 180) return;
       const { day, hour, minute } = this.etParts();
-      if (hour === RESTART_HOUR_ET && minute === 0 && this.lastRestartDay !== day) {
-        this.lastRestartDay = day;
-        this.performGracefulRestart();
-      }
+      if (hour !== RESTART_HOUR_ET || minute !== 0) return;
+      if (this.lastRestartDay === day) return;
+      try {
+        if (existsSync(RESTART_MARKER) && readFileSync(RESTART_MARKER, 'utf8').trim() === day) {
+          this.lastRestartDay = day;
+          return;
+        }
+      } catch {}
+      this.lastRestartDay = day;
+      try {
+        writeFileSync(RESTART_MARKER, day);
+      } catch {}
+      this.performGracefulRestart();
     };
     const t = setInterval(tick, 30000);
     if (t?.unref) t.unref();
@@ -807,7 +827,7 @@ class DDoSShield {
       .setColor('#ffaa00')
       .setTimestamp();
 
-    await this.sendLog(null, embed);
+    await this.sendLog(null, embed, 'scheduled_restart', 180000);
 
     if (this.client.ws) {
       this.client.ws.destroy();
