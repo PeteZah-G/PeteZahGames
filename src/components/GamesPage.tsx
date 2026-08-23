@@ -5,6 +5,7 @@ import { requestSyncSoon } from "@/lib/settingsSync";
 import { AdResponsiveBanner, AdNativeBar } from "@/components/ads/Adsterra";
 import { armAdAudio } from "@/lib/exoclick";
 import { originHttpHost } from "@/lib/siteOrigin";
+import { unwrapPlayUrl } from "@/lib/proxyTarget";
 
 const CATEGORIES = ["All", "Action", "Racing", "Strategy", "Sports", "Skill", "Shooting", "2 Player", "Io"];
 const PINNED_LABELS = ["Request Games", "Minecraft", "Roblox"];
@@ -204,15 +205,11 @@ function GameCarousel({
 
 function resolveGameUrl(url: string): string {
   if (!url) return url;
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  const unwrapped = unwrapPlayUrl(url);
+  if (unwrapped.startsWith("http://") || unwrapped.startsWith("https://")) return unwrapped;
   const host = originHttpHost();
-  if (url.startsWith("/iframe.html?url=")) {
-    const inner = url.slice("/iframe.html?url=".length);
-    const decoded = decodeURIComponent(inner);
-    if (decoded.startsWith("http://") || decoded.startsWith("https://")) return decoded;
-    return host + decoded;
-  }
-  return host + url;
+  if (unwrapped.startsWith("/")) return host + unwrapped;
+  return host + "/" + unwrapped.replace(/^\/+/, "");
 }
 
 

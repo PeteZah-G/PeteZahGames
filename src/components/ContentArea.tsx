@@ -1232,14 +1232,6 @@ function TabPane({
   const isGameViewer = tab.url.startsWith("petezah://gameviewer");
   const displayUrl = isGameViewer ? "petezah://gameviewer" : tab.url;
   const isAppViewer = tab.url.startsWith("petezah://appviewer");
-  const isYoutube =
-    tab.url.startsWith("https://www.youtube.com/") ||
-    tab.url.startsWith("https://youtube.com/") ||
-    tab.url.startsWith("youtube.com/");
-  const isReddit =
-    tab.url.startsWith("https://www.reddit.com/") ||
-    tab.url.startsWith("https://reddit.com/") ||
-    tab.url.startsWith("reddit.com/");
 
   if (isGameViewer) {
     const params = new URLSearchParams(tab.url.split("?")[1] || "");
@@ -1491,42 +1483,6 @@ function TabPane({
           url={appUrl}
           title={appTitle}
           onBack={() => onNavigate("petezah://apps")}
-        />
-      </div>
-    );
-  }
-
-  if (isYoutube) {
-    const embedUrl =
-      "/static/google-embed.html#" +
-      tab.url.replace(/^https?:\/\/(www\.)?/, "");
-    return (
-      <div
-        className="absolute inset-0 w-full h-full"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
-        <ExtensionAwareIframe
-          src={embedUrl}
-          pageUrl={tab.url}
-          isVisible={isVisible}
-        />
-      </div>
-    );
-  }
-
-  if (isReddit) {
-    const embedUrl =
-      "/static/google-embed.html#" +
-      tab.url.replace(/^https?:\/\/(www\.)?/, "");
-    return (
-      <div
-        className="absolute inset-0 w-full h-full"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
-        <ExtensionAwareIframe
-          src={embedUrl}
-          pageUrl={tab.url}
-          isVisible={isVisible}
         />
       </div>
     );

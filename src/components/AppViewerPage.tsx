@@ -14,6 +14,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
 import { ensureProxyEngine } from "@/lib/browserInit";
+import { applyProxyStreamForUrl } from "@/lib/proxyTarget";
 import { useInterstitialUnlock, InterstitialOverlay } from "./InterstitialAdGate";
 import { openNativeWindow } from "@/lib/openTabBridge";
 
@@ -65,15 +66,6 @@ function ControlBtn({
   );
 }
 
-const getEmbedUrl = (originalUrl: string) => {
-  try {
-    const domain = new URL(originalUrl).hostname;
-    if (domain.includes("google.com")) return "/static/google-embed.html#google.com";
-    if (domain.includes("youtube.com")) return "/static/google-embed.html#youtube.com";
-    if (domain.includes("reddit.com")) return "/static/google-embed.html#reddit.com";
-  } catch {}
-  return pxEncode(originalUrl);
-};
 
 function applyMuteToFrame(iframe: HTMLIFrameElement | null, muted: boolean) {
   if (!iframe) return;
@@ -146,6 +138,7 @@ export default function AppViewerPage({ url, title, onBack }: AppViewerPageProps
   const [controlsVisible, setControlsVisible] = useState(true);
   const [muted, setMuted] = useState(false);
   const { unlocked, phase } = useInterstitialUnlock("app");
+  const canPreload = phase === "ad" || phase === "loading" || phase === "ready" || unlocked;
   const displayTitle = title?.trim() || "App";
 
   const applyZoom = useCallback((z: number) => {
@@ -166,7 +159,7 @@ export default function AppViewerPage({ url, title, onBack }: AppViewerPageProps
   }, []);
 
   useEffect(() => {
-    if (!unlocked) return;
+    if (!canPreload) return;
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
 
@@ -179,12 +172,15 @@ export default function AppViewerPage({ url, title, onBack }: AppViewerPageProps
         const scFrame = pxCreateFrame();
         if (!scFrame) return false;
         scFrame.frame.style.cssText =
-          "position:absolute;inset:0;width:100%;height:100%;border:none;opacity:0;transition:opacity 0.25s ease;";
-        scFrame.frame.src = getEmbedUrl(url);
+          "position:absolute;inset:0;width:100%;height:100%;border:none;opacity:0;transition:opacity 0.25s ease;pointer-events:none;";
         scFrame.frame.onload = () => {
-          scFrame.frame.style.opacity = "1";
           applyMuteToFrame(scFrame.frame, muted);
         };
+        void applyProxyStreamForUrl(url).then(() => {
+          try {
+            scFrame.frame.src = pxEncode(url);
+          } catch {}
+        });
         frameHostRef.current = scFrame.frame;
         wrapper.appendChild(scFrame.frame);
         requestAnimationFrame(() => applyZoom(zoomRef.current));
@@ -214,7 +210,14 @@ export default function AppViewerPage({ url, title, onBack }: AppViewerPageProps
       frameHostRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, unlocked, applyZoom]);
+  }, [url, canPreload, applyZoom]);
+
+  useEffect(() => {
+    const frame = frameHostRef.current;
+    if (!frame) return;
+    frame.style.opacity = unlocked ? "1" : "0";
+    frame.style.pointerEvents = unlocked ? "auto" : "none";
+  }, [unlocked, url, canPreload]);
 
   useEffect(() => {
     const handler = () => {

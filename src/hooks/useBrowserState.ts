@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
 import { ensureProxyEngine } from "@/lib/browserInit";
+import { applyProxyStreamForUrl } from "@/lib/proxyTarget";
 import { getHomeUrl } from "@/lib/homeUrl";
 import { isBookmarklet, runBookmarkletOnFrame } from "@/lib/bookmarklets";
 import { toast } from "@/hooks/use-toast";
@@ -105,7 +106,11 @@ function makeProxyFrame(url: string): ProxyFrame | undefined {
     const scFrame = pxCreateFrame();
     if (!scFrame) return undefined;
     const frame = scFrame.frame as HTMLIFrameElement;
-    frame.src = pxEncode(url);
+    void applyProxyStreamForUrl(url).then(() => {
+      try {
+        frame.src = pxEncode(url);
+      } catch {}
+    });
     frame.style.cssText =
       "position:absolute;inset:0;width:100%;height:100%;border:none;opacity:0;transition:opacity 0.25s ease;";
     frame.referrerPolicy = "no-referrer";
@@ -373,6 +378,7 @@ export function useBrowserState() {
     const targetId = focusedTabId;
 
     const doNavigate = () => {
+      void applyProxyStreamForUrl(url);
       setTabs((prev) =>
         prev.map((t) => {
           if (t.id !== targetId) return t;
@@ -403,7 +409,11 @@ export function useBrowserState() {
           }
 
           if (t.frame?.go) {
-            try { t.frame.go(url); } catch {}
+            void applyProxyStreamForUrl(url).then(() => {
+              try {
+                t.frame?.go?.(url);
+              } catch {}
+            });
             const existingTabId = t.id;
             t.frame.addEventListener?.("urlchange", (e: any) => {
               const newUrl = e?.url || e?.detail?.url || "";
