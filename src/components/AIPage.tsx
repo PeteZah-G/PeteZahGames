@@ -56,14 +56,24 @@ interface ConvoMeta {
 const LOCAL_CONVOS_KEY = "petezah-ai-convos-lite";
 const WELCOME = "Hey! I'm PeteAI. What can I help you with?";
 
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function formatAiResponse(text: string) {
-  let out = text.trim();
+  // escape everything first, then layer our own markup on top. otherwise raw
+  // html in the model output (or a reloaded convo) executes via the
+  // dangerouslySetInnerHTML sink below.
+  let out = escapeHtml(text.trim());
   out = out.replace(
     /```(\w+)?\n([\s\S]*?)```/g,
     (_: string, _lang: string, code: string) =>
-      `<pre style="background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:12px 14px;overflow-x:auto;font-size:11px;margin:8px 0;font-family:'Courier New',monospace;color:rgba(255,255,255,0.85);white-space:pre-wrap;"><code>${code
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")}</code></pre>`,
+      `<pre style="background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:12px 14px;overflow-x:auto;font-size:11px;margin:8px 0;font-family:'Courier New',monospace;color:rgba(255,255,255,0.85);white-space:pre-wrap;"><code>${code}</code></pre>`,
   );
   out = out.replace(
     /`([^`]+)`/g,
