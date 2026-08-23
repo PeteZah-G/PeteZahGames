@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import db from '../db.js';
+import { isOwnerEmail } from '../utils/auth-roles.js';
 
 const MAX_CONVOS = 25;
 const MAX_MESSAGES = 40;
@@ -50,7 +51,7 @@ function requireAdmin(req, res) {
     res.status(401).json({ error: 'Unauthorized' });
     return null;
   }
-  const owner = (process.env.OWNER_EMAIL || '').toLowerCase() === String(row.email || '').toLowerCase();
+  const owner = isOwnerEmail(row.email);
   const level = Number(row.is_admin || 0);
   if (level < 1 && !owner) {
     res.status(403).json({ error: 'Admin required' });
