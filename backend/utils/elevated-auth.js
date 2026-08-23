@@ -130,10 +130,9 @@ export function enforceElevatedSession(req) {
   const user = req.session?.user;
   if (!user?.id) return { ok: true };
 
-  if (req.session.totpOk && !user.must_setup_2fa && !req.session.must_setup_2fa) {
-    return { ok: true };
-  }
-
+  // always re-read the role from the db. don't short-circuit on totpOk: a user
+  // promoted to staff mid-session still carries totpOk from their normal login,
+  // and skipping the read would let them use admin apis without enrolling 2fa.
   const row = loadAuthRow(user.id);
   if (!row || row.banned) {
     return { ok: false, status: 401, body: { error: 'Unauthorized', code: 'REQUIRES_SIGNIN' } };
@@ -145,6 +144,12 @@ export function enforceElevatedSession(req) {
     if (user.must_setup_2fa) delete user.must_setup_2fa;
     return { ok: true };
   }
+
+  // row is elevated. if the session still thinks it's a normal user, this is a
+  // fresh promotion: the totpOk it carries was auto-granted at a normal-user
+  // login with no challenge, so don't honor it, make them actually pass/enroll.
+  const sessionElevated = (Number(user.is_admin) || 0) >= 1 || user.is_owner === true;
+  if (!sessionElevated) delete req.session.totpOk;
 
   if (row.totp_enabled) {
     if (req.session.totpOk) return { ok: true };
