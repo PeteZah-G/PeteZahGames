@@ -47,6 +47,12 @@ export async function adminUserActionHandler(req, res) {
   const canModerate = isOwner || admin.is_admin >= 1;
   if (!canModerate) return res.status(403).json({ error: 'Forbidden' });
 
+  // moderation (suspend/ban/unban/delete) only downward: a mod shouldn't be able
+  // to ban or delete staff/admins, or another mod. owner outranks everyone.
+  if (!isOwner && (admin.is_admin || 0) <= (target.is_admin || 0)) {
+    return res.status(403).json({ error: 'You cannot moderate a user at or above your role.' });
+  }
+
   if (action === 'suspend') {
     db.prepare('UPDATE users SET email_verified = 0 WHERE id = ?').run(userId);
     return res.json({ message: 'User suspended.' });
