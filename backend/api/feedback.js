@@ -26,14 +26,26 @@ export async function getFeedbackHandler(req, res) {
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
-  const { c: total } = db.prepare('SELECT COUNT(*) as c FROM feedback').get();
-  const rows = db.prepare(`
-    SELECT f.id, f.user_id, f.content, f.created_at, u.username, u.email
-    FROM feedback f
-    LEFT JOIN users u ON f.user_id = u.id
-    ORDER BY f.created_at DESC
-    LIMIT ? OFFSET ?
-  `).all(PAGE_SIZE, offset);
+  // non-admins only ever see their own submissions, not everyone's
+  const { c: total } = isAdmin
+    ? db.prepare('SELECT COUNT(*) as c FROM feedback').get()
+    : db.prepare('SELECT COUNT(*) as c FROM feedback WHERE user_id = ?').get(req.session.user.id);
+  const rows = isAdmin
+    ? db.prepare(`
+        SELECT f.id, f.user_id, f.content, f.created_at, u.username, u.email
+        FROM feedback f
+        LEFT JOIN users u ON f.user_id = u.id
+        ORDER BY f.created_at DESC
+        LIMIT ? OFFSET ?
+      `).all(PAGE_SIZE, offset)
+    : db.prepare(`
+        SELECT f.id, f.user_id, f.content, f.created_at, u.username, u.email
+        FROM feedback f
+        LEFT JOIN users u ON f.user_id = u.id
+        WHERE f.user_id = ?
+        ORDER BY f.created_at DESC
+        LIMIT ? OFFSET ?
+      `).all(req.session.user.id, PAGE_SIZE, offset);
 
   res.json({
     entries: rows.map(mapFeedbackEntry),
