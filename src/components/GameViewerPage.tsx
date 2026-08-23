@@ -14,8 +14,6 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useInterstitialUnlock, InterstitialOverlay } from "./InterstitialAdGate";
 import { openNativeWindow } from "@/lib/openTabBridge";
-import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
-import { ensureProxyEngine } from "@/lib/browserInit";
 import { getSiteOrigin } from "@/lib/siteOrigin";
 
 interface GameViewerPageProps {
@@ -140,6 +138,13 @@ function applyMuteToFrame(iframe: HTMLIFrameElement | null, muted: boolean) {
   } catch {}
 }
 
+function toEmbedSrc(raw: string): string {
+  const marker = "embed.html#";
+  const i = raw.indexOf(marker);
+  if (i >= 0) return "/embed.html#" + raw.slice(i + marker.length);
+  return "/embed.html#" + raw;
+}
+
 export default function GameViewerPage({
   url,
   title,
@@ -148,7 +153,6 @@ export default function GameViewerPage({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const frameHostRef = useRef<HTMLIFrameElement | null>(null);
   const zoomRef = useRef(1);
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -159,9 +163,7 @@ export default function GameViewerPage({
   const useProxy = needsRemoteFrame(url);
   const displayTitle = title?.trim() || "Game";
 
-  const getActiveFrame = useCallback(() => {
-    return useProxy ? frameHostRef.current : iframeRef.current;
-  }, [useProxy]);
+  const getActiveFrame = useCallback(() => iframeRef.current, []);
 
   const applyZoom = useCallback((z: number) => {
     const wrapper = wrapperRef.current;
@@ -196,72 +198,6 @@ export default function GameViewerPage({
       openNativeWindow("/storage/ag/originals/Resent-Client-main/index.html");
     }
   }, [url]);
-
-  useEffect(() => {
-    if (!canPreload || !useProxy) return;
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
-
-    ensureProxyEngine().catch(() => {});
-
-    const tryCreate = () => {
-      if (!pxReady()) return false;
-      try {
-        if (frameHostRef.current?.parentNode) return true;
-        const scFrame = pxCreateFrame();
-        if (!scFrame) return false;
-        scFrame.frame.style.cssText =
-          "position:absolute;inset:0;width:100%;height:100%;border:none;opacity:0;pointer-events:none;transition:opacity 0.25s ease;";
-        scFrame.frame.src = pxEncode(url);
-        scFrame.frame.onload = () => {
-          applyMuteToFrame(scFrame.frame, muted);
-        };
-        frameHostRef.current = scFrame.frame;
-        wrapper.appendChild(scFrame.frame);
-        if (unlocked) {
-          scFrame.frame.style.opacity = "1";
-          scFrame.frame.style.pointerEvents = "auto";
-        }
-        requestAnimationFrame(() => applyZoom(zoomRef.current));
-        return true;
-      } catch {
-        return false;
-      }
-    };
-
-    if (!tryCreate()) {
-      const interval = setInterval(() => {
-        if (tryCreate()) clearInterval(interval);
-      }, 100);
-      return () => {
-        clearInterval(interval);
-        if (frameHostRef.current?.parentNode) {
-          frameHostRef.current.parentNode.removeChild(frameHostRef.current);
-        }
-        frameHostRef.current = null;
-      };
-    }
-
-    return () => {
-      if (frameHostRef.current?.parentNode) {
-        frameHostRef.current.parentNode.removeChild(frameHostRef.current);
-      }
-      frameHostRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, canPreload, useProxy, applyZoom]);
-
-  useEffect(() => {
-    const frame = frameHostRef.current;
-    if (!frame) return;
-    if (unlocked) {
-      frame.style.opacity = "1";
-      frame.style.pointerEvents = "auto";
-    } else {
-      frame.style.opacity = "0";
-      frame.style.pointerEvents = "none";
-    }
-  }, [unlocked]);
 
   useEffect(() => {
     const tick = () => applyMuteToFrame(getActiveFrame(), muted);
@@ -306,23 +242,21 @@ export default function GameViewerPage({
             transformOrigin: "0 0",
           }}
         >
-          {!useProxy && (
-            <iframe
-              ref={iframeRef}
-              src={canPreload ? url : "about:blank"}
-              sandbox="allow-scripts allow-pointer-lock allow-forms allow-same-origin allow-downloads allow-popups allow-popups-to-escape-sandbox"
-              style={{
-                width: "100%",
-                height: "100%",
-                border: "none",
-                display: "block",
-                opacity: unlocked ? 1 : 0,
-                pointerEvents: unlocked ? "auto" : "none",
-              }}
-              title={displayTitle}
-              onLoad={() => applyMuteToFrame(iframeRef.current, muted)}
-            />
-          )}
+          <iframe
+            ref={iframeRef}
+            src={canPreload ? (useProxy ? toEmbedSrc(url) : url) : "about:blank"}
+            sandbox="allow-scripts allow-pointer-lock allow-forms allow-same-origin allow-downloads allow-popups allow-popups-to-escape-sandbox"
+            style={{
+              width: "100%",
+              height: "100%",
+              border: "none",
+              display: "block",
+              opacity: unlocked ? 1 : 0,
+              pointerEvents: unlocked ? "auto" : "none",
+            }}
+            title={displayTitle}
+            onLoad={() => applyMuteToFrame(iframeRef.current, muted)}
+          />
         </div>
 
         <InterstitialOverlay

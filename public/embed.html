@@ -68,6 +68,7 @@
         var setT = c([98, 105, 110, 100, 84, 114, 97, 110, 115, 102, 101, 114]);
         var streamKey = c([108, 105, 110, 107]);
         var makeFrame = c([111, 112, 101, 110, 83, 117, 114, 102, 97, 99, 101]);
+        var encodeName = c([115, 101, 97, 108, 72, 114, 101, 102, 115]);
         var codecKey = c([104, 121, 112, 101, 115, 116, 117, 100, 121, 95, 112, 120, 95, 107, 49]);
         var alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
@@ -130,6 +131,33 @@
           }
         }
 
+        function hostOf(url) {
+          try {
+            return new URL(url).hostname.toLowerCase();
+          } catch (e) {
+            return "";
+          }
+        }
+
+        function isPremiumHost(host) {
+          var h = String(host || "").toLowerCase();
+          if (h.startsWith("www.")) h = h.slice(4);
+          if (h === "youtube.com" || h === "youtu.be" || h === "youtube-nocookie.com") return true;
+          if (h.endsWith(".youtube.com") || h.endsWith(".youtu.be")) return true;
+          if (h === "reddit.com" || h === "redd.it") return true;
+          if (h.endsWith(".reddit.com") || h.endsWith(".redd.it")) return true;
+          return false;
+        }
+
+        function streamUrlFor(target) {
+          var premium = isPremiumHost(hostOf(target));
+          var path = premium ? "/api/websocket-premium/" : "/api/websocket/";
+          if (typeof _CONFIG !== "undefined" && _CONFIG.streamurl && !premium) {
+            return _CONFIG.streamurl;
+          }
+          return (location.protocol === "https:" ? "wss://" : "ws://") + location.host + path;
+        }
+
         function waitFor(fn, ms) {
           return new Promise(function (resolve, reject) {
             var start = Date.now();
@@ -149,44 +177,36 @@
           });
         }
 
-        var store = {
-          streamurl:
-            (typeof _CONFIG !== "undefined" && _CONFIG.streamurl) ||
-            (location.protocol === "https:" ? "wss" : "ws") +
-              "://" +
-              location.host +
-              "/api/websocket/",
-          bareurl:
-            (typeof _CONFIG !== "undefined" && _CONFIG.bareurl) ||
-            location.protocol + "//" + location.host + "/api/edge/",
-        };
+        var bareurl =
+          (typeof _CONFIG !== "undefined" && _CONFIG.bareurl) ||
+          location.protocol + "//" + location.host + "/api/edge/";
 
-        var readyPromise = null;
-        var frame = null;
         var engine = null;
+        var connection = null;
+        var boundStream = "";
+        var initPromise = null;
 
-        async function waitForTransport(connection) {
+        async function waitForTransport(streamurl) {
           var attempts = 0;
-          var maxAttempts = 40;
-          while (attempts < maxAttempts) {
+          while (attempts < 40) {
             try {
               var o1 = {};
-              o1[streamKey] = store.streamurl;
+              o1[streamKey] = streamurl;
               await connection[setT]("/e7px/index.mjs", [o1]);
               return;
             } catch (e1) {
               try {
                 var o2 = {};
-                o2[streamKey] = store.streamurl;
+                o2[streamKey] = streamurl;
                 await connection[setT]("/l9cx/index.mjs", [o2]);
                 return;
               } catch (e2) {
                 try {
-                  await connection[setT]("/m4thx/index.mjs", [store.bareurl]);
+                  await connection[setT]("/m4thx/index.mjs", [bareurl]);
                   return;
                 } catch (e3) {
                   attempts++;
-                  if (attempts >= maxAttempts) throw new Error("transport");
+                  if (attempts >= 40) throw new Error("transport");
                   await new Promise(function (r) {
                     setTimeout(r, 150);
                   });
@@ -196,14 +216,13 @@
           }
         }
 
-        async function ensureReady() {
-          if (readyPromise) return readyPromise;
-          readyPromise = (async function () {
+        async function initEngine() {
+          if (initPromise) return initPromise;
+          initPromise = (async function () {
             await waitFor(function () {
               return typeof window[loadCtrl] === "function";
             }, 12000);
-            var factory = window[loadCtrl];
-            var packed = factory();
+            var packed = window[loadCtrl]();
             var Ctrl = packed[ctrlName];
             if (!Ctrl) throw new Error("controller");
             engine = new Ctrl({
@@ -226,12 +245,39 @@
             await waitFor(function () {
               return !!(window[muxName] && window[muxName][muxConn]);
             }, 8000);
-            var Mux = window[muxName];
-            var connection = new Mux[muxConn]("/m4thx/worker.js");
-            await waitForTransport(connection);
+            connection = new window[muxName][muxConn]("/m4thx/worker.js");
             await engine.init();
-          })();
-          return readyPromise;
+          })().catch(function (err) {
+            initPromise = null;
+            throw err;
+          });
+          return initPromise;
+        }
+
+        async function bindStream(target) {
+          var streamurl = streamUrlFor(target);
+          if (boundStream === streamurl) return;
+          await waitForTransport(streamurl);
+          boundStream = streamurl;
+        }
+
+        async function openInProxy(url) {
+          await initEngine();
+          await bindStream(url);
+          var container = document.getElementById("iframe-container");
+          container.innerHTML = "";
+          var scFrame = engine[makeFrame]();
+          var encoded = engine[encodeName](url);
+          scFrame.frame.style.cssText = "width:100%;height:100%;border:none;display:block;background:#fff";
+          scFrame.frame.src = encoded;
+          scFrame.frame.addEventListener("load", function () {
+            setStatus("");
+          });
+          container.appendChild(scFrame.frame);
+          document.title = hostOf(url) || "PeteZah";
+          setTimeout(function () {
+            setStatus("");
+          }, 4000);
         }
 
         async function loadFromHash() {
@@ -242,34 +288,13 @@
           }
           setStatus("Opening…");
           try {
-            await ensureReady();
+            await openInProxy(url);
           } catch (e) {
-            readyPromise = null;
             setStatus("Could not start. Refresh and try again.");
-            return;
           }
-          var container = document.getElementById("iframe-container");
-          container.innerHTML = "";
-          frame = engine[makeFrame]();
-          container.appendChild(frame.frame);
-          frame.frame.addEventListener("load", function () {
-            setStatus("");
-          });
-          document.title = url.replace(/^https?:\/\//i, "").split("/")[0] || "PeteZah";
-          try {
-            frame.go(url);
-          } catch (e) {
-            setStatus("Could not open that page.");
-            return;
-          }
-          setTimeout(function () {
-            setStatus("");
-          }, 2500);
         }
 
-        window.addEventListener("hashchange", function () {
-          loadFromHash();
-        });
+        window.addEventListener("hashchange", loadFromHash);
         if (document.readyState === "complete" || document.readyState === "interactive") {
           loadFromHash();
         } else {
