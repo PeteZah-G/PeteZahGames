@@ -4,7 +4,9 @@ export function isJsdelivrOrigin(origin) {
     const u = new URL(origin);
     if (u.protocol !== 'https:') return false;
     const h = u.hostname.toLowerCase();
-    return h === 'jsdelivr.net' || h.endsWith('.jsdelivr.net');
+    // only cdn/content subdomains, not the bare apex (that's the marketing site,
+    // never a shell host) - keeps the credentialed-cors surface tighter
+    return h.endsWith('.jsdelivr.net');
   } catch {
     return false;
   }
