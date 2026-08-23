@@ -1,6 +1,8 @@
 use aho_corasick::AhoCorasick;
 use axum::http::{HeaderMap, HeaderValue};
+use std::net::IpAddr;
 use std::path::Path;
+use tokio::net::lookup_host;
 use url::Url;
 use crate::state::CDN_DOMAINS;
 
@@ -39,7 +41,17 @@ pub fn is_blocked_target(url: &Url) -> bool {
                 || h.ends_with(".cluster.local")
                 || h == "0.0.0.0"
         }
-        Some(url::Host::Ipv4(ip)) => {
+        Some(url::Host::Ipv4(ip)) => ip_is_blocked(&IpAddr::V4(ip)),
+        Some(url::Host::Ipv6(ip)) => ip_is_blocked(&IpAddr::V6(ip)),
+        None => true,
+    }
+}
+
+/// Shared IP block check so the initial-URL check and the resolved-address check
+/// stay in sync.
+pub fn ip_is_blocked(ip: &IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(ip) => {
             ip.is_loopback()
                 || ip.is_private()
                 || ip.is_link_local()
@@ -47,7 +59,7 @@ pub fn is_blocked_target(url: &Url) -> bool {
                 || ip.is_broadcast()
                 || ip.octets() == [169, 254, 169, 254]
         }
-        Some(url::Host::Ipv6(ip)) => {
+        IpAddr::V6(ip) => {
             if ip.is_loopback() || ip.is_unspecified() || ip.is_multicast() {
                 return true;
             }
@@ -63,7 +75,26 @@ pub fn is_blocked_target(url: &Url) -> bool {
             }
             false
         }
-        None => true,
+    }
+}
+
+/// Resolve a domain target and block if ANY resolved address is internal.
+/// Closes the DNS-rebinding / "public hostname that points at loopback" gap that
+/// is_blocked_target (host-literal only) cannot see. Literal-IP hosts are already
+/// covered by is_blocked_target, so they short-circuit here.
+pub async fn resolves_to_blocked(url: &Url) -> bool {
+    let host = match url.host_str() {
+        Some(h) => h,
+        None => return true,
+    };
+    if host.parse::<IpAddr>().is_ok() {
+        return false;
+    }
+    let port = url.port_or_known_default().unwrap_or(80);
+    match lookup_host((host, port)).await {
+        Ok(addrs) => addrs.into_iter().any(|a| ip_is_blocked(&a.ip())),
+        // Let a genuine resolution failure surface as a normal upstream error.
+        Err(_) => false,
     }
 }
 

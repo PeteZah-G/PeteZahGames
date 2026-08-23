@@ -27,6 +27,21 @@ use tower_http::cors::{Any, CorsLayer};
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
+// SSRF: reqwest follows redirects on its own, so re-check every hop against the
+// same block list used for the initial target. Without this an external host can
+// 30x us into 169.254.169.254 / loopback / internal services.
+fn ssrf_safe_redirect() -> Policy {
+    Policy::custom(|attempt| {
+        if attempt.previous().len() >= 10 {
+            attempt.error("too many redirects")
+        } else if helpers::is_blocked_target(attempt.url()) {
+            attempt.stop()
+        } else {
+            attempt.follow()
+        }
+    })
+}
+
 fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -71,7 +86,7 @@ async fn async_main(t: tuning::MochiTuning) {
     let asset_client = Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
         .danger_accept_invalid_certs(true)
-        .redirect(Policy::default())
+        .redirect(ssrf_safe_redirect())
         .pool_idle_timeout(Duration::from_secs(t.pool_idle_timeout_secs))
         .pool_max_idle_per_host(t.pool_idle_per_host_asset)
         .tcp_nodelay(true)
@@ -86,7 +101,7 @@ async fn async_main(t: tuning::MochiTuning) {
     let html_client = Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
         .danger_accept_invalid_certs(true)
-        .redirect(Policy::default())
+        .redirect(ssrf_safe_redirect())
         .pool_idle_timeout(Duration::from_secs(t.pool_idle_timeout_secs))
         .pool_max_idle_per_host(t.pool_idle_per_host_html)
         .tcp_nodelay(true)

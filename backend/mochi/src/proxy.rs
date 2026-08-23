@@ -301,6 +301,10 @@ pub async fn proxy_handler(
         return (StatusCode::FORBIDDEN, "blocked").into_response();
     }
 
+    if crate::helpers::resolves_to_blocked(&target_url).await {
+        return (StatusCode::FORBIDDEN, "blocked").into_response();
+    }
+
     let is_likely_asset =
         is_likely_static_asset_fast(&target_url_string, Some(&state.asset_ext_matcher));
 
