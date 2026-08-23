@@ -65,6 +65,15 @@ pub async fn handle_cover_request(
             if let Some(loc) = res.headers().get("location") {
                 if let Ok(loc_str) = loc.to_str() {
                     if let Ok(next) = current_url.join(loc_str) {
+                        // SSRF: this manual loop re-requests each hop itself, so
+                        // recheck the redirect target. is_blocked_target catches
+                        // literal internal ips (dns names are also covered by the
+                        // client's SsrfDnsResolver at connect time).
+                        if crate::helpers::is_blocked_target(&next)
+                            || crate::helpers::resolves_to_blocked(&next).await
+                        {
+                            return Err((StatusCode::FORBIDDEN, "blocked").into_response());
+                        }
                         current_url = next;
                         continue;
                     }

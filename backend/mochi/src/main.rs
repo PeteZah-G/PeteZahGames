@@ -28,8 +28,9 @@ use tower_http::cors::{Any, CorsLayer};
 static GLOBAL: MiMalloc = MiMalloc;
 
 // SSRF: reqwest follows redirects on its own, so re-check every hop against the
-// same block list used for the initial target. Without this an external host can
-// 30x us into 169.254.169.254 / loopback / internal services.
+// same literal block list used for the initial target. This catches redirects to
+// literal internal IPs. DNS-name redirects (a public name that resolves to an
+// internal ip) are caught by SsrfDnsResolver below, which runs on every hop.
 fn ssrf_safe_redirect() -> Policy {
     Policy::custom(|attempt| {
         if attempt.previous().len() >= 10 {
@@ -40,6 +41,32 @@ fn ssrf_safe_redirect() -> Policy {
             attempt.follow()
         }
     })
+}
+
+// SSRF: resolve every hostname ourselves and drop any address that lands on an
+// internal range before reqwest connects. reqwest uses exactly the addrs we hand
+// back (port is filled from the url), so this also pins the vetted ip and kills
+// the resolve-then-reconnect TOCTOU. Runs for the initial request AND every
+// redirect hop, on both clients. Literal-IP hosts skip DNS so they still rely on
+// is_blocked_target / the redirect policy.
+#[derive(Debug)]
+struct SsrfDnsResolver;
+
+impl reqwest::dns::Resolve for SsrfDnsResolver {
+    fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
+        Box::pin(async move {
+            let host = name.as_str().to_owned();
+            let addrs = tokio::net::lookup_host((host.as_str(), 0)).await?;
+            let safe: Vec<std::net::SocketAddr> =
+                addrs.filter(|a| !helpers::ip_is_blocked(&a.ip())).collect();
+            if safe.is_empty() {
+                Err("ssrf: host resolves only to internal addresses".into())
+            } else {
+                let iter: reqwest::dns::Addrs = Box::new(safe.into_iter());
+                Ok(iter)
+            }
+        })
+    }
 }
 
 fn main() {
@@ -87,6 +114,7 @@ async fn async_main(t: tuning::MochiTuning) {
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
         .danger_accept_invalid_certs(true)
         .redirect(ssrf_safe_redirect())
+        .dns_resolver(std::sync::Arc::new(SsrfDnsResolver))
         .pool_idle_timeout(Duration::from_secs(t.pool_idle_timeout_secs))
         .pool_max_idle_per_host(t.pool_idle_per_host_asset)
         .tcp_nodelay(true)
@@ -102,6 +130,7 @@ async fn async_main(t: tuning::MochiTuning) {
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
         .danger_accept_invalid_certs(true)
         .redirect(ssrf_safe_redirect())
+        .dns_resolver(std::sync::Arc::new(SsrfDnsResolver))
         .pool_idle_timeout(Duration::from_secs(t.pool_idle_timeout_secs))
         .pool_max_idle_per_host(t.pool_idle_per_host_html)
         .tcp_nodelay(true)

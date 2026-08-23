@@ -16,6 +16,11 @@ pub async fn handle_socket(client_socket: WebSocket, target_url: String, headers
     if is_blocked_target(&parsed) {
         return;
     }
+    // SSRF: tungstenite does its own DNS, so block public names that resolve to
+    // internal addresses (nip.io-style / rebind) before we open the socket.
+    if crate::helpers::resolves_to_blocked(&parsed).await {
+        return;
+    }
 
     let (mut client_sender, mut client_receiver) = client_socket.split();
 
