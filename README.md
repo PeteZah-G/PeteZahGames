@@ -1,16 +1,14 @@
-# **PeteZahGames**
+# PeteZah
 
-A unblocked gaming site for you that self hosts over 400+ games from reliable
-sources.
+A privacy-oriented web browser with HTML5 games, a licensed movie directory, and general web access.
 
-## Our Purpose
+## Purpose
 
-We are mainly a service that provides games completely self hosted but we also
-have a proxy!
+PeteZah is a privacy browser. Games are part of the catalog. The proxy is for lawful, general internet use. We do not condone illegal sites or violating someone else's network policy.
 
-You're mainly supposed to use our site at places that have restrictions.
+Get current domains from the site or Discord when a particular hostname is filtered.
 
-## Our Tech Stack
+## Tech stack
 
 - We use Supabase for our account system
 - We use Titanium Network's ultraviolet proxy and scramjet.
@@ -70,14 +68,14 @@ If you would like to use one of the following buttons to deploy
 > [![Deploy to Koyeb](https://binbashbanana.github.io/deploy-buttons/buttons/remade/koyeb.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/PeteZah-Games/petezahgames&branch=Main&name=petezahgames)
 > [![Deploy to Render](https://binbashbanana.github.io/deploy-buttons/buttons/remade/render.svg)](https://render.com/deploy?repo=https://github.com/PeteZah-Games/petezahgames)
 
-## Links
+## Continuity links
 
-(Links with "(gg)" are unblocked by GoGuardian, others are untested)
+Some hostnames work in more places than others. Check Discord for current mirrors.
 
 > [!IMPORTANT] You can get more links in our
 > [Discord Server](https://discord.gg/unrestricted)
 
-## Wildcard (replace the \* with anything you want, for GoGuardian using the keyword "math" is recommended. )
+## Wildcard (replace * with any subdomain)
 
 - https://\*.supergisfire.com.cdn.cloudflare.net/
 

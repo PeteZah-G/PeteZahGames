@@ -10,6 +10,7 @@ import {
   GripHorizontal,
   Volume2,
   VolumeX,
+  Flag,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useInterstitialUnlock, InterstitialOverlay } from "./InterstitialAdGate";
@@ -21,6 +22,7 @@ import { getSiteOrigin } from "@/lib/siteOrigin";
 interface GameViewerPageProps {
   url: string;
   title?: string;
+  gameId?: string | null;
   onBack?: () => void;
 }
 
@@ -143,6 +145,7 @@ function applyMuteToFrame(iframe: HTMLIFrameElement | null, muted: boolean) {
 export default function GameViewerPage({
   url,
   title,
+  gameId,
   onBack,
 }: GameViewerPageProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -154,6 +157,12 @@ export default function GameViewerPage({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [muted, setMuted] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportEmail, setReportEmail] = useState("");
+  const [reportWork, setReportWork] = useState("");
+  const [reportStatement, setReportStatement] = useState("");
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportStatus, setReportStatus] = useState("");
   const { unlocked, phase, finishLoading } = useInterstitialUnlock("game");
   const useProxy = needsRemoteFrame(url);
   const displayTitle = title?.trim() || "Game";
@@ -461,6 +470,9 @@ export default function GameViewerPage({
                 >
                   {muted ? <VolumeX size={12} /> : <Volume2 size={12} />}
                 </ControlBtn>
+                <ControlBtn onClick={() => setReportOpen(true)} title="Report copyright issue">
+                  <Flag size={12} />
+                </ControlBtn>
                 <ControlBtn onClick={openExternal} title="Open in new tab">
                   <ExternalLink size={12} />
                 </ControlBtn>
@@ -519,6 +531,143 @@ export default function GameViewerPage({
             >
               <Eye size={11} /> Show Controls
             </motion.button>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {reportOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                position: "absolute",
+                inset: 0,
+                zIndex: 80,
+                display: "flex",
+                alignItems: "flex-end",
+                justifyContent: "center",
+                padding: 16,
+                background: "hsla(220, 40%, 4%, 0.55)",
+              }}
+              onClick={() => !reportBusy && setReportOpen(false)}
+            >
+              <motion.form
+                initial={{ y: 18, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 12, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (reportBusy) return;
+                  setReportBusy(true);
+                  setReportStatus("");
+                  try {
+                    const r = await fetch("/api/copyright/report", {
+                      method: "POST",
+                      credentials: "include",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        targetType: "game",
+                        targetId: gameId || "",
+                        url,
+                        title: displayTitle,
+                        email: reportEmail,
+                        work: reportWork,
+                        statement: reportStatement,
+                      }),
+                    });
+                    const d = await r.json().catch(() => ({}));
+                    if (!r.ok) {
+                      setReportStatus(d.error || "Could not send. Try again.");
+                      setReportBusy(false);
+                      return;
+                    }
+                    setReportStatus("Received. We review complete notices and disable access when required.");
+                    setTimeout(() => setReportOpen(false), 1400);
+                  } catch {
+                    setReportStatus("Network error. Please try again.");
+                  } finally {
+                    setReportBusy(false);
+                  }
+                }}
+                style={{
+                  width: "100%",
+                  maxWidth: 420,
+                  borderRadius: 16,
+                  padding: "16px 16px 14px",
+                  background: "hsla(220, 28%, 10%, 0.96)",
+                  border: "1px solid hsla(210, 30%, 80%, 0.14)",
+                  color: "hsla(210, 20%, 96%, 0.95)",
+                }}
+              >
+                <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 700 }}>Copyright report</p>
+                <p style={{ margin: "0 0 12px", fontSize: 11, lineHeight: 1.45, color: "hsla(210, 14%, 70%, 0.8)" }}>
+                  For rights holders. Describe the work and where it appears. Complete legal notices can also be emailed — see our Copyright Policy.
+                </p>
+                <input
+                  value={reportEmail}
+                  onChange={(e) => setReportEmail(e.target.value)}
+                  placeholder="Contact email"
+                  type="email"
+                  style={{
+                    width: "100%", boxSizing: "border-box", marginBottom: 8, padding: "8px 10px",
+                    borderRadius: 8, border: "1px solid hsla(210, 30%, 80%, 0.14)", background: "hsla(220, 28%, 12%, 0.6)",
+                    color: "inherit", fontSize: 12, outline: "none",
+                  }}
+                />
+                <input
+                  value={reportWork}
+                  onChange={(e) => setReportWork(e.target.value)}
+                  placeholder="Copyrighted work (title / owner)"
+                  style={{
+                    width: "100%", boxSizing: "border-box", marginBottom: 8, padding: "8px 10px",
+                    borderRadius: 8, border: "1px solid hsla(210, 30%, 80%, 0.14)", background: "hsla(220, 28%, 12%, 0.6)",
+                    color: "inherit", fontSize: 12, outline: "none",
+                  }}
+                />
+                <textarea
+                  required
+                  minLength={20}
+                  value={reportStatement}
+                  onChange={(e) => setReportStatement(e.target.value)}
+                  placeholder="Where it appears and why you believe it infringes (required)"
+                  rows={4}
+                  style={{
+                    width: "100%", boxSizing: "border-box", marginBottom: 10, padding: "8px 10px",
+                    borderRadius: 8, border: "1px solid hsla(210, 30%, 80%, 0.14)", background: "hsla(220, 28%, 12%, 0.6)",
+                    color: "inherit", fontSize: 12, outline: "none", resize: "vertical",
+                  }}
+                />
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <button
+                    type="submit"
+                    disabled={reportBusy || reportStatement.trim().length < 20}
+                    style={{
+                      padding: "8px 14px", borderRadius: 8, border: "1px solid hsl(213 45% 42%)",
+                      background: "hsl(213 55% 32%)", color: "#fff", fontSize: 12, fontWeight: 650,
+                      cursor: reportBusy ? "default" : "pointer", opacity: reportBusy ? 0.6 : 1,
+                    }}
+                  >
+                    {reportBusy ? "Sending…" : "Submit report"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReportOpen(false)}
+                    disabled={reportBusy}
+                    style={{
+                      padding: "8px 12px", borderRadius: 8, border: "1px solid hsla(210, 30%, 80%, 0.14)",
+                      background: "transparent", color: "hsla(210, 14%, 70%, 0.85)", fontSize: 12, cursor: "pointer",
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+                {reportStatus ? (
+                  <p style={{ margin: "10px 0 0", fontSize: 11, color: "hsla(213, 75%, 72%, 1)" }}>{reportStatus}</p>
+                ) : null}
+              </motion.form>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>

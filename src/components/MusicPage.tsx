@@ -1032,6 +1032,9 @@ export default function MusicPage({
           >
             Music
           </motion.h1>
+          <p style={{ fontSize: 11, color: S.textMuted, margin: "0 4px 14px", lineHeight: 1.4, maxWidth: 220 }}>
+            Background listening while you use the rest of the site. Official embeds only.
+          </p>
 
           <SideBtn
             active={nav === "browse"}
@@ -1310,7 +1313,7 @@ export default function MusicPage({
             <div style={{ padding: "28px 22px 48px", minHeight: 140 }}>
               <AdResponsiveBanner exo={false} />
               <p style={{ margin: "10px 0 0", fontSize: 10, color: S.textMuted, lineHeight: 1.4 }}>
-                Playback via official YouTube and SoundCloud embeds. Metadata from iTunes Search. Content remains on those platforms.
+                This is an overlay so you can listen while using the rest of the Service — not a standalone music app or download library. Playback uses official YouTube and SoundCloud embeds. Metadata comes from iTunes Search. Audio stays on those platforms.
               </p>
             </div>
           </div>

@@ -491,8 +491,8 @@ export function BehaviorSettings(props: Props) {
         <div style={{ borderBottom: `1px solid ${C.border}` }}>
           <ToggleRow
             C={C}
-            label="Autocloak"
-            desc="Open inside about:blank on load"
+            label="Blank window on load"
+            desc="Open in a blank window when the page loads"
             checked={s.autocloak === "true"}
             onChange={() => {
               const next = s.autocloak !== "true";
@@ -744,7 +744,7 @@ export function ProxySettings(props: Props) {
     <div style={{ maxWidth: 560 }}>
       <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text, margin: "0 0 4px" }}>Proxy & browsing</h2>
       <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 18px", lineHeight: 1.45 }}>
-        Tunnel endpoint, search, identity, and small quality-of-life switches for the browser shell.
+        Privacy tunnel for general web use. Follow the law and each site&apos;s terms. We do not condone illegal websites.
       </p>
 
       <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px" }}>

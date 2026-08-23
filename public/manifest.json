@@ -3,7 +3,7 @@
   "short_name": "PeteZah",
   "start_url": "/",
   "display": "standalone",
-  "description": "Access the internet uncensored.  Game on.",
+  "description": "A privacy-oriented browser for games and the open web.",
   "background_color": "#0A1D37",
   "theme_color": "#0A1D37",
   "icons": [

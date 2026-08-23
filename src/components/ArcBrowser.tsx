@@ -8,6 +8,7 @@ import Toolbar from "@/components/BrowserToolbar";
 import ContentArea from "@/components/ContentArea";
 import StatusBar from "@/components/StatusBar";
 import DiscordPopup from "@/components/DiscordPopup";
+import LegalTermsPopup from "@/components/LegalTermsPopup";
 import VantaBackground from "@/components/VantaBackground";
 import DebugHud from "@/components/DebugHud";
 import HorizontalTabBar from "@/components/HorizontalTabBar";
@@ -398,6 +399,7 @@ export default function ArcBrowser() {
           </div>
         </main>
       </div>
+      <LegalTermsPopup />
       <DiscordPopup />
       <GlobalAnnouncement />
       <InspectOverlay

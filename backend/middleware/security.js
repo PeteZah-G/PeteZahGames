@@ -47,8 +47,12 @@ export function toIPv4(ip, req = null) {
     const xff = req.headers['x-forwarded-for'];
     const cf = req.headers['cf-connecting-ip'];
     const real = req.headers['x-real-ip'];
-    if (xff) ip = xff.split(',')[0].trim();
-    else if (cf) ip = cf;
+    // cf-connecting-ip is set by cloudflare's edge and can't be spoofed by the
+    // client, x-forwarded-for can, a client can just send their own value and
+    // we'd trust it. check cf first so rate limits/bans/reputation can't be
+    // bypassed by forging the header.
+    if (cf) ip = cf;
+    else if (xff) ip = xff.split(',')[0].trim();
     else if (real) ip = real;
     else if (req.socket?.remoteAddress) ip = req.socket.remoteAddress;
   }
@@ -271,7 +275,7 @@ export function adjustPowDifficulty(shield) {
 
 const BOT_PATTERNS = [/googlebot/i, /bingbot/i, /slurp/i, /duckduckbot/i, /baiduspider/i, /yandexbot/i, /facebookexternalhit/i, /facebot/i, /meta-externalagent/i, /meta-externalfetcher/i, /twitterbot/i, /discordbot/i, /telegrambot/i, /whatsapp/i, /linkedinbot/i, /slackbot/i, /archive\.org_bot/i, /ia_archiver/i, /semrushbot/i, /ahrefsbot/i, /mj12bot/i, /dotbot/i];
 
-const OPEN_PATHS = new Set(['/api/signin', '/api/signup', '/api/bot-challenge', '/api/bot-verify', '/api/verify-email', '/api/verify-email/resend', '/api/legal/accept', '/api/legal/status', '/api/me', '/api/signout', '/api/comments', '/api/likes', '/api/changelog', '/api/presence', '/api/announcements/active', '/api/games/play', '/api/games/plays', '/api/games/catalog', '/api/websocket/normal', '/api/websocket/normal/', '/api/websocket/tor', '/api/websocket/tor/']);
+const OPEN_PATHS = new Set(['/api/signin', '/api/signup', '/api/bot-challenge', '/api/bot-verify', '/api/verify-email', '/api/verify-email/resend', '/api/legal/accept', '/api/legal/status', '/api/copyright/report', '/api/me', '/api/signout', '/api/comments', '/api/likes', '/api/changelog', '/api/presence', '/api/announcements/active', '/api/games/play', '/api/games/plays', '/api/games/catalog', '/api/websocket/normal', '/api/websocket/normal/', '/api/websocket/tor', '/api/websocket/tor/']);
 
 function needsToken(reqPath) {
   if (OPEN_PATHS.has(reqPath)) return false;

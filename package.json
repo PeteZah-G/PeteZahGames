@@ -1,7 +1,7 @@
 {
   "name": "petezah",
   "version": "2.0.0",
-  "description": "A web proxy to bypass various filters. Report questions to https://discord.gg/cYjHFDguxS.",
+  "description": "Privacy-oriented browser with games, licensed-service movie directory, and general web access.",
   "author": "PeteZah",
   "license": "AGPL-3.0-only",
   "private": true,

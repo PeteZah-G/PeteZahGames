@@ -340,9 +340,9 @@ export default function SvgAccessGate({ children }: { children: React.ReactNode 
             </a>
             , and{" "}
             <a href={href("/dmca")} target="_blank" rel="noopener noreferrer">
-              DMCA Policy
+              Copyright Policy
             </a>
-            .
+            . You must be 13 or older.
           </span>
         </label>
         <button type="button" className="continue" disabled={!canGo} onClick={continueOn}>

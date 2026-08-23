@@ -487,6 +487,55 @@ body > #google_vignette {
     white-space: nowrap;
   }
 
+  /* account settings had a fixed 188px nav column that left almost no
+     room for the content panel on phones, see #22 */
+  .account-settings-shell {
+    flex-direction: column !important;
+  }
+  .account-settings-nav {
+    width: 100% !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    border-right: none !important;
+    border-bottom: 1px solid hsla(210, 40%, 80%, 0.08) !important;
+    padding: 8px !important;
+    gap: 8px;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    flex-shrink: 0 !important;
+    scrollbar-width: none;
+  }
+  .account-settings-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .account-settings-nav-header {
+    flex-direction: row !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+    border-bottom: none !important;
+    flex-shrink: 0;
+  }
+  .account-settings-nav-header p {
+    display: none;
+  }
+  .account-settings-nav-list {
+    flex-direction: row !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+  }
+  .account-settings-nav-list button {
+    white-space: nowrap;
+  }
+  .account-settings-signout {
+    margin-top: 0 !important;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .account-settings-content {
+    padding: 16px 14px !important;
+  }
+
   .newtab-presets {
     gap: 0.75rem !important;
     row-gap: 0.85rem !important;
