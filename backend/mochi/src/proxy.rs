@@ -20,7 +20,7 @@ use crate::cover::handle_cover_request;
 use crate::encoding::decode_mochi_url;
 use crate::helpers::{
     fix_game_content_type, get_cdn_cache_control, is_blacklisted_header, is_blacklisted_res_header,
-    is_blocked_target, is_likely_static_asset_fast,
+    is_blocked_target, is_likely_static_asset_fast, is_streaming_media,
 };
 use crate::rewrite::{rewrite_css_urls, rewrite_html};
 use crate::state::{AppState, CachedResponse};
@@ -551,7 +551,8 @@ pub async fn proxy_handler(
         && status == StatusCode::OK
         && method == Method::GET
         && !headers.contains_key("upgrade")
-        && !headers.contains_key("range");
+        && !headers.contains_key("range")
+        && !is_streaming_media(target_url_str, &content_type);
 
     if is_css && status.is_success() && method == Method::GET {
         safe_headers.remove("content-length");
@@ -805,7 +806,8 @@ async fn fetch_and_cache(
     safe_headers.insert("X-Cache", HeaderValue::from_static("MISS"));
 
     let should_cache =
-        is_likely_asset && status == StatusCode::OK && method == &Method::GET && !has_range;
+        is_likely_asset && status == StatusCode::OK && method == &Method::GET && !has_range
+        && !is_streaming_media(target_url_str, "");
 
     let actually_cache = if should_cache {
         if state.caching_inflight.contains_key(target_url_str) {

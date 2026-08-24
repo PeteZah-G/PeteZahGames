@@ -156,8 +156,8 @@ wisp.options.allow_private_ips = false;
 wisp.options.allow_loopback_ips = false;
 wisp.options.allow_direct_ip = false;
 wisp.options.port_whitelist = [80, 443, 8080, 8443];
-wisp.options.stream_limit_per_host = -1;
-wisp.options.stream_limit_total = 128;
+wisp.options.stream_limit_per_host = 12;
+wisp.options.stream_limit_total = 48;
 wisp.options.dns_ttl = 300;
 wisp.options.dns_result_order = 'ipv4first';
 wisp.options.parse_real_ip = true;
@@ -579,8 +579,8 @@ if (IS_DEV) {
 }
 
 const wsConnections = new Map();
-const MAX_WS_PER_IP = 40;
-const MAX_TOTAL_WS = 3000;
+const MAX_WS_PER_IP = 16;
+const MAX_TOTAL_WS = 800;
 
 const server = createServer((req, res) => {
   const ip = toIPv4(null, req);

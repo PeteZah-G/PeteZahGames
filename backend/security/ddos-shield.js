@@ -32,7 +32,7 @@ const WINDOW_SIZE = 10000;
 const CPU_THRESHOLD = 75;
 const MEMORY_THRESHOLD = 1024 * 1024 * 1024 * 8;
 const MEMORY_CRITICAL = 1024 * 1024 * 1024 * 2;
-const RSS_CRITICAL = 1024 * 1024 * 1024 * 12;
+const RSS_CRITICAL = 1024 * 1024 * 1024 * 8;
 const RSS_SPIKE_MIN = 1024 * 1024 * 1024;
 const PATTERN_DETECTION_WINDOW = 30000;
 const ATTACK_PATTERN_THRESHOLD = 50;
@@ -649,18 +649,20 @@ class DDoSShield {
     }
 
     const uptime = process.uptime();
+    const rssCritical = rss > RSS_CRITICAL;
+    const heapCritical = heapUsed > MEMORY_CRITICAL;
     if (
-      heapUsed > MEMORY_CRITICAL &&
-      this.critStreak >= 5 &&
-      uptime > 3600
+      (rssCritical || heapCritical) &&
+      this.critStreak >= 3 &&
+      uptime > 300
     ) {
       this.sendLog(
-        `High heap sustained — restarting process\nCPU ${cpu.toFixed(1)}% | heap ${(heapUsed / GB).toFixed(2)}GB | RSS ${(rss / GB).toFixed(2)}GB`,
+        `High ${rssCritical ? 'RSS' : 'heap'} sustained — restarting process\nCPU ${cpu.toFixed(1)}% | heap ${(heapUsed / GB).toFixed(2)}GB | RSS ${(rss / GB).toFixed(2)}GB`,
         null,
         'mem_restart',
-        3600000
+        600000
       );
-      setTimeout(() => process.exit(0), 5000);
+      setTimeout(() => process.exit(0), 4000);
     }
   }
 

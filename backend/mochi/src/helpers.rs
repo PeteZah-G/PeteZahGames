@@ -142,6 +142,20 @@ pub fn is_likely_static_asset(url: &str) -> bool {
     is_likely_static_asset_fast(url, None)
 }
 
+pub fn is_streaming_media(url: &str, content_type: &str) -> bool {
+    let c = content_type.to_ascii_lowercase();
+    if c.contains("video/") || c.contains("audio/") || c.contains("mpegurl") {
+        return true;
+    }
+    let path = url.split('?').next().unwrap_or(url).to_ascii_lowercase();
+    path.ends_with(".m3u8")
+        || path.ends_with(".mp4")
+        || path.ends_with(".webm")
+        || path.ends_with(".ts")
+        || path.ends_with(".m4s")
+        || path.ends_with(".mp3")
+}
+
 pub fn is_likely_static_asset_fast(url: &str, _matcher: Option<&AhoCorasick>) -> bool {
     if url.contains("favicons?") {
         return true;

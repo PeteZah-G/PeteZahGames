@@ -46,13 +46,13 @@ pub fn detect() -> MochiTuning {
 fn compute(ram_mb: u64, cores: usize, disk_mb: u64) -> MochiTuning {
     let worker_threads = cores.saturating_sub(1).max(2).min(6);
 
-    let cache_cap_mb = (ram_mb / 64).max(64).min(1024);
+    let cache_cap_mb = (ram_mb / 128).max(32).min(256);
     let cache_capacity_bytes = cache_cap_mb * 1024 * 1024;
 
-    let max_entry_mb = (cache_cap_mb / 4).max(16).min(128);
+    let max_entry_mb = (cache_cap_mb / 8).max(4).min(16);
     let max_cache_entry_size = (max_entry_mb as usize) * 1024 * 1024;
 
-    let ram_limit_mb = (cache_cap_mb / 4).max(24).min(96);
+    let ram_limit_mb = (cache_cap_mb / 8).max(16).min(32);
     let ram_cache_limit = (ram_limit_mb as usize) * 1024 * 1024;
 
     let cache_ttl_secs = if ram_mb < 8192 { 36 * 3600 } else { 72 * 3600 };
@@ -61,8 +61,8 @@ fn compute(ram_mb: u64, cores: usize, disk_mb: u64) -> MochiTuning {
     let pool_idle_per_host_html = (cores * 2).max(2).min(12);
     let pool_idle_timeout_secs = if ram_mb < 8192 { 120 } else { 240 };
 
-    let request_permits = (cores * 160).max(128).min(4000);
-    let html_rewrite_permits = (cores * 16).max(16).min(256);
+    let request_permits = (cores * 24).max(64).min(256);
+    let html_rewrite_permits = (cores * 8).max(8).min(64);
 
     let disk_cache_gb = (disk_mb / 1024 / 20).max(2).min(80);
     let disk_cache_bytes = disk_cache_gb * 1024 * 1024 * 1024;
@@ -73,13 +73,7 @@ fn compute(ram_mb: u64, cores: usize, disk_mb: u64) -> MochiTuning {
     };
     let disk_cleanup_interval_secs = if disk_mb < 100_000 { 1800 } else { 3600 };
 
-    let channel_buffer = if ram_mb < 8192 {
-        64
-    } else if ram_mb < 16384 {
-        128
-    } else {
-        256
-    };
+    let channel_buffer = if ram_mb < 8192 { 16 } else { 24 };
 
     MochiTuning {
         worker_threads,
