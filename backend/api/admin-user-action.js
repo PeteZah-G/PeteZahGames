@@ -3,9 +3,10 @@ import { isOwnerEmail } from '../utils/auth-roles.js';
 import { getClientIP } from '../utils/client-ip.js';
 import { banIp, unbanIp } from '../middleware/ip-ban.js';
 import { blockIPKernel } from '../security/xdp-integration.js';
+import { requireAdmin } from './admin-users.js';
 
 export async function adminUserActionHandler(req, res) {
-  if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+  if (!requireAdmin(req, res)) return;
 
   const admin = db.prepare('SELECT is_admin, email FROM users WHERE id = ?').get(req.session.user.id);
   if (!admin) return res.status(403).json({ error: 'Forbidden' });
@@ -14,8 +15,11 @@ export async function adminUserActionHandler(req, res) {
   if (admin.is_admin < 1 && !isOwner) return res.status(403).json({ error: 'Admin access required' });
 
   const { userId, action } = req.body;
-  const allowed = ['suspend', 'staff', 'promote_mod', 'delete', 'ban', 'unban', 'promote_admin', 'demote_admin'];
+  const allowed = ['suspend', 'staff', 'promote_mod', 'delete', 'ban', 'unban', 'promote_admin', 'demote_admin', 'verify_email'];
   if (!userId || !allowed.includes(action)) return res.status(400).json({ error: 'Invalid request' });
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(userId))) {
+    return res.status(400).json({ error: 'Invalid request' });
+  }
   if (userId === req.session.user.id) return res.status(400).json({ error: 'Cannot manage yourself' });
 
   const target = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
@@ -47,12 +51,14 @@ export async function adminUserActionHandler(req, res) {
   const canModerate = isOwner || admin.is_admin >= 1;
   if (!canModerate) return res.status(403).json({ error: 'Forbidden' });
 
-  // moderation (suspend/ban/unban/delete) only downward: a mod shouldn't be able
-  // to ban or delete staff/admins, or another mod. owner outranks everyone.
   if (!isOwner && (admin.is_admin || 0) <= (target.is_admin || 0)) {
     return res.status(403).json({ error: 'You cannot moderate a user at or above your role.' });
   }
 
+  if (action === 'verify_email') {
+    db.prepare('UPDATE users SET email_verified = 1 WHERE id = ?').run(userId);
+    return res.json({ message: 'Email verified.', email_verified: 1 });
+  }
   if (action === 'suspend') {
     db.prepare('UPDATE users SET email_verified = 0 WHERE id = ?').run(userId);
     return res.json({ message: 'User suspended.' });

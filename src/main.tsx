@@ -5,6 +5,7 @@ import App from "./App";
 import "./index.css";
 import "./styles/studio-overrides.css";
 import { loadFontMaps } from "./lib/fontObfuscation";
+import { defaultBrandSrc } from "./lib/uiMarks";
 import { themeById, applyBrowserIdentity } from "./lib/siteThemes";
 
 const fontObf = document.createElement("script");
@@ -37,10 +38,10 @@ function applyStoredSettings() {
   }
 
   const siteLogo = get("siteLogo");
-  if (siteLogo) {
+  {
     let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (!link) { link = document.createElement("link"); link.rel = "icon"; document.head.appendChild(link); }
-    link.href = siteLogo;
+    link.href = siteLogo || defaultBrandSrc();
   }
 
   const bgImg = get("backgroundImage");
@@ -115,7 +116,7 @@ function cloakInAboutBlank(iframeSrc: string): boolean {
   w.document.title = localStorage.getItem("siteTitle") || "Home";
   const link = w.document.createElement("link");
   link.rel = "icon";
-  link.href = localStorage.getItem("siteLogo") || "/logo.png";
+    link.href = localStorage.getItem("siteLogo") || defaultBrandSrc();
   if (link.href.startsWith("/")) link.href = window.location.origin + link.href;
   w.document.head.appendChild(link);
   const iframe = w.document.createElement("iframe");

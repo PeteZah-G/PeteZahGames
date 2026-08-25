@@ -502,18 +502,18 @@ body > #google_vignette {
     height: 1rem !important;
   }
 
-  .games-toolbar,
+  .cat-toolbar,
   .apps-toolbar {
     padding-left: 0.85rem !important;
     padding-right: 0.85rem !important;
     padding-top: 0.85rem !important;
   }
-  .games-grid,
+  .cat-grid,
   .apps-grid {
     grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)) !important;
     gap: 0.55rem !important;
   }
-  .games-scroll,
+  .cat-scroll,
   .apps-scroll {
     padding-left: 0.85rem !important;
     padding-right: 0.85rem !important;

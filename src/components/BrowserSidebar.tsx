@@ -21,6 +21,7 @@ import { TabList } from "@/components/TabItem";
 import ObfuscatedText from "@/components/ObfuscatedText";
 import { Tab, Space } from "@/hooks/useBrowserState";
 import { getHomeUrl } from "@/lib/homeUrl";
+import { defaultBrandSrc, hrefs, marks } from "@/lib/uiMarks";
 import { useEffect, useState } from "react";
 
 interface SidebarProps {
@@ -51,11 +52,11 @@ interface SidebarProps {
 }
 
 const SIDEBAR_FEATURES = [
-  { icon: Gamepad2, label: "Games", url: "petezah://games" },
-  { icon: AppWindow, label: "Apps", url: "petezah://apps" },
+  { icon: Gamepad2, label: marks.a(), url: hrefs.g() },
+  { icon: AppWindow, label: marks.apps(), url: "petezah://apps" },
   { icon: Bot, label: "AI", url: "petezah://ai" },
-  { icon: Music, label: "Music", url: "petezah://music" },
-  { icon: Film, label: "Movies", url: "petezah://movies" },
+  { icon: Music, label: marks.music(), url: hrefs.mu() },
+  { icon: Film, label: marks.movies(), url: hrefs.mo() },
   { icon: Monitor, label: "VM", url: "petezah://vm" },
   { icon: MessageCircle, label: "Chat", url: "petezah://chat" },
   { icon: Wrench, label: "Tools", url: "petezah://tools" },
@@ -121,7 +122,7 @@ export default function Sidebar({
               onClick={() => onNavigate(getHomeUrl())}
               className="p-1 rounded-lg hover:bg-white/5 transition-colors flex-shrink-0"
             >
-              <img src="/logo.png" alt="Logo" className="w-6 h-6 object-contain opacity-90" />
+              <img src={defaultBrandSrc()} alt="Logo" className="w-6 h-6 object-contain opacity-90" />
             </button>
             <ObfuscatedText
               as="span"
@@ -138,7 +139,7 @@ export default function Sidebar({
               onClick={() => onNavigate(getHomeUrl())}
               className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
             >
-              <img src="/logo.png" alt="Logo" className="w-6 h-6 object-contain opacity-90" />
+              <img src={defaultBrandSrc()} alt="Logo" className="w-6 h-6 object-contain opacity-90" />
             </button>
           )}
           <button

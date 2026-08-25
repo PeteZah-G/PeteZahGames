@@ -11,13 +11,15 @@ export default function ObfuscatedText({
   className,
   style,
   as: Tag = "span",
+  force = false,
 }: {
   children: string;
   className?: string;
   style?: CSSProperties;
   as?: ElementType;
+  force?: boolean;
 }) {
-  const needs = shouldObfuscateDisplay(children);
+  const needs = force || shouldObfuscateDisplay(children);
   const [text, setText] = useState(children);
 
   useEffect(() => {
@@ -34,7 +36,7 @@ export default function ObfuscatedText({
     return () => {
       alive = false;
     };
-  }, [children, needs]);
+  }, [children, needs, force]);
 
   return (
     <Tag

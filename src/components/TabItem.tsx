@@ -2,6 +2,7 @@ import { forwardRef } from "react";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { X, Pin, SplitSquareHorizontal } from "lucide-react";
 import { Tab } from "@/hooks/useBrowserState";
+import { hrefs } from "@/lib/uiMarks";
 
 function getFaviconUrl(url: string): string {
   try {
@@ -50,14 +51,14 @@ const TabItem = forwardRef<HTMLDivElement, TabItemProps>(
       "petezah://tools": "T",
       "petezah://newtab": "N",
       "petezah://trending": "TR",
-      "petezah://games": "G",
+      [hrefs.g()]: "G",
       "petezah://ai": "AI",
       "petezah://apps": "AP",
-      "petezah://music": "M",
-      "petezah://movies": "MV",
+      [hrefs.mu()]: "M",
+      [hrefs.mo()]: "MV",
       "petezah://firefox": "VM",
       "petezah://vm": "VM",
-      "petezah://gameviewer": "GV",
+      [hrefs.gv()]: "GV",
       "petezah://settings": "S",
       "petezah://account": "AC",
       "petezah://changelog": "CL",

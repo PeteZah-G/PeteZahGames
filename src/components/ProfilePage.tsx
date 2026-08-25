@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { MapPin, Link2, Music2, Play, Calendar, Shield, Lock } from "lucide-react";
 import { BadgeRow, type BadgeInfo } from "./BadgeChip";
+import { hrefs } from "@/lib/uiMarks";
 
 interface FavTrack {
   id: string;
@@ -102,8 +103,8 @@ export default function ProfilePage({
   const display = user?.display_name || user?.username || handle;
 
   const playTrack = (track: FavTrack) => {
-    if (onNavigate) onNavigate(`petezah://music?t=${track.id}`);
-    else window.location.href = `/?m=${encodeURIComponent(`petezah://music?t=${track.id}`)}`;
+    if (onNavigate) onNavigate(`${hrefs.mu()}?t=${track.id}`);
+    else window.location.href = `/?m=${encodeURIComponent(`${hrefs.mu()}?t=${track.id}`)}`;
   };
 
   if (loading) {

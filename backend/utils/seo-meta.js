@@ -42,69 +42,49 @@ export const EDU_SEO = {
 };
 
 export const HOME_SEO = {
-  title: "PeteZah Games — Free Unblocked Games, Apps & Private Browser",
+  title: "PeteZah Games — Unblocked Games, Proxy Browser, Movies & Music",
   description:
-    "Play free unblocked games, apps, movies, and music in a fast private browser. PeteZah Games is your all-in-one unblocked gaming and web hub — no downloads, works at school and work.",
+    "PeteZah Games is a free unblocked games site and private proxy browser. Play HTML5 games at school, unblock YouTube and Reddit, stream movies and music, and browse with a fast web proxy.",
   keywords:
-    "PeteZah, PeteZah Games, unblocked games, free online games, unblocked apps, private browser, proxy browser, unblocked movies, free music, browser games, school games, unblocked at school, web games, HTML5 games",
+    "unblocked games, unblocked games at school, proxy, web proxy, proxy browser, unblock youtube, petezah, petezah games, petezahgames, unblocked proxy, private browser, html5 games, unblocked movies, unblocked music, chromebook games, school proxy",
   siteName: "PeteZah Games",
   author: "PeteZah",
   themeColor: "#020810",
   url: "https://petezahgames.com/",
-  robots: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  robots: "index, follow",
   ogImage: "https://petezahgames.com/og-share.png",
   ogImageWidth: "1200",
   ogImageHeight: "630",
-  ogImageAlt: "PeteZah Games — Free Unblocked Games and Private Browser",
+  ogImageAlt: "PeteZah Games — Unblocked Games and Proxy Browser",
   twitter: "@petezahgames",
   jsonLd: {
     "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "WebSite",
-        name: "PeteZah Games",
-        url: "https://petezahgames.com/",
-        description:
-          "Free unblocked games, apps, and a private browser for school and everyday use.",
-        image: {
-          "@type": "ImageObject",
-          url: "https://petezahgames.com/og-share.png",
-          width: 1200,
-          height: 630,
-        },
-        potentialAction: {
-          "@type": "SearchAction",
-          target: "https://petezahgames.com/?q={search_term_string}",
-          "query-input": "required name=search_term_string",
-        },
-      },
-      {
-        "@type": "SoftwareApplication",
-        name: "PeteZah Browser",
-        applicationCategory: "BrowserApplication",
-        operatingSystem: "Web",
-        offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-        description:
-          "A privacy-oriented browser with unblocked games, apps, movies, music, and AI tools.",
-        image: "https://petezahgames.com/og-share.png",
-      },
-      {
-        "@type": "Organization",
-        name: "PeteZah Games",
-        url: "https://petezahgames.com/",
-        logo: {
-          "@type": "ImageObject",
-          url: "https://petezahgames.com/logo.png",
-          width: 496,
-          height: 503,
-        },
-      },
-    ],
+    "@type": "WebSite",
+    name: "PeteZah Games",
+    alternateName: ["PeteZah", "PeteZahGames"],
+    description:
+      "Unblocked games, proxy browser, movies, and music. Play at school and browse privately.",
+    url: "https://petezahgames.com/",
+    logo: "https://petezahgames.com/logo.png",
+    image: "https://petezahgames.com/og-share.png",
+    areaServed: "Worldwide",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: "https://petezahgames.com/?q={search_term_string}",
+      "query-input": "required name=search_term_string",
+    },
   },
 };
 
 export function seoForHost(host) {
   return isPeteZahHomeHost(host) ? HOME_SEO : EDU_SEO;
+}
+
+function upsertLinkRel(html, rel, href) {
+  const re = new RegExp(`<link[^>]+rel=["']${rel}["'][^>]*>`, "i");
+  const tag = `<link rel="${rel}" href="${escapeAttr(href)}" />`;
+  if (re.test(html)) return html.replace(re, tag);
+  return html.replace(/<\/head>/i, `  ${tag}\n</head>`);
 }
 
 function upsertMeta(html, attr, key, content) {
@@ -191,12 +171,10 @@ export function applySeoToHtml(html, host) {
     out = out.replace(/<\/head>/i, `  ${ld}\n</head>`);
   }
 
-  if (home) {
-    out = out.replace(
-      /<div class="education-is-key"[\s\S]*?<\/div>/gi,
-      `<div class="education-is-key" aria-hidden="true"><h1>PeteZah Games</h1><p>Free unblocked games, private browser, apps, movies, and music online.</p></div>`
-    );
-  }
+  const icon = home ? "https://petezahgames.com/logo.png" : "https://hypestudy.com/logo.png";
+  out = upsertLinkRel(out, "icon", icon);
+  out = upsertLinkRel(out, "shortcut icon", icon);
+  out = upsertLinkRel(out, "apple-touch-icon", icon);
 
   return out;
 }

@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
-import { ensureProxyEngine } from "@/lib/browserInit";
-import { applyProxyStreamForUrl } from "@/lib/proxyTarget";
+import { armPx } from "@/lib/browserInit";
+import { applyMuxForUrl } from "@/lib/proxyTarget";
 import { useInterstitialUnlock, InterstitialOverlay } from "./InterstitialAdGate";
 import { openNativeWindow } from "@/lib/openTabBridge";
 
@@ -163,7 +163,7 @@ export default function AppViewerPage({ url, title, onBack }: AppViewerPageProps
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
 
-    ensureProxyEngine().catch(() => {});
+    armPx().catch(() => {});
 
     const tryCreate = () => {
       if (!pxReady()) return false;
@@ -176,7 +176,7 @@ export default function AppViewerPage({ url, title, onBack }: AppViewerPageProps
         scFrame.frame.onload = () => {
           applyMuteToFrame(scFrame.frame, muted);
         };
-        void applyProxyStreamForUrl(url).then(() => {
+        void applyMuxForUrl(url).then(() => {
           try {
             scFrame.frame.src = pxEncode(url);
           } catch {}

@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Code2, Activity, HardDrive } from "lucide-react";
+import { hrefs } from "@/lib/uiMarks";
 
 function canInspectUrl(url?: string): boolean {
   if (!url) return false;
   const u = url.trim().toLowerCase();
   if (u.startsWith("http://") || u.startsWith("https://")) return true;
-  if (u.startsWith("petezah://gameviewer")) return true;
-  if (u.startsWith("petezah://games")) return true;
+  if (u.startsWith(hrefs.gv())) return true;
+  if (u.startsWith(hrefs.g())) return true;
   if (u.startsWith("petezah://appviewer")) return true;
   return false;
 }
@@ -56,7 +57,7 @@ function readFrameSource(): { source: string; note: string } {
       doc = null;
     }
     if (!doc?.documentElement) {
-      return { source: "", note: "Cross-origin frame — source is blocked. Open a same-origin proxy or game frame." };
+      return { source: "", note: "Cross-origin frame — source is blocked." };
     }
     const raw = doc.documentElement.outerHTML || "";
     return {

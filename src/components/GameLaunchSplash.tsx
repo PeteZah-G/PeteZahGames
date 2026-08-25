@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { defaultBrandSrc, hrefs } from "@/lib/uiMarks";
 
 type Cover = { label: string; imageUrl: string };
 
@@ -25,10 +26,10 @@ async function loadTopCovers(): Promise<Cover[]> {
     try {
       const [colRes, playsRes] = await Promise.all([
         fetch("/storage/data/collection.json"),
-        fetch("/api/games/plays").catch(() => null),
+        fetch(hrefs.apiPlays()).catch(() => null),
       ]);
       const data = await colRes.json();
-      const games: any[] = Array.isArray(data?.games) ? data.games : [];
+      const list: any[] = Array.isArray(data?.[hrefs.kindG()]) ? data[hrefs.kindG()] : [];
       let plays: Record<string, number> = {};
       if (playsRes && playsRes.ok) {
         try {
@@ -36,7 +37,7 @@ async function loadTopCovers(): Promise<Cover[]> {
           plays = p?.plays && typeof p.plays === "object" ? p.plays : p || {};
         } catch {}
       }
-      const scored = games
+      const scored = list
         .map((g) => {
           const imageUrl = safeImg(g.imageUrl || "");
           const label = String(g.label || "").trim();
@@ -48,7 +49,7 @@ async function loadTopCovers(): Promise<Cover[]> {
       scored.sort((a, b) => b.score - a.score || a.label.localeCompare(b.label));
       const pool = scored.length
         ? scored
-        : games
+        : list
             .map((g) => ({
               label: String(g.label || ""),
               imageUrl: safeImg(g.imageUrl || ""),
@@ -152,7 +153,7 @@ export function GameLaunchSplash({
         }}
       >
         <img
-          src="/logo.png"
+          src={defaultBrandSrc()}
           alt=""
           style={{ width: 44, height: 44, objectFit: "contain", opacity: 0.95 }}
         />
@@ -178,7 +179,7 @@ export function GameLaunchSplash({
                 color: "hsla(0,0%,96%,0.92)",
               }}
             >
-              {title?.trim() || "Game"}
+              {title?.trim() || hrefs.wordG()}
             </p>
             <p style={{ margin: "6px 0 0", fontSize: 11, color: "hsla(210,14%,70%,0.72)" }}>
               Warming up PeteZah

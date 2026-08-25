@@ -6,9 +6,11 @@ import { AdResponsiveBanner, AdNativeBar } from "@/components/ads/Adsterra";
 import { armAdAudio } from "@/lib/exoclick";
 import { originHttpHost } from "@/lib/siteOrigin";
 import { unwrapPlayUrl } from "@/lib/proxyTarget";
+import { hrefs, marks } from "@/lib/uiMarks";
+import ObfuscatedText from "./ObfuscatedText";
 
 const CATEGORIES = ["All", "Action", "Racing", "Strategy", "Sports", "Skill", "Shooting", "2 Player", "Io"];
-const PINNED_LABELS = ["Request Games", "Minecraft", "Roblox"];
+const PINNED_LABELS = [marks.request(), "Minecraft", "Roblox"];
 
 function generateGameId(game: { label: string; url: string }) {
   return `${game.label}-${game.url}`.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
@@ -21,7 +23,7 @@ function pinnedRank(label: string) {
 
 function recordPlay(game: Game) {
   try {
-    fetch("/api/games/play", {
+    fetch(hrefs.apiPlay(), {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -51,26 +53,26 @@ interface GamesPageProps {
 }
 
 function getCustomGames(): Game[] {
-  try { const s = localStorage.getItem("customGames"); return s ? JSON.parse(s) : []; } catch { return []; }
+  try { const s = localStorage.getItem(hrefs.lsCustom()); return s ? JSON.parse(s) : []; } catch { return []; }
 }
 function saveCustomGames(games: Game[]) {
-  try { localStorage.setItem("customGames", JSON.stringify(games)); requestSyncSoon(); } catch {}
+  try { localStorage.setItem(hrefs.lsCustom(), JSON.stringify(games)); requestSyncSoon(); } catch {}
 }
 function getFavorites(): string[] {
-  try { const s = localStorage.getItem("favoriteGames"); return s ? JSON.parse(s) : []; } catch { return []; }
+  try { const s = localStorage.getItem(hrefs.lsFav()); return s ? JSON.parse(s) : []; } catch { return []; }
 }
 function saveFavorites(favs: string[]) {
-  try { localStorage.setItem("favoriteGames", JSON.stringify(favs)); requestSyncSoon(); } catch {}
+  try { localStorage.setItem(hrefs.lsFav(), JSON.stringify(favs)); requestSyncSoon(); } catch {}
 }
 function getHiddenGames(): string[] {
-  try { const s = localStorage.getItem("hiddenGames"); return s ? JSON.parse(s) : []; } catch { return []; }
+  try { const s = localStorage.getItem(hrefs.lsHid()); return s ? JSON.parse(s) : []; } catch { return []; }
 }
 function saveHiddenGames(hidden: string[]) {
-  try { localStorage.setItem("hiddenGames", JSON.stringify(hidden)); requestSyncSoon(); } catch {}
+  try { localStorage.setItem(hrefs.lsHid(), JSON.stringify(hidden)); requestSyncSoon(); } catch {}
 }
 function getRecentGameIds(): string[] {
   try {
-    const s = localStorage.getItem("recentGames");
+    const s = localStorage.getItem(hrefs.lsRecent());
     return s ? JSON.parse(s) : [];
   } catch {
     return [];
@@ -80,7 +82,7 @@ function pushRecentGame(id: string) {
   try {
     const prev = getRecentGameIds().filter((x) => x !== id);
     const next = [id, ...prev].slice(0, 24);
-    localStorage.setItem("recentGames", JSON.stringify(next));
+    localStorage.setItem(hrefs.lsRecent(), JSON.stringify(next));
   } catch {}
 }
 
@@ -95,27 +97,27 @@ function carouselBadge(title: string, index: number): { label: string; tone: "bl
 
 function clearRecentGames() {
   try {
-    localStorage.removeItem("recentGames");
+    localStorage.removeItem(hrefs.lsRecent());
   } catch {}
 }
 
 function GameCarousel({
   title,
-  games,
+  tiles,
   favorites,
   onPlay,
   onOptions,
   onClear,
 }: {
   title: string;
-  games: Game[];
+  tiles: Game[];
   favorites: string[];
   onPlay: (g: Game) => void;
   onOptions: (g: Game) => void;
   onClear?: () => void;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
-  if (!games.length) return null;
+  if (!tiles.length) return null;
 
   const scrollBy = (dir: number) => {
     const el = scrollerRef.current;
@@ -126,7 +128,9 @@ function GameCarousel({
   return (
     <div className="mb-5 relative group/carousel">
       <div className="flex items-center justify-between mb-2 px-0.5">
-        <h2 className="text-[13px] font-semibold text-white/90 tracking-tight">{title}</h2>
+        <h2 className="text-[13px] font-semibold text-white/90 tracking-tight">
+          <ObfuscatedText as="span">{title}</ObfuscatedText>
+        </h2>
         <div className="flex items-center gap-2">
           {onClear ? (
             <button
@@ -142,7 +146,7 @@ function GameCarousel({
               Clear
             </button>
           ) : null}
-          <span className="text-[10px] text-white/28 tabular-nums">{games.length}</span>
+          <span className="text-[10px] text-white/28 tabular-nums">{tiles.length}</span>
         </div>
       </div>
       <div className="relative">
@@ -179,7 +183,7 @@ function GameCarousel({
           className="flex gap-1.5 overflow-x-auto pb-1 px-0.5"
           style={{ scrollbarWidth: "none", scrollSnapType: "x proximity" }}
         >
-          {games.map((game, i) => (
+          {tiles.map((game, i) => (
             <div
               key={game.id}
               className="flex-shrink-0"
@@ -260,18 +264,18 @@ function AddGameModal({ onAdd, onClose, publish = false }: { onAdd: (g: Game) =>
         className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl bg-card border border-border"
       >
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-sm font-semibold text-foreground">{publish ? "Publish game" : "Add Custom Game"}</h3>
+          <h3 className="text-sm font-semibold text-foreground">{publish ? hrefs.pubG() : hrefs.addCustom()}</h3>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-accent text-muted-foreground transition-colors"><X size={14} /></button>
         </div>
         <div className="space-y-3">
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Title</label>
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Game name"
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Name"
               className="w-full mt-1 px-3 py-2 rounded-xl bg-accent border border-border text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-foreground/20" />
           </div>
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider">URL</label>
-            <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com/game"
+            <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com"
               className="w-full mt-1 px-3 py-2 rounded-xl bg-accent border border-border text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-foreground/20" />
           </div>
           <div>
@@ -293,7 +297,7 @@ function AddGameModal({ onAdd, onClose, publish = false }: { onAdd: (g: Game) =>
           </div>
           <button onClick={handleSubmit} disabled={!title || !url || !imageData || !category}
             className="w-full py-2.5 rounded-xl bg-foreground/10 border border-foreground/20 text-foreground text-sm font-medium hover:bg-foreground/15 transition-colors disabled:opacity-40">
-            {publish ? "Publish Game" : "Add Game"}
+            {publish ? hrefs.pubGBtn() : hrefs.addG()}
           </button>
         </div>
       </motion.div>
@@ -361,12 +365,12 @@ function EditGameModal({
         <div className="space-y-3">
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Title</label>
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Game name"
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Name"
               className="w-full mt-1 px-3 py-2 rounded-xl bg-accent border border-border text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-foreground/20" />
           </div>
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider">URL</label>
-            <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com/game"
+            <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com"
               className="w-full mt-1 px-3 py-2 rounded-xl bg-accent border border-border text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-foreground/20" />
           </div>
           <div>
@@ -419,7 +423,7 @@ function GameOptionsMenu({ game, isFav, onFav, onRemove, onShare, onEdit, onClos
           {adminMode && onEdit && (
             <button onClick={onEdit}
               className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-accent border border-border text-sm font-medium text-foreground hover:bg-accent/70 transition-all">
-              <Pencil size={13} className="text-muted-foreground" /> Edit game
+              <Pencil size={13} className="text-muted-foreground" /> Edit
             </button>
           )}
           {!adminMode && (
@@ -526,7 +530,7 @@ function GameCard({ game, isFav, onPlay, onOptions, priority = false, index = 0,
     >
       <img
         src={game.imageUrl}
-        alt={game.label}
+        alt=""
         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         loading={priority ? "eager" : "lazy"}
         decoding="async"
@@ -543,7 +547,11 @@ function GameCard({ game, isFav, onPlay, onOptions, priority = false, index = 0,
       />
 
       <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 translate-y-1 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-200">
-        <p className="text-white text-[11px] font-semibold truncate drop-shadow-sm">{game.label}</p>
+        <p className="text-white text-[11px] font-semibold truncate drop-shadow-sm">
+          <ObfuscatedText as="span" force>
+            {game.label}
+          </ObfuscatedText>
+        </p>
       </div>
 
       {badge && (
@@ -594,7 +602,7 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
   const [adminBusy, setAdminBusy] = useState(false);
   const [recentTick, setRecentTick] = useState(0);
   const [showRecentPlays, setShowRecentPlays] = useState(
-    () => localStorage.getItem("recentPlays") === "true"
+    () => localStorage.getItem(hrefs.rp()) === "true"
   );
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const isAdminMode = adminEdit && adminOk;
@@ -623,7 +631,7 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
 
   useEffect(() => {
     const sync = () => {
-      setShowRecentPlays(localStorage.getItem("recentPlays") === "true");
+      setShowRecentPlays(localStorage.getItem(hrefs.rp()) === "true");
       setRecentTick((n) => n + 1);
     };
     window.addEventListener("petezah-settings-updated", sync);
@@ -639,11 +647,11 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
       try {
         const [res, playsRes, catalogRes] = await Promise.all([
           fetch("/storage/data/collection.json"),
-          fetch("/api/games/plays").catch(() => null),
-          fetch("/api/games/catalog", { credentials: "include" }).catch(() => null),
+          fetch(hrefs.apiPlays()).catch(() => null),
+          fetch(hrefs.apiCat(), { credentials: "include" }).catch(() => null),
         ]);
         const data = await res.json();
-        const remote: Game[] = data.games.map((g: Game) => ({ ...g, id: generateGameId(g), isCustom: false }));
+        const remote: Game[] = (data[hrefs.kindG()] || []).map((g: Game) => ({ ...g, id: generateGameId(g), isCustom: false }));
         const custom = getCustomGames();
         const hidden = getHiddenGames();
         let exclusions: string[] = [];
@@ -730,14 +738,14 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
     setPlayCounts((prev) => ({ ...prev, [game.id]: (prev[game.id] || 0) + 1 }));
     if (onNavigate) {
       const resolved = resolveGameUrl(game.url);
-      onNavigate(`petezah://gameviewer?url=${encodeURIComponent(resolved)}&title=${encodeURIComponent(game.label)}&gid=${encodeURIComponent(game.id)}`);
+      onNavigate(`${hrefs.gv()}?url=${encodeURIComponent(resolved)}&title=${encodeURIComponent(game.label)}&gid=${encodeURIComponent(game.id)}`);
     }
   }, [onNavigate]);
 
   const showCarousels = !search.trim() && activeCategory === "All" && listReady;
 
   const carouselShelves = (() => {
-    if (!showCarousels) return [] as { title: string; games: Game[] }[];
+    if (!showCarousels) return [] as { title: string; tiles: Game[] }[];
     void recentTick;
     const byId = new Map(allGames.map((g) => [g.id, g]));
     const recentIds = getRecentGameIds();
@@ -752,12 +760,12 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
     const action = allGames
       .filter((g) => g.categories.some((c) => /action|racing|shooting/i.test(c)))
       .slice(0, 16);
-    const shelves: { title: string; games: Game[] }[] = [];
-    if (showRecentPlays && recentlyPlayed.length) shelves.push({ title: "Recently Played", games: recentlyPlayed.slice(0, 16) });
-    if (topGames.length) shelves.push({ title: "Top Games", games: topGames });
-    else shelves.push({ title: "Top Games", games: allGames.slice(0, 16) });
-    if (sports.length) shelves.push({ title: "Sports", games: sports });
-    if (action.length) shelves.push({ title: "Action & Racing", games: action });
+    const shelves: { title: string; tiles: Game[] }[] = [];
+    if (showRecentPlays && recentlyPlayed.length) shelves.push({ title: marks.recent(), tiles: recentlyPlayed.slice(0, 16) });
+    if (topGames.length) shelves.push({ title: marks.f(), tiles: topGames });
+    else shelves.push({ title: marks.f(), tiles: allGames.slice(0, 16) });
+    if (sports.length) shelves.push({ title: "Sports", tiles: sports });
+    if (action.length) shelves.push({ title: "Action & Racing", tiles: action });
     return shelves.slice(0, 4);
   })();
 
@@ -776,13 +784,13 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
       setAdminBusy(true);
       try {
         if (game.isGlobal) {
-          const r = await fetch(`/api/admin/games/${encodeURIComponent(game.id)}`, {
+          const r = await fetch(`${hrefs.admG()}/${encodeURIComponent(game.id)}`, {
             method: "DELETE",
             credentials: "include",
           });
           if (!r.ok) throw new Error("fail");
         } else {
-          const r = await fetch("/api/admin/games/exclude", {
+          const r = await fetch(hrefs.admEx(), {
             method: "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
@@ -822,7 +830,7 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
       if (adminBusy) return;
       setAdminBusy(true);
       try {
-        const r = await fetch("/api/admin/games", {
+        const r = await fetch(hrefs.admG(), {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -856,7 +864,7 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
     if (!isAdminMode || adminBusy) return;
     setAdminBusy(true);
     try {
-      const r = await fetch(`/api/admin/games/${encodeURIComponent(game.id)}`, {
+      const r = await fetch(`${hrefs.admG()}/${encodeURIComponent(game.id)}`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -888,15 +896,19 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
   return (
     <div className="absolute inset-0 overflow-hidden">
       <div className="absolute inset-0 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
-        <div className="px-6 games-scroll" style={{ paddingTop: 108, paddingBottom: 32 }}>
+        <div className="px-6 cat-scroll" style={{ paddingTop: 108, paddingBottom: 32 }}>
           {!listReady ? (
             <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
               <div className="w-4 h-4 rounded-full border border-white/10 border-t-white/40 animate-spin mb-3" />
-              <p className="text-sm">Loading games…</p>
+              <p className="text-sm">
+                <ObfuscatedText as="span">{marks.loading()}</ObfuscatedText>
+              </p>
             </div>
           ) : visible.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
-              <p className="text-sm">No games found</p>
+              <p className="text-sm">
+                <ObfuscatedText as="span">{marks.none()}</ObfuscatedText>
+              </p>
             </div>
           ) : (
             <>
@@ -905,12 +917,12 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
                   <GameCarousel
                     key={shelf.title}
                     title={shelf.title}
-                    games={shelf.games}
+                    tiles={shelf.tiles}
                     favorites={favorites}
                     onPlay={handlePlay}
                     onOptions={setOptionsGame}
                     onClear={
-                      shelf.title === "Recently Played"
+                      shelf.title === marks.recent()
                         ? () => {
                             clearRecentGames();
                             setRecentTick((n) => n + 1);
@@ -921,10 +933,10 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
                 ))}
               {showCarousels && (
                 <h2 className="text-sm font-semibold text-white/90 tracking-tight mb-2.5">
-                  All Games
+                  <ObfuscatedText as="span">{marks.e()}</ObfuscatedText>
                 </h2>
               )}
-              <div className="grid gap-3 games-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
+              <div className="grid gap-3 cat-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
                 {visible.map((game, i) => (
                   <GameCard
                     key={game.id}
@@ -953,7 +965,7 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
       </div>
 
       <div
-        className="absolute top-0 left-0 right-0 z-20 px-6 pt-5 pb-3 games-toolbar pointer-events-none"
+        className="absolute top-0 left-0 right-0 z-20 px-6 pt-5 pb-3 cat-toolbar pointer-events-none"
         style={{
           background: "linear-gradient(to bottom, hsla(220,35%,6%,0.55) 0%, hsla(220,35%,6%,0.18) 70%, transparent 100%)",
         }}
@@ -975,7 +987,7 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
           )}
           {adminEdit && !adminOk && listReady && (
             <div className="mb-3 px-3 py-2 rounded-xl border border-destructive/30 bg-destructive/10 text-[11px] text-destructive">
-              Admin access required for Edit Games.
+              Admin access required for {hrefs.editG()}.
             </div>
           )}
           <div className="flex items-center gap-2 mb-3">
@@ -992,7 +1004,7 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
               <input
                 value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1); }}
-                placeholder="Search games..."
+                placeholder="Search..."
                 className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
               />
               {search && (

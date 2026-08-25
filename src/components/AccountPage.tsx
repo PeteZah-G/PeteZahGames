@@ -18,6 +18,8 @@ import {
 } from "@/lib/settingsSync";
 import { notifyAuthChanged } from "@/hooks/useAuth";
 import { consumePendingAuth } from "@/lib/authPending";
+import { defaultBrandSrc, hrefs, marks } from "@/lib/uiMarks";
+import ObfuscatedText from "./ObfuscatedText";
 import { applyVpnRegion } from "@/lib/vpn";
 import { themeById, applyBrowserIdentity } from "@/lib/siteThemes";
 import { AppearanceSettings, BehaviorSettings, ProxySettings, ShortcutsSettings } from "./SettingsPanels";
@@ -42,10 +44,9 @@ interface AdminUser {
   email_verified?: number; banned?: number; created_at?: number; is_owner?: boolean;
 }
 interface StaffMember extends AdminUser {
-  ip?: string;
 }
 interface AdminUserDetail extends AdminUser {
-  email: string; avatar_url?: string; bio?: string; ip?: string; school?: string; age?: number;
+  avatar_url?: string; bio?: string;
   achievements?: BadgeInfo[];
 }
 
@@ -351,11 +352,11 @@ function ApplyBtn({ saved, onClick }: { saved: boolean; onClick: () => void }) {
 
 const NAV: { id: Section; label: string; icon: any; adminOnly?: boolean }[] = [
   { id: "profile",    label: "Profile",     icon: User },
-  { id: "proxy",      label: "Proxy",       icon: Network },
+  { id: hrefs.modeP() as Section, label: marks.b(), icon: Network },
   { id: "get-links",  label: "Get Links",   icon: Link2 },
   { id: "achievements", label: "Achievements", icon: Trophy },
   { id: "appearance", label: "Appearance",  icon: Palette },
-  { id: "cloaking",   label: "Cloaking",    icon: Shield },
+  { id: "cloaking",   label: marks.cloak(),    icon: Shield },
   { id: "behavior",   label: "Behavior",    icon: Sliders },
   { id: "shortcuts",  label: "Shortcuts",   icon: Keyboard },
   { id: "data",       label: "Data",        icon: Download },
@@ -363,7 +364,7 @@ const NAV: { id: Section; label: string; icon: any; adminOnly?: boolean }[] = [
   { id: "users",      label: "Users",       icon: UserCog, adminOnly: true },
   { id: "live",       label: "Live Sites",  icon: Radio, adminOnly: true },
   { id: "firefox-vm", label: "Firefox VM",  icon: Monitor, adminOnly: true },
-  { id: "game-stats", label: "Game Stats",  icon: Gamepad2, adminOnly: true },
+  { id: hrefs.gsSec() as Section, label: marks.c(),  icon: Gamepad2, adminOnly: true },
   { id: "link-stats", label: "Link Stats",  icon: BarChart3, adminOnly: true },
   { id: "ai-prompts", label: "AI Prompts", icon: MessageSquare, adminOnly: true },
   { id: "ad-reports", label: "Ad reports", icon: TrendingUp, adminOnly: true },
@@ -431,7 +432,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
     w.document.title = localStorage.getItem("siteTitle") || "Home";
     const link = w.document.createElement("link");
     link.rel = "icon";
-    link.href = localStorage.getItem("siteLogo") || "/logo.png";
+    link.href = localStorage.getItem("siteLogo") || defaultBrandSrc();
     if (link.href.startsWith("/")) link.href = window.location.origin + link.href;
     w.document.head.appendChild(link);
     const iframe = w.document.createElement("iframe");
@@ -457,6 +458,9 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   const [adminSearchActive, setAdminSearchActive] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [revealMap, setRevealMap] = useState<Record<string, string>>({});
+  const [revealBusy, setRevealBusy] = useState("");
+  const [revealTrunc, setRevealTrunc] = useState(false);
   const [adminTab, setAdminTab] = useState<"users" | "staff" | "rarity">("users");
   const [rarityBoard, setRarityBoard] = useState<{
     rank: number;
@@ -657,7 +661,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   const loadLocalSettings = useCallback(() => {
     const keys = [
       "theme","siteTitle","siteLogo","panicKey","panicUrl","beforeUnload","disableRightClick","autocloak",
-      "backgroundColor","backgroundImage","bgNetwork","debugHud","searchEdgeGlow","horizontalTabs","trendingHomescreen","gameFocusMode","quickRelaunch","recentPlays","lowPowerBg",
+      "backgroundColor","backgroundImage","bgNetwork","debugHud","searchEdgeGlow","horizontalTabs","trendingHomescreen",hrefs.gf(),"quickRelaunch",hrefs.rp(),"lowPowerBg",
       "searchEngine","browserIdentity","uaPreset","customUserAgent","proxServer","extensionsEnabled","stripTrackers","preferHttps",
     ];
     const loaded: Record<string,string> = {};
@@ -947,18 +951,18 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   }, [gameSearch]);
 
   useEffect(() => {
-    if (section !== "game-stats" || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
+    if (section !== hrefs.gsSec() || !(user && ((user.is_admin ?? 0) >= 1 || user.is_owner))) return;
     let cancelled = false;
     const load = () => {
       setGameStatsLoading(true);
       const q = gameSearchDebounced.trim();
       const url = q
-        ? `/api/admin/game-stats?q=${encodeURIComponent(q)}`
-        : "/api/admin/game-stats";
+        ? `${hrefs.admSt()}?q=${encodeURIComponent(q)}`
+        : hrefs.admSt();
       Promise.all([
         fetch(url, { credentials: "include" }).then((r) => r.json()),
-        fetch("/api/admin/game-live", { credentials: "include" }).then((r) => r.json()),
-        fetch("/api/admin/games/excluded", { credentials: "include" }).then((r) => r.json()),
+        fetch(hrefs.admLv(), { credentials: "include" }).then((r) => r.json()),
+        fetch(hrefs.admExd(), { credentials: "include" }).then((r) => r.json()),
       ])
         .then(([stats, live, excl]) => {
           if (cancelled) return;
@@ -987,14 +991,14 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   async function unsuspendGame(gameId: string) {
     setExcludedLoading(true);
     try {
-      const r = await fetch(`/api/admin/games/exclude/${encodeURIComponent(gameId)}`, {
+      const r = await fetch(`${hrefs.admEx()}/${encodeURIComponent(gameId)}`, {
         method: "DELETE",
         credentials: "include",
       });
       if (!r.ok) throw new Error("fail");
       setExcludedGames((prev) => prev.filter((g) => g.gameId !== gameId));
     } catch {
-      alert("Could not unsuspend game.");
+      alert("Could not restore.");
     } finally {
       setExcludedLoading(false);
     }
@@ -1128,6 +1132,9 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
   async function openUserDetail(userId: string) {
     setDetailLoading(true);
     setSelectedUser(null);
+    setRevealMap({});
+    setRevealBusy("");
+    setRevealTrunc(false);
     try {
       const r = await fetch(`/api/admin/users/${userId}`, { credentials: "include" });
       if (r.ok) {
@@ -1136,6 +1143,26 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       }
     } finally {
       setDetailLoading(false);
+    }
+  }
+
+  async function revealField(field: string) {
+    if (!selectedUser) return;
+    setRevealBusy(field);
+    try {
+      const r = await fetch(
+        `/api/admin/users/${encodeURIComponent(selectedUser.id)}/reveal?field=${encodeURIComponent(field)}`,
+        { credentials: "include" }
+      );
+      const d = await r.json();
+      if (!r.ok) {
+        alert(d.error || "Failed");
+        return;
+      }
+      setRevealMap((prev) => ({ ...prev, [field]: d.value ?? "" }));
+      if (field === "settings") setRevealTrunc(!!d.truncated);
+    } finally {
+      setRevealBusy("");
     }
   }
 
@@ -1153,7 +1180,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       await applyVpnRegion("tor");
       onNavigate("petezah://newtab");
     } else if (pending?.type === "movies") {
-      onNavigate("petezah://movies");
+      onNavigate(hrefs.mo());
     } else if (pending?.type === "feedback") {
       onNavigate("petezah://feedback");
     } else if (pending?.type === "firefox" || pending?.type === "vm") {
@@ -1533,7 +1560,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
         const loaded: Record<string, string> = {};
         [
           "theme","siteTitle","siteLogo","panicKey","panicUrl","beforeUnload","disableRightClick","autocloak",
-          "backgroundColor","backgroundImage","bgNetwork","debugHud","searchEdgeGlow","horizontalTabs","trendingHomescreen","gameFocusMode","quickRelaunch","recentPlays","lowPowerBg",
+          "backgroundColor","backgroundImage","bgNetwork","debugHud","searchEdgeGlow","horizontalTabs","trendingHomescreen",hrefs.gf(),"quickRelaunch",hrefs.rp(),"lowPowerBg",
           "searchEngine","browserIdentity","uaPreset","customUserAgent","proxServer","extensionsEnabled","stripTrackers","preferHttps",
         ].forEach(k => {
           const v = localStorage.getItem(k);
@@ -1636,6 +1663,10 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
       setStaffList(prev => prev.map(u => u.id === userId ? { ...u, banned: 0 } : u));
     } else if (action === "suspend") {
       setAdminUsers(prev => prev.map(u => u.id === userId ? { ...u, email_verified: 0 } : u));
+    } else if (action === "verify_email") {
+      setAdminUsers(prev => prev.map(u => u.id === userId ? { ...u, email_verified: 1 } : u));
+      setStaffList(prev => prev.map(u => u.id === userId ? { ...u, email_verified: 1 } : u));
+      setSelectedUser(prev => prev && prev.id === userId ? { ...prev, email_verified: 1 } : prev);
     } else if (action === "promote_admin") patchRole(3);
     else if (action === "staff") patchRole(2);
     else if (action === "promote_mod") patchRole(1);
@@ -1886,7 +1917,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
           transition={{ delay: 0.06, duration: 0.35 }}
           style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 16 }}
         >
-          <img src="/logo.png" alt="" style={{ width: 22, height: 22, objectFit: "contain", borderRadius: 6 }} />
+          <img src={defaultBrandSrc()} alt="" style={{ width: 22, height: 22, objectFit: "contain", borderRadius: 6 }} />
           <span style={{ fontSize: 13, fontWeight: 650, color: C.text, letterSpacing: "-0.02em" }}>PeteZah</span>
         </motion.div>
 
@@ -2169,7 +2200,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                 onMouseLeave={e => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.textSub; } }}
               >
                 <Icon size={12} />
-                {label}
+                <ObfuscatedText as="span">{label}</ObfuscatedText>
               </motion.button>
             );
           })}
@@ -2406,7 +2437,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                       </div>
                     )}
                     {likedPool.length === 0 ? (
-                      <button onClick={() => onNavigate("petezah://music")} style={{
+                      <button onClick={() => onNavigate(hrefs.mu())} style={{
                         display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 8,
                         background: C.accentDim, border: `1px solid ${C.borderFocus}`, color: C.accent,
                         fontSize: 11, fontWeight: 600, cursor: "pointer",
@@ -2452,7 +2483,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                   {[
                     { label: "Changelog", desc: "See what's new", url: "petezah://changelog", icon: Megaphone },
                     { label: "Feedback", desc: "Share your thoughts", url: "petezah://feedback", icon: MessageSquare },
-                    { label: "Music", desc: "Find songs for your profile", url: "petezah://music", icon: Music2 },
+                    { label: "Music", desc: "Find songs for your profile", url: hrefs.mu(), icon: Music2 },
                   ].map(({ label, desc, url, icon: Icon }) => (
                     <button key={url} onClick={() => onNavigate(url)} style={{
                       display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "9px",
@@ -2809,7 +2840,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
 
             {section === "appearance" && <AppearanceSettings {...panelProps} />}
 
-            {section === "proxy" && <ProxySettings {...panelProps} />}
+            {section === hrefs.modeP() && <ProxySettings {...panelProps} />}
 
             {section === "cloaking" && (
               <div style={{ maxWidth: "440px" }}>
@@ -3017,8 +3048,8 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                           title: "Usage today",
                           icon: Activity,
                           rows: [
-                            ["Games", overview.usage?.games ?? 0],
-                            ["Proxy", overview.usage?.proxy ?? 0],
+                            [marks.a(), overview.usage?.[hrefs.kindG()] ?? 0],
+                            [marks.b(), overview.usage?.[hrefs.modeP()] ?? 0],
                             ["AI", overview.usage?.ai ?? 0],
                             ["Movies", overview.usage?.movies ?? 0],
                             ["Music", overview.usage?.music ?? 0],
@@ -3304,7 +3335,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                           </span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <p style={{ margin: 0, fontSize: 12, fontWeight: 650, color: C.text }}>
-                              {row.username || row.email || "User"}
+                              {row.username || "User"}
                             </p>
                             <p style={{ margin: "2px 0 0", fontSize: 10, color: C.textMuted }}>
                               score {row.score} · {row.badgeCount} badges · top {row.topRarity}
@@ -3349,7 +3380,6 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                               </span>
                               {u.banned ? <span style={{ fontSize: "8px", padding: "1px 4px", borderRadius: "4px", background: "hsl(0 60% 50% / 0.1)", color: C.danger }}>Banned</span> : null}
                             </div>
-                            {u.ip && <p style={{ fontSize: "10px", color: C.textMuted, margin: "2px 0 0" }}>IP: {u.ip}</p>}
                           </div>
                           {isOwner && u.id !== user.id && !u.is_owner && (
                             <div style={{ display: "flex", gap: "3px", flexShrink: 0 }} onClick={e => e.stopPropagation()}>
@@ -3444,6 +3474,11 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                                 <ShieldOff size={11} style={{ color: "hsl(38 75% 58%)" }} />
                               </button>
                             )}
+                            {(u.email_verified ?? 1) !== 1 && !u.banned && (
+                              <button title="Verify email" onClick={() => adminAction(u.id, "verify_email")} style={iconBtn}>
+                                <Mail size={11} style={{ color: "hsl(145 50% 55%)" }} />
+                              </button>
+                            )}
                             {(u.email_verified ?? 1) === 1 && !u.banned && (
                               <button title="Suspend" onClick={() => adminAction(u.id, "suspend")} style={iconBtn}>
                                 <UserMinus size={11} style={{ color: "hsl(38 75% 58%)" }} />
@@ -3525,9 +3560,9 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
                                 <div>
                                   <h3 style={{ fontSize: 16, fontWeight: 720, color: C.text, margin: "0 0 4px", letterSpacing: "-0.02em" }}>
-                                    {selectedUser.username || "User"}
+                                    Account
                                   </h3>
-                                  <p style={{ margin: 0, fontSize: 11, color: C.textMuted }}>{selectedUser.email}</p>
+                                  <p style={{ margin: 0, fontSize: 11, color: C.textMuted }}>Reveal fields on demand</p>
                                 </div>
                                 <button
                                   type="button"
@@ -3559,19 +3594,53 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                                 ))}
                               </div>
                               <div style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 11 }}>
-                                {[
-                                ["IP", selectedUser.ip || "—"],
-                                ["School", selectedUser.school || "—"],
-                                ["Age", selectedUser.age != null ? String(selectedUser.age) : "—"],
-                                ["Bio", selectedUser.bio || "—"],
-                                ["ID", selectedUser.id],
-                              ].map(([label, val]) => (
-                                  <div key={label} style={{ display: "flex", gap: 8 }}>
-                                    <span style={{ color: C.textMuted, minWidth: 52, flexShrink: 0 }}>{label}</span>
-                                  <span style={{ color: C.text, wordBreak: "break-all" }}>{val}</span>
-                                </div>
-                              ))}
-                            </div>
+                                {([
+                                  ["username", "Name"],
+                                  ["email", "Email"],
+                                  ["ip", "IP"],
+                                  ["school", "School"],
+                                  ["age", "Age"],
+                                  ["bio", "Bio"],
+                                  ["id", "ID"],
+                                  ["settings", "Local storage"],
+                                ] as const).map(([field, label]) => (
+                                  <div key={field} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                                    <span style={{ color: C.textMuted, minWidth: 88, flexShrink: 0, paddingTop: 4 }}>{label}</span>
+                                    {revealMap[field] != null ? (
+                                      <span style={{ color: C.text, wordBreak: "break-all", whiteSpace: "pre-wrap", flex: 1, fontFamily: field === "settings" ? "ui-monospace, monospace" : "inherit", fontSize: field === "settings" ? 10 : 11 }}>
+                                        {revealMap[field] || "—"}
+                                        {field === "settings" && revealTrunc ? " (truncated)" : ""}
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        disabled={revealBusy === field}
+                                        onClick={() => revealField(field)}
+                                        style={{
+                                          padding: "4px 8px", borderRadius: 7, border: `1px solid ${C.borderFocus}`,
+                                          background: C.accentDim, color: C.accent, fontSize: 10, fontWeight: 650,
+                                          cursor: revealBusy === field ? "wait" : "pointer",
+                                        }}
+                                      >
+                                        {revealBusy === field ? "Loading" : "Reveal"}
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                              {(selectedUser.email_verified ?? 1) !== 1 && selectedUser.id !== user.id && !selectedUser.is_owner && (
+                                <button
+                                  type="button"
+                                  onClick={() => adminAction(selectedUser.id, "verify_email")}
+                                  style={{
+                                    marginTop: 12, width: "100%", padding: "8px", borderRadius: 10,
+                                    border: `1px solid ${C.borderFocus}`, background: C.accentDim, color: C.accent,
+                                    fontSize: 12, fontWeight: 650, cursor: "pointer",
+                                  }}
+                                >
+                                  Verify email
+                                </button>
+                              )}
                               {!!selectedUser.achievements?.length && (
                                 <div style={{ marginTop: 16 }}>
                                   <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted }}>
@@ -3780,24 +3849,24 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
               </div>
             )}
 
-            {section === "game-stats" && isAdmin && (
+            {section === hrefs.gsSec() && isAdmin && (
               <div style={{ maxWidth: "680px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, gap: 10, flexWrap: "wrap" }}>
                   <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
                     <Gamepad2 size={14} style={{ color: C.accent }} />
-                    Game Stats
+                    {marks.c()}
                   </h2>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <button
                       type="button"
-                      onClick={() => onNavigate("petezah://games?adminEdit=1")}
+                      onClick={() => onNavigate(hrefs.g() + "?adminEdit=1")}
                       style={{
                         display: "inline-flex", alignItems: "center", gap: 6,
                         fontSize: 11, fontWeight: 650, padding: "6px 10px", borderRadius: 8,
                         background: C.accentDim, border: `1px solid ${C.borderFocus}`, color: C.accent, cursor: "pointer",
                       }}
                     >
-                      <Pencil size={11} /> Edit Games
+                      <Pencil size={11} /> {hrefs.editG()}
                     </button>
                     <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: `${C.accentDim}40`, border: `1px solid ${C.borderFocus}`, color: C.accent }}>
                       {(gameLive?.clients ?? 0)} live · {(gameStats?.totals?.totalPlays ?? 0)} plays
@@ -3805,7 +3874,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                   </div>
                 </div>
                 <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 14px" }}>
-                  Top 50 most played · search any game · live list/viewer presence · Edit Games for global add/suspend
+                  Top 50 most played · search any title · live list/viewer presence · {hrefs.editG()} for global add/suspend
                 </p>
 
                 <div style={{

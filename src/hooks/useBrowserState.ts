@@ -1,8 +1,9 @@
 import { useState, useCallback } from "react";
 import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
-import { ensureProxyEngine } from "@/lib/browserInit";
-import { applyProxyStreamForUrl } from "@/lib/proxyTarget";
+import { armPx } from "@/lib/browserInit";
+import { applyMuxForUrl } from "@/lib/proxyTarget";
 import { getHomeUrl } from "@/lib/homeUrl";
+import { hrefs } from "@/lib/uiMarks";
 import { isBookmarklet, runBookmarkletOnFrame } from "@/lib/bookmarklets";
 import { toast } from "@/hooks/use-toast";
 
@@ -106,7 +107,7 @@ function makeProxyFrame(url: string): ProxyFrame | undefined {
     const scFrame = pxCreateFrame();
     if (!scFrame) return undefined;
     const frame = scFrame.frame as HTMLIFrameElement;
-    void applyProxyStreamForUrl(url).then(() => {
+    void applyMuxForUrl(url).then(() => {
       try {
         frame.src = pxEncode(url);
       } catch {}
@@ -206,7 +207,7 @@ export function useBrowserState() {
         !targetUrl.startsWith("petezah://") &&
         targetUrl !== "about:blank";
       if (needsEngine && !pxReady()) {
-        ensureProxyEngine().catch(() => {});
+        armPx().catch(() => {});
       }
       const newTab = createTab(targetUrl, activeSpaceId);
       setTabs((prev) => [...prev, newTab]);
@@ -378,7 +379,7 @@ export function useBrowserState() {
     const targetId = focusedTabId;
 
     const doNavigate = () => {
-      void applyProxyStreamForUrl(url);
+      void applyMuxForUrl(url);
       setTabs((prev) =>
         prev.map((t) => {
           if (t.id !== targetId) return t;
@@ -395,12 +396,12 @@ export function useBrowserState() {
               title = "Trending";
             } else if (url.startsWith("petezah://ad")) {
               title = "Sponsored";
-            } else if (url.startsWith("petezah://gameviewer") || url.startsWith("petezah://appviewer")) {
+            } else if (url.startsWith(hrefs.gv()) || url.startsWith("petezah://appviewer")) {
               try {
                 const params = new URLSearchParams(url.split("?")[1] || "");
-                title = params.get("title") || (url.startsWith("petezah://gameviewer") ? "Game" : "App");
+                title = params.get("title") || (url.startsWith(hrefs.gv()) ? hrefs.wordG() : "App");
               } catch {
-                title = url.startsWith("petezah://gameviewer") ? "Game" : "App";
+                title = url.startsWith(hrefs.gv()) ? hrefs.wordG() : "App";
               }
             } else {
               title = url.replace("petezah://", "").split("?")[0].replace(/^\w/, (c) => c.toUpperCase());
@@ -409,7 +410,7 @@ export function useBrowserState() {
           }
 
           if (t.frame?.go) {
-            void applyProxyStreamForUrl(url).then(() => {
+            void applyMuxForUrl(url).then(() => {
               try {
                 t.frame?.go?.(url);
               } catch {}
@@ -452,7 +453,7 @@ export function useBrowserState() {
     if (url.startsWith("petezah://") || url === "about:blank") {
       doNavigate();
     } else if (!pxReady()) {
-      ensureProxyEngine().catch(() => {});
+      armPx().catch(() => {});
       const start = Date.now();
       const interval = setInterval(() => {
         if (pxReady()) {

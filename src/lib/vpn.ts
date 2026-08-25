@@ -1,5 +1,5 @@
 import { PX, getMuxRoot, openMuxConnection, setMuxTransport, cfgStreamUrl } from "@/lib/px";
-import { ensureProxyEngine } from "@/lib/browserInit";
+import { armPx } from "@/lib/browserInit";
 import { originWsHost } from "@/lib/siteOrigin";
 
 export type VpnRegionDef = {
@@ -123,7 +123,7 @@ export async function applyVpnRegion(regionId: string) {
       const conn = openMuxConnection(PX.muxWorker);
       await setMuxTransport(conn, PX.tunMod, streamUrl).catch(() => {});
     } else {
-      await ensureProxyEngine().catch(() => {});
+      await armPx().catch(() => {});
       if (getMuxRoot()) {
         const conn = openMuxConnection(PX.muxWorker);
         await setMuxTransport(conn, PX.tunMod, streamUrl).catch(() => {});

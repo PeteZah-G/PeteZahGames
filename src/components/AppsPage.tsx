@@ -4,6 +4,8 @@ import { Search, Plus, Star, MoreVertical, X, Trash2, Share2, Copy, Check, Uploa
 import { requestSyncSoon } from "@/lib/settingsSync";
 import { AdResponsiveBanner, AdNativeBar } from "@/components/ads/Adsterra";
 import { armAdAudio } from "@/lib/exoclick";
+import { hrefs, marks } from "@/lib/uiMarks";
+import ObfuscatedText from "./ObfuscatedText";
 
 function generateAppId(app: { label: string; url: string }) {
   return `${app.label}-${app.url}`.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
@@ -25,8 +27,8 @@ interface AppsPageProps {
 const BUILT_IN_APPS: App[] = [
   { id: "app-request", label: "App Request", url: "https://docs.google.com/forms/d/e/1FAIpQLSfDWiLkFUAcAsVVzb57HFW1xfGY3dSUwbMUhDdinsyESCCYeg/viewform?usp=sf_link", imageUrl: "/storage/images/main/googleforms.jpg", external: true },
   { id: "pete-ai", label: "PeteAI", url: "petezah://ai", imageUrl: "/storage/images/PeteAI.png", external: true },
-  { id: "pete-music", label: "Music", url: "petezah://music", imageUrl: "/storage/images/petemusic-removebg-preview.png", external: true },
-  { id: "pete-movies", label: "Movies", url: "petezah://movies", imageUrl: "/storage/images/pete-movies.png", external: true },
+  { id: "pete-music", label: marks.music(), url: hrefs.mu(), imageUrl: "/storage/images/petemusic-removebg-preview.png", external: true },
+  { id: "pete-movies", label: marks.movies(), url: hrefs.mo(), imageUrl: "/storage/images/pete-movies.png", external: true },
   { id: "pete-firefox", label: "VM", url: "petezah://vm", imageUrl: "/storage/images/pete-firefox.webp", external: true },
   { id: "pete-chat", label: "PeteChat", url: "petezah://chat", imageUrl: "/storage/images/vortex-petezah.webp", external: true },
   { id: "google", label: "Google", url: "https://www.google.com", imageUrl: "/storage/ag/apps/google/IMG_5324.webp" },
@@ -237,7 +239,11 @@ function AppCard({ app, isFav, onOpen, onOptions, index = 0 }: {
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"
         style={{ boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.28), 0 0 60px rgba(99,179,237,0.35)" }} />
       <div className="absolute bottom-0 left-0 right-0 px-2.5 py-2.5 translate-y-2 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-200">
-        <p className="text-white text-[11px] font-semibold truncate drop-shadow-sm">{app.label}</p>
+        <p className="text-white text-[11px] font-semibold truncate drop-shadow-sm">
+          <ObfuscatedText as="span" force>
+            {app.label}
+          </ObfuscatedText>
+        </p>
       </div>
       {isFav && (
         <div className="absolute top-1.5 left-1.5">

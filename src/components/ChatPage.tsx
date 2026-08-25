@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
-import { ensureProxyEngine } from "@/lib/browserInit";
+import { armPx } from "@/lib/browserInit";
 
 export default function ChatPage({ onNavigate }: { onNavigate: (url: string) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -10,7 +10,7 @@ export default function ChatPage({ onNavigate }: { onNavigate: (url: string) => 
     if (!container) return;
 
     let cancelled = false;
-    ensureProxyEngine().catch(() => {});
+    armPx().catch(() => {});
 
     const tryCreate = () => {
       if (!pxReady() || cancelled) return false;

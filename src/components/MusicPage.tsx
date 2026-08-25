@@ -7,6 +7,7 @@ import {
   ListPlus, ListEnd, Library, SlidersHorizontal,
 } from "lucide-react";
 import { requestSyncSoon } from "@/lib/settingsSync";
+import { hrefs } from "@/lib/uiMarks";
 import { trackAchievementEvent } from "@/lib/achievementEvents";
 import { AdResponsiveBanner } from "@/components/ads/Adsterra";
 
@@ -222,7 +223,7 @@ function decodeShare(raw: string) {
 }
 
 function parseMusicUrl(url?: string) {
-  if (!url || !url.startsWith("petezah://music")) return { trackId: null as string | null, share: null as any };
+  if (!url || !url.startsWith(hrefs.mu())) return { trackId: null as string | null, share: null as any };
   try {
     const q = url.includes("?") ? url.split("?")[1] : "";
     const params = new URLSearchParams(q);
@@ -936,7 +937,7 @@ export default function MusicPage({
   };
 
   const shareTrack = async (track: Track) => {
-    const internal = `petezah://music?t=${track.id}`;
+    const internal = `${hrefs.mu()}?t=${track.id}`;
     const url = `${window.location.origin}/?m=${encodeURIComponent(internal)}`;
     try {
       await navigator.clipboard.writeText(url);
@@ -950,7 +951,7 @@ export default function MusicPage({
   const sharePlaylist = async (pl: Playlist) => {
     const payload = { type: "playlist", name: pl.name, tracks: pl.tracks };
     const token = encodeShare(payload);
-    const internal = `petezah://music?share=${token}`;
+    const internal = `${hrefs.mu()}?share=${token}`;
     const url = `${window.location.origin}/?m=${encodeURIComponent(internal)}`;
     try {
       await navigator.clipboard.writeText(url);

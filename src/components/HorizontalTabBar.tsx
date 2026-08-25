@@ -2,6 +2,7 @@ import { Reorder, AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Plus, X } from "lucide-react";
 import { Tab } from "@/hooks/useBrowserState";
 import { themeById } from "@/lib/siteThemes";
+import { hrefs } from "@/lib/uiMarks";
 
 function tabMark(tab: Tab) {
   const url = (tab.url || "").split("?")[0];
@@ -9,11 +10,11 @@ function tabMark(tab: Tab) {
     const map: Record<string, string> = {
       "petezah://newtab": "H",
       "petezah://trending": "TR",
-      "petezah://games": "G",
+      [hrefs.g()]: "G",
       "petezah://ai": "AI",
       "petezah://apps": "A",
-      "petezah://music": "M",
-      "petezah://movies": "MV",
+      [hrefs.mu()]: "M",
+      [hrefs.mo()]: "MV",
       "petezah://vm": "VM",
       "petezah://firefox": "VM",
       "petezah://tools": "T",

@@ -23,6 +23,7 @@ import {
   unwrapProxyUrl,
   type OpenTabRequest,
 } from "@/lib/openTabBridge";
+import { hrefs } from "@/lib/uiMarks";
 
 function getPresenceClientId() {
   try {
@@ -52,20 +53,20 @@ export default function ArcBrowser() {
     ? state.tabs.find((t) => t.id === state.splitTabId)
     : undefined;
   const [zoomLevel, setZoomLevel] = useState(100);
-  const [gameFocus, setGameFocus] = useState(() => localStorage.getItem("gameFocusMode") === "true");
+  const [gameFocus, setGameFocus] = useState(() => localStorage.getItem(hrefs.gf()) === "true");
   const [horizontalTabs, setHorizontalTabs] = useState(
     () => localStorage.getItem("horizontalTabs") === "true"
   );
   useEffect(() => {
     const sync = () => {
-      setGameFocus(localStorage.getItem("gameFocusMode") === "true");
+      setGameFocus(localStorage.getItem(hrefs.gf()) === "true");
       setHorizontalTabs(localStorage.getItem("horizontalTabs") === "true");
     };
     window.addEventListener("petezah-settings-updated", sync);
     return () => window.removeEventListener("petezah-settings-updated", sync);
   }, []);
   const dimChrome =
-    gameFocus && !!state.focusedTab?.url?.startsWith("petezah://gameviewer");
+    gameFocus && !!state.focusedTab?.url?.startsWith(hrefs.gv());
   const contentRef = useRef<HTMLDivElement>(null);
   const [openToast, setOpenToast] = useState<string | null>(null);
   const [inspectOpen, setInspectOpen] = useState(false);
@@ -120,19 +121,19 @@ export default function ArcBrowser() {
         .slice(0, 4);
       const active = state.focusedTab || state.activeTab;
       let game: any = null;
-      if (active?.url?.startsWith("petezah://games")) {
+      if (active?.url?.startsWith(hrefs.g())) {
         game = { surface: "list", label: "Games", gameId: null };
-      } else if (active?.url?.startsWith("petezah://gameviewer")) {
+      } else if (active?.url?.startsWith(hrefs.gv())) {
         try {
           const q = active.url.includes("?") ? active.url.slice(active.url.indexOf("?") + 1) : "";
           const params = new URLSearchParams(q);
           game = {
             surface: "viewer",
-            label: params.get("title") || active.title || "Game",
+            label: params.get("title") || active.title || hrefs.wordG(),
             gameId: params.get("gid") || null,
           };
         } catch {
-          game = { surface: "viewer", label: active.title || "Game", gameId: null };
+          game = { surface: "viewer", label: active.title || hrefs.wordG(), gameId: null };
         }
       }
       fetch("/api/presence", {
@@ -197,7 +198,7 @@ export default function ArcBrowser() {
       if (!d || d.source !== "pz-open-trap" || typeof d.url !== "string") return;
       openFromDetail({
         url: d.url,
-        mode: d.mode === "ad" ? "ad" : "proxy",
+        mode: d.mode === "ad" ? "ad" : hrefs.modeP(),
         soft: !!d.soft,
       });
     };
@@ -275,7 +276,7 @@ export default function ArcBrowser() {
       else if (action === "history") state.navigateToUrl("petezah://history");
       else if (action === "extensions") state.navigateToUrl("petezah://extensions");
       else if (action === "bookmarks") state.navigateToUrl("petezah://bookmarks");
-      else if (action === "games") state.navigateToUrl("petezah://games");
+      else if (action === hrefs.kindG()) state.navigateToUrl(hrefs.g());
       else if (action === "ai") state.navigateToUrl("petezah://ai");
       else if (action === "tools") state.navigateToUrl("petezah://tools");
       else if (action === "inspect") setInspectOpen(true);

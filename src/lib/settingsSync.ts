@@ -1,4 +1,5 @@
-// keys we push to the account so prefs follow you across devices
+import { hrefs } from "./uiMarks";
+
 const SYNC_KEYS = [
   'theme',
   'siteTitle',
@@ -15,9 +16,9 @@ const SYNC_KEYS = [
   'searchEdgeGlow',
   'horizontalTabs',
   'trendingHomescreen',
-  'gameFocusMode',
+  hrefs.gf(),
   'quickRelaunch',
-  'recentPlays',
+  hrefs.rp(),
   'lowPowerBg',
   'searchEngine',
   'browserIdentity',
@@ -32,9 +33,9 @@ const SYNC_KEYS = [
   'petezah-extensions',
   'petezah-presets',
   'petezah-shortcuts-v2',
-  'customGames',
-  'favoriteGames',
-  'hiddenGames',
+  hrefs.lsCustom(),
+  hrefs.lsFav(),
+  hrefs.lsHid(),
   'customApps',
   'favoriteApps',
   'hiddenApps',

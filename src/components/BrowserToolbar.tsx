@@ -38,6 +38,8 @@ import {
   shouldObfuscateDisplay,
 } from "@/lib/fontObfuscation";
 import { formatShortcut, loadShortcuts } from "@/lib/shortcuts";
+import { hrefs, marks } from "@/lib/uiMarks";
+import ObfuscatedText from "@/components/ObfuscatedText";
 
 interface ToolbarProps {
   activeTab: Tab | undefined;
@@ -208,8 +210,8 @@ export default function Toolbar({
 
   const rawDisplay = isUrlFocused
     ? urlInput
-    : activeTab?.url?.startsWith("petezah://gameviewer")
-    ? "petezah://gameviewer"
+    : activeTab?.url?.startsWith(hrefs.gv())
+    ? hrefs.gv()
     : activeTab?.url?.startsWith("petezah://appviewer")
     ? "petezah://appviewer"
     : activeTab?.url?.startsWith("petezah://ad")
@@ -234,7 +236,7 @@ export default function Toolbar({
     if (!activeTab || isNewTab) return "";
     const url = activeTab.url || "";
     if (
-      url.startsWith("petezah://gameviewer") ||
+      url.startsWith(hrefs.gv()) ||
       url.startsWith("petezah://appviewer")
     ) {
       try {
@@ -435,8 +437,8 @@ export default function Toolbar({
                 const active = i === activeIdx;
                 const tag =
                   s.tag ||
-                  (s.type === "web" ? "Web" : s.type === "games" ? "Game" : s.type === "apps" ? "Apps" : "");
-                const thumb = s.imageUrl && (s.type === "games" || s.type === "apps") ? s.imageUrl : "";
+                  (s.type === "web" ? "Web" : s.type === hrefs.kindG() ? hrefs.wordG() : s.type === "apps" ? "Apps" : "");
+                const thumb = s.imageUrl && (s.type === hrefs.kindG() || s.type === "apps") ? s.imageUrl : "";
                 return (
                   <button
                     key={`${s.type}-${s.label}-${i}`}
@@ -483,8 +485,8 @@ export default function Toolbar({
                       <span
                         className="text-[9px] px-1.5 py-0.5 rounded-md flex-shrink-0"
                         style={{
-                          background: s.type === "games" ? "hsla(45, 80%, 50%, 0.16)" : "hsla(0,0%,100%,0.06)",
-                          color: s.type === "games" ? "hsla(45, 90%, 70%, 0.95)" : "hsla(0,0%,100%,0.4)",
+                          background: s.type === hrefs.kindG() ? "hsla(45, 80%, 50%, 0.16)" : "hsla(0,0%,100%,0.06)",
+                          color: s.type === hrefs.kindG() ? "hsla(45, 90%, 70%, 0.95)" : "hsla(0,0%,100%,0.4)",
                         }}
                       >
                         {tag}
@@ -501,8 +503,8 @@ export default function Toolbar({
       <div className="flex items-center gap-0.5 flex-shrink-0" style={{ color: "hsla(0,0%,100%,0.78)" }}>
         <button
           className="p-1.5 rounded-lg hover:bg-white/5 transition-colors toolbar-hide-sm"
-          title="Games"
-          onClick={() => onNavigate("petezah://games")}
+          title={marks.a()}
+          onClick={() => onNavigate(hrefs.g())}
         >
           <Gamepad2 size={13} />
         </button>
@@ -585,7 +587,9 @@ export default function Toolbar({
                       className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
                     >
                       <item.icon size={13} className="text-foreground/40" />
-                      <span className="flex-1 text-left">{item.label}</span>
+                      <span className="flex-1 text-left">
+                        <ObfuscatedText as="span">{item.label}</ObfuscatedText>
+                      </span>
                       {"kbd" in item && item.kbd ? (
                         <kbd className="text-[10px] text-muted-foreground font-mono">{formatShortcut(item.kbd)}</kbd>
                       ) : null}
@@ -638,7 +642,9 @@ export default function Toolbar({
                       className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
                     >
                       <item.icon size={13} className="text-foreground/40" />
-                      <span className="flex-1 text-left">{item.label}</span>
+                      <span className="flex-1 text-left">
+                        <ObfuscatedText as="span">{item.label}</ObfuscatedText>
+                      </span>
                       <kbd className="text-[10px] text-muted-foreground font-mono">{formatShortcut(item.kbd)}</kbd>
                     </button>
                   ))}
@@ -646,11 +652,11 @@ export default function Toolbar({
                   <div className="h-px bg-border my-1 mx-3" />
 
                   {([
-                    { label: "Games", icon: Gamepad2, url: "petezah://games", kbd: sc.games },
-                    { label: "Apps", icon: AppWindow, url: "petezah://apps" },
+                    { label: marks.a(), icon: Gamepad2, url: hrefs.g(), kbd: sc[hrefs.kindG() as keyof typeof sc] },
+                    { label: marks.apps(), icon: AppWindow, url: "petezah://apps" },
                     { label: "AI", icon: Bot, url: "petezah://ai", kbd: sc.ai },
-                    { label: "Music", icon: Music, url: "petezah://music" },
-                    { label: "Movies", icon: Film, url: "petezah://movies" },
+                    { label: marks.music(), icon: Music, url: hrefs.mu() },
+                    { label: marks.movies(), icon: Film, url: hrefs.mo() },
                     { label: "VM", icon: Monitor, url: "petezah://vm" },
                     { label: "Chat", icon: MessageCircle, url: "petezah://chat" },
                     { label: "Tools", icon: Wrench, url: "petezah://tools", kbd: sc.tools },
@@ -662,7 +668,9 @@ export default function Toolbar({
                       className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-foreground/80 hover:bg-accent hover:text-foreground transition-colors"
                     >
                       <item.icon size={13} className="text-foreground/40" />
-                      <span className="flex-1 text-left">{item.label}</span>
+                      <span className="flex-1 text-left">
+                        <ObfuscatedText as="span">{item.label}</ObfuscatedText>
+                      </span>
                       {"kbd" in item && item.kbd ? (
                         <kbd className="text-[10px] text-muted-foreground font-mono">{formatShortcut(item.kbd)}</kbd>
                       ) : null}

@@ -16,8 +16,9 @@ import { useInterstitialUnlock, InterstitialOverlay } from "./InterstitialAdGate
 import { openNativeWindow } from "@/lib/openTabBridge";
 import { getSiteOrigin } from "@/lib/siteOrigin";
 import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
-import { ensureProxyEngine } from "@/lib/browserInit";
-import { applyProxyStreamForUrl, unwrapPlayUrl } from "@/lib/proxyTarget";
+import { armPx } from "@/lib/browserInit";
+import { applyMuxForUrl, unwrapPlayUrl } from "@/lib/proxyTarget";
+import { hrefs } from "@/lib/uiMarks";
 
 interface GameViewerPageProps {
   url: string;
@@ -168,7 +169,7 @@ export default function GameViewerPage({
   const canPreload = phase === "ad" || phase === "loading" || phase === "ready";
   const playUrl = unwrapPlayUrl(url);
   const useProxy = !isLocalGamePath(playUrl) && needsRemoteFrame(playUrl);
-  const displayTitle = title?.trim() || "Game";
+  const displayTitle = title?.trim() || hrefs.wordG();
 
   const getActiveFrame = useCallback(
     () => frameHostRef.current || iframeRef.current,
@@ -213,7 +214,7 @@ export default function GameViewerPage({
     if (!useProxy || !canPreload) return;
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
-    ensureProxyEngine().catch(() => {});
+    armPx().catch(() => {});
 
     const tryCreate = () => {
       if (!pxReady()) return false;
@@ -227,7 +228,7 @@ export default function GameViewerPage({
         frame.onload = () => {
           applyMuteToFrame(frame, muted);
         };
-        void applyProxyStreamForUrl(playUrl).then(() => {
+        void applyMuxForUrl(playUrl).then(() => {
           try {
             frame.src = pxEncode(playUrl);
           } catch {}

@@ -18,6 +18,8 @@ import {
 import { applyVpnRegion } from "@/lib/vpn";
 import { PX } from "@/lib/px";
 import { originWsHost } from "@/lib/siteOrigin";
+import { hrefs, marks } from "@/lib/uiMarks";
+import ObfuscatedText from "./ObfuscatedText";
 import {
   SHORTCUT_META,
   DEFAULT_SHORTCUTS,
@@ -562,8 +564,8 @@ export function BehaviorSettings(props: Props) {
             C={C}
             label="Game focus mode"
             desc="Dim chrome chrome while a game tab is active"
-            checked={s.gameFocusMode === "true"}
-            onChange={() => toggle("gameFocusMode")}
+            checked={s[hrefs.gf()] === "true"}
+            onChange={() => toggle(hrefs.gf())}
           />
         </div>
         <div style={{ borderBottom: `1px solid ${C.border}` }}>
@@ -742,7 +744,9 @@ export function ProxySettings(props: Props) {
 
   return (
     <div style={{ maxWidth: 560 }}>
-      <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text, margin: "0 0 4px" }}>Proxy & browsing</h2>
+      <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text, margin: "0 0 4px" }}>
+        <ObfuscatedText as="span">{marks.d()}</ObfuscatedText>
+      </h2>
       <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 18px", lineHeight: 1.45 }}>
         Tunnel endpoint, search, identity, and small quality-of-life switches for the browser shell.
       </p>

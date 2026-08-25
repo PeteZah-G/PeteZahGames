@@ -65,6 +65,7 @@ import { recordHistory } from "./HistoryPage";
 import { runExtensionsOnFrame } from "./ExtensionsPage";
 import { requestSyncSoon } from "@/lib/settingsSync";
 import { openTrendingOverlay } from "@/lib/homeUrl";
+import { hrefs, isGHref, marks } from "@/lib/uiMarks";
 
 interface ContentAreaProps {
   tabs: Tab[];
@@ -89,9 +90,9 @@ interface Preset {
 
 const DEFAULT_PRESETS: Preset[] = [
   {
-    id: "games",
-    label: "Games",
-    url: "petezah://games",
+    id: hrefs.kindG(),
+    label: marks.a(),
+    url: hrefs.g(),
     icon: "gamepad",
     builtIn: true,
   },
@@ -104,15 +105,15 @@ const DEFAULT_PRESETS: Preset[] = [
   },
   {
     id: "music",
-    label: "Music",
-    url: "petezah://music",
+    label: marks.music(),
+    url: hrefs.mu(),
     icon: "music",
     builtIn: true,
   },
   {
     id: "movies",
-    label: "Movies",
-    url: "petezah://movies",
+    label: marks.movies(),
+    url: hrefs.mo(),
     icon: "film",
     builtIn: true,
   },
@@ -457,7 +458,7 @@ function getStoredPresets(): Preset[] {
       );
       if (missing.length === 0) return parsed;
       const moviesIdx = parsed.findIndex(
-        (p) => p.id === "movies" || p.url === "petezah://movies",
+        (p) => p.id === "movies" || p.url === hrefs.mo(),
       );
       const next = [...parsed];
       if (moviesIdx >= 0) next.splice(moviesIdx + 1, 0, ...missing);
@@ -732,7 +733,7 @@ function PresetCard({
           color: "hsla(0,0%,100%,0.88)",
         }}
       >
-        {preset.label}
+        <ObfuscatedText as="span">{preset.label}</ObfuscatedText>
       </span>
     </motion.div>
   );
@@ -1194,7 +1195,7 @@ function ExtensionAwareIframe({
       ref={ref}
       src={src}
       className="w-full h-full border-none"
-      title="proxy"
+      title={hrefs.modeP()}
       referrerPolicy="no-referrer"
       sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals allow-presentation"
       allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
@@ -1217,20 +1218,18 @@ function TabPane({
     tab.url === "about:blank" ||
     tab.url === "https://";
 
-  const isGames =
-    tab.url === "petezah://games" || tab.url.startsWith("petezah://games?");
+  const isGames = isGHref(tab.url);
   const isAI = tab.url === "petezah://ai";
   const isApps = tab.url === "petezah://apps";
-  const isMusic =
-    tab.url === "petezah://music" || tab.url.startsWith("petezah://music?");
+  const isMusic = tab.url === hrefs.mu() || tab.url.startsWith(hrefs.mu() + "?");
   const isChat = tab.url === "petezah://chat";
-  const isMovies = tab.url === "petezah://movies";
+  const isMovies = tab.url === hrefs.mo();
   const isFirefox =
     tab.url === "petezah://vm" || tab.url === "petezah://firefox";
   const isTrending = tab.url === "petezah://trending";
   const isUserProfile = tab.url.startsWith("petezah://user/");
-  const isGameViewer = tab.url.startsWith("petezah://gameviewer");
-  const displayUrl = isGameViewer ? "petezah://gameviewer" : tab.url;
+  const isGameViewer = tab.url.startsWith(hrefs.gv());
+  const displayUrl = isGameViewer ? hrefs.gv() : tab.url;
   const isAppViewer = tab.url.startsWith("petezah://appviewer");
 
   if (isGameViewer) {
@@ -1250,7 +1249,7 @@ function TabPane({
         <GameViewerPage
           url={gameUrl}
           title={gameTitle}
-          onBack={() => onNavigate("petezah://games")}
+          onBack={() => onNavigate(hrefs.g())}
         />
       </div>
     );

@@ -77,7 +77,7 @@ async function waitForProxyArm(timeoutMs = 120000): Promise<void> {
     }
     const timer = setTimeout(() => {
       proxyArmWaiters = proxyArmWaiters.filter((w) => w !== done);
-      reject(new Error("proxy arm timeout"));
+      reject(new Error("arm timeout"));
     }, timeoutMs);
     const done = () => {
       clearTimeout(timer);
@@ -337,7 +337,7 @@ function loadScriptOnce(src: string): Promise<void> {
 
 let ensurePromise: Promise<void> | null = null;
 
-export async function ensureProxyEngine(): Promise<void> {
+export async function armPx(): Promise<void> {
   if ((window as any).__pz) return;
   if (ensurePromise) return ensurePromise;
 

@@ -16,6 +16,8 @@ import {
   Clapperboard,
 } from "lucide-react";
 import VantaBackground from "@/components/VantaBackground";
+import ObfuscatedText from "@/components/ObfuscatedText";
+import { hrefs, marks } from "@/lib/uiMarks";
 
 type Props = {
   variant?: "overlay" | "page";
@@ -83,7 +85,7 @@ function SectionLabel({ icon: Icon, label }: { icon: typeof Flame; label: string
         className="text-[10px] font-semibold tracking-[0.08em] uppercase"
         style={{ color: C.textMuted }}
       >
-        {label}
+        <ObfuscatedText as="span">{label}</ObfuscatedText>
       </span>
     </div>
   );
@@ -134,7 +136,7 @@ export default function TrendingDashboard({
           fetch("/api/tmdb/movie/popular", { signal }).catch(() => null),
           fetch("/api/tmdb/tv/popular", { signal }).catch(() => null),
           fetch("/storage/data/collection.json", { signal }).catch(() => null),
-          fetch("/api/games/plays", { signal }).catch(() => null),
+          fetch(hrefs.apiPlays(), { signal }).catch(() => null),
         ]);
 
         const musicData = await readJson(musicRes);
@@ -183,11 +185,11 @@ export default function TrendingDashboard({
         let collection: Game[] = [];
         const raw = await readJson(collectionRes);
         if (raw) {
-          const arr = Array.isArray(raw?.games) ? raw.games : Array.isArray(raw) ? raw : [];
+          const arr = Array.isArray(raw?.[hrefs.kindG()]) ? raw[hrefs.kindG()] : Array.isArray(raw) ? raw : [];
           collection = arr
             .filter((g: any) => g && (g.label || g.name) && (g.url || g.link))
             .map((g: any) => {
-              const label = String(g.label || g.name || "Game");
+              const label = String(g.label || g.name || hrefs.wordG());
               const url = String(g.url || g.link || "");
               const id =
                 typeof g.id === "string" && g.id
@@ -237,21 +239,21 @@ export default function TrendingDashboard({
   };
 
   const goMusic = (id?: string) => {
-    go(id ? `petezah://music?track=${encodeURIComponent(id)}` : "petezah://music");
+    go(id ? `${hrefs.mu()}?track=${encodeURIComponent(id)}` : hrefs.mu());
   };
 
-  const goWatch = () => go("petezah://movies");
+  const goWatch = () => go(hrefs.mo());
 
   const goGame = (game: Game) => {
     go(
-      `petezah://gameviewer?url=${encodeURIComponent(game.url)}&title=${encodeURIComponent(game.label)}&gid=${encodeURIComponent(game.id)}`
+      `${hrefs.gv()}?url=${encodeURIComponent(game.url)}&title=${encodeURIComponent(game.label)}&gid=${encodeURIComponent(game.id)}`
     );
   };
 
   const quick = [
-    { label: "Music", icon: Music2, url: "petezah://music" },
-    { label: "Games", icon: Gamepad2, url: "petezah://games" },
-    { label: "Movies", icon: Film, url: "petezah://movies" },
+    { label: marks.music(), icon: Music2, url: hrefs.mu() },
+    { label: marks.a(), icon: Gamepad2, url: hrefs.g() },
+    { label: marks.movies(), icon: Film, url: hrefs.mo() },
     { label: "Apps", icon: AppWindow, url: "petezah://apps" },
     { label: "AI", icon: Bot, url: "petezah://ai" },
     { label: "VM", icon: Monitor, url: "petezah://vm" },
@@ -303,7 +305,7 @@ export default function TrendingDashboard({
               Trending
             </h1>
             <p className="text-[10px] truncate leading-tight mt-0.5" style={{ color: C.textMuted }}>
-              Watch · Music · Games · Launch
+              <ObfuscatedText as="span">{marks.watchLine()}</ObfuscatedText>
             </p>
           </div>
         </div>
@@ -402,7 +404,7 @@ export default function TrendingDashboard({
             transition={{ duration: 0.4, delay: 0.08, ease }}
           >
             <div className="flex items-center justify-between gap-2 mb-1">
-              <SectionLabel icon={Music2} label="Trending music" />
+              <SectionLabel icon={Music2} label={marks.trendMusic()} />
               <button
                 type="button"
                 onClick={() => goMusic()}
@@ -474,10 +476,10 @@ export default function TrendingDashboard({
             transition={{ duration: 0.4, delay: 0.12, ease }}
           >
             <div className="flex items-center justify-between gap-2 mb-1">
-              <SectionLabel icon={Gamepad2} label="Hot games" />
+              <SectionLabel icon={Gamepad2} label={marks.f()} />
               <button
                 type="button"
-                onClick={() => go("petezah://games")}
+                onClick={() => go(hrefs.g())}
                 className="text-[10px] font-semibold cursor-pointer border-0 bg-transparent px-0"
                 style={{ color: C.textSub }}
               >
@@ -564,7 +566,9 @@ export default function TrendingDashboard({
                   }}
                 >
                   <Icon size={14} style={{ color: C.accent }} />
-                  <span className="text-[9px] font-medium">{q.label}</span>
+                  <span className="text-[9px] font-medium">
+                    <ObfuscatedText as="span">{q.label}</ObfuscatedText>
+                  </span>
                 </button>
               );
             })}

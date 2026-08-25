@@ -6,7 +6,7 @@ const PAGE_SIZE = 25;
 const SEARCH_LIMIT = 100;
 const RARITY_WEIGHT = { common: 1, rare: 4, epic: 12, legendary: 40, special: 100 };
 
-function requireAdmin(req, res) {
+export function requireAdmin(req, res) {
   if (!req.session?.user) {
     res.status(401).json({ error: 'Unauthorized' });
     return null;
@@ -99,10 +99,15 @@ export function getAdminUsersHandler(req, res) {
 export function getAdminUserHandler(req, res) {
   if (!requireAdmin(req, res)) return;
 
+  const id = String(req.params.id || '');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    return res.status(400).json({ error: 'Invalid request' });
+  }
+
   const user = db.prepare(`
-    SELECT id, email, username, avatar_url, bio, is_admin, banned, email_verified, created_at, ip, school, age
+    SELECT id, email, avatar_url, is_admin, banned, email_verified, created_at
     FROM users WHERE id = ?
-  `).get(req.params.id);
+  `).get(id);
 
   if (!user) return res.status(404).json({ error: 'Not found' });
   let achievements = [];
@@ -111,18 +116,78 @@ export function getAdminUserHandler(req, res) {
   } catch {}
   res.json({
     user: {
-      ...user,
+      id: user.id,
+      avatar_url: user.avatar_url,
+      is_admin: user.is_admin,
+      banned: user.banned,
+      email_verified: user.email_verified,
+      created_at: user.created_at,
       is_owner: isOwnerEmail(user.email),
       achievements,
     },
   });
 }
 
+const REVEAL_FIELDS = new Set(['username', 'email', 'ip', 'school', 'age', 'bio', 'id', 'settings']);
+const SETTINGS_CAP = 65536;
+
+export function getAdminUserRevealHandler(req, res) {
+  if (!requireAdmin(req, res)) return;
+
+  const id = String(req.params.id || '');
+  const field = String(req.query.field || '').trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    return res.status(400).json({ error: 'Invalid request' });
+  }
+  if (!REVEAL_FIELDS.has(field)) {
+    return res.status(400).json({ error: 'Invalid field' });
+  }
+
+  const user = db.prepare(`
+    SELECT id, email, username, bio, ip, school, age
+    FROM users WHERE id = ?
+  `).get(id);
+  if (!user) return res.status(404).json({ error: 'Not found' });
+
+  if (field === 'settings') {
+    const row = db.prepare('SELECT localstorage_data FROM user_settings WHERE user_id = ?').get(id);
+    let raw = row?.localstorage_data;
+    if (raw == null) return res.json({ field, value: '', truncated: false });
+    if (typeof raw !== 'string') raw = String(raw);
+    let truncated = false;
+    if (raw.length > SETTINGS_CAP) {
+      raw = raw.slice(0, SETTINGS_CAP);
+      truncated = true;
+    }
+    let value = raw;
+    try {
+      const parsed = JSON.parse(raw);
+      value = JSON.stringify(parsed, null, 2);
+      if (value.length > SETTINGS_CAP) {
+        value = value.slice(0, SETTINGS_CAP);
+        truncated = true;
+      }
+    } catch {}
+    return res.json({ field, value, truncated });
+  }
+
+  const map = {
+    username: user.username == null ? '' : String(user.username),
+    email: user.email == null ? '' : String(user.email),
+    ip: user.ip == null ? '' : String(user.ip),
+    school: user.school == null ? '' : String(user.school),
+    age: user.age == null ? '' : String(user.age),
+    bio: user.bio == null ? '' : String(user.bio),
+    id: String(user.id),
+  };
+  return res.json({ field, value: map[field] ?? '' });
+}
+
 export function getAdminStaffHandler(req, res) {
   if (!requireAdmin(req, res)) return;
 
   const rows = db.prepare(`
-    SELECT id, username, email, is_admin, banned, email_verified, created_at, ip
+    SELECT id, username, email, is_admin, banned, email_verified, created_at
     FROM users
     WHERE is_admin >= 1
     ORDER BY is_admin DESC, created_at ASC
@@ -135,7 +200,6 @@ export function getAdminStaffHandler(req, res) {
     banned: u.banned,
     email_verified: u.email_verified,
     created_at: u.created_at,
-    ip: u.ip,
     is_owner: isOwnerEmail(u.email),
   }));
 
@@ -199,7 +263,6 @@ export function getBadgeRarityLeaderboardHandler(req, res) {
       rank: i + 1,
       userId: e.userId,
       username: e.username,
-      email: e.email,
       avatar_url: e.avatar_url,
       score: e.score,
       badgeCount: e.badgeCount,

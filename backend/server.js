@@ -60,7 +60,7 @@ import {
 import { addCommentHandler, getCommentsHandler, deleteCommentHandler, cleanupMaliciousCommentsHandler } from './api/comments.js';
 import { likeHandler, getLikesHandler } from './api/likes.js';
 import { adminUserActionHandler } from './api/admin-user-action.js';
-import { getAdminUsersHandler, getAdminUserHandler, getAdminStaffHandler, getBadgeRarityLeaderboardHandler } from './api/admin-users.js';
+import { getAdminUsersHandler, getAdminUserHandler, getAdminUserRevealHandler, getAdminStaffHandler, getBadgeRarityLeaderboardHandler } from './api/admin-users.js';
 import { createIpBanMiddleware } from './middleware/ip-ban.js';
 import { getChangelogHandler, createChangelogHandler, deleteChangelogHandler } from './api/changelog.js';
 import { getFeedbackHandler, createFeedbackHandler, deleteFeedbackHandler } from './api/feedback.js';
@@ -441,6 +441,7 @@ app.post('/api/admin/user-action', adminUserActionHandler);
 app.post('/api/admin/cleanup-comments', cleanupMaliciousCommentsHandler);
 app.get('/api/admin/staff', getAdminStaffHandler);
 app.get('/api/admin/users', getAdminUsersHandler);
+app.get('/api/admin/users/:id/reveal', adminOverviewLimiter, getAdminUserRevealHandler);
 app.get('/api/admin/users/:id', getAdminUserHandler);
 app.get('/api/admin/badge-rarity', getBadgeRarityLeaderboardHandler);
 app.get('/api/admin/overview', adminOverviewLimiter, getAdminOverviewHandler);

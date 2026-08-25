@@ -1,3 +1,5 @@
+import { hrefs, marks } from "./uiMarks";
+
 export type ShortcutId =
   | "newTab"
   | "closeTab"
@@ -32,7 +34,7 @@ export const SHORTCUT_META: {
   { id: "history", label: "History", desc: "Open browsing history" },
   { id: "extensions", label: "Extensions", desc: "Open extensions" },
   { id: "bookmarks", label: "Bookmarks", desc: "Open bookmarks" },
-  { id: "games", label: "Games", desc: "Open the games library" },
+  { id: hrefs.kindG() as ShortcutId, label: marks.a(), desc: "Open the library" },
   { id: "ai", label: "AI", desc: "Open AI chat" },
   { id: "tools", label: "Tools", desc: "Open developer tools" },
   { id: "inspect", label: "Inspect", desc: "Inspect the current page" },
@@ -48,7 +50,7 @@ export const DEFAULT_SHORTCUTS: Record<ShortcutId, ShortcutBinding> = {
   history: { key: "h", tab: true, ctrl: false, shift: false, alt: false },
   extensions: { key: "e", tab: true, ctrl: false, shift: false, alt: false },
   bookmarks: { key: "d", tab: true, ctrl: false, shift: false, alt: false },
-  games: { key: "g", tab: true, ctrl: false, shift: false, alt: false },
+  [hrefs.kindG()]: { key: "g", tab: true, ctrl: false, shift: false, alt: false },
   ai: { key: "j", tab: true, ctrl: false, shift: false, alt: false },
   tools: { key: "u", tab: true, ctrl: false, shift: false, alt: false },
   inspect: { key: "i", tab: true, ctrl: false, shift: false, alt: false },

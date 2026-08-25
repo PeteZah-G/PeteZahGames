@@ -1,5 +1,5 @@
 import { PX, getMuxRoot, openMuxConnection, setMuxTransport, cfgStreamUrl, defaultStreamUrl } from "./px";
-import { ensureProxyEngine } from "./browserInit";
+import { armPx } from "./browserInit";
 import { originWsHost } from "./siteOrigin";
 
 function asUrl(raw: string): URL | null {
@@ -65,7 +65,7 @@ export function unwrapPlayUrl(raw: string): string {
   return url;
 }
 
-export function isPremiumProxyHost(url: string): boolean {
+export function isPremiumMuxHost(url: string): boolean {
   try {
     const abs = /^https?:\/\//i.test(url) ? url : "https://" + url.replace(/^\/+/, "");
     let h = new URL(abs).hostname.toLowerCase();
@@ -93,15 +93,15 @@ function activeDefaultStream(): string {
 
 let boundStream = "";
 
-export async function applyProxyStreamForUrl(url: string): Promise<boolean> {
-  const streamUrl = isPremiumProxyHost(url)
+export async function applyMuxForUrl(url: string): Promise<boolean> {
+  const streamUrl = isPremiumMuxHost(url)
     ? originWsHost() + "/api/websocket-premium/"
     : activeDefaultStream();
   if (boundStream === streamUrl) return true;
   const deadline = Date.now() + 8000;
   while (Date.now() < deadline) {
     try {
-      await ensureProxyEngine();
+      await armPx();
       const root = getMuxRoot();
       if (!root) {
         await new Promise((r) => setTimeout(r, 50));

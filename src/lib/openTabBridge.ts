@@ -1,4 +1,5 @@
 import { getPx, PX } from "@/lib/px";
+import { hrefs } from "@/lib/uiMarks";
 
 export type OpenTabRequest = {
   url: string;
@@ -105,7 +106,7 @@ export function classifyOpenUrl(url: string): "ad" | "proxy" | "skip" {
         const decoded = unwrapProxyUrl(parsed.href);
         if (decoded !== parsed.href && /^https?:\/\//i.test(decoded)) {
           if (isAdUrl(decoded)) return "ad";
-          return "proxy";
+          return hrefs.modeP() as "proxy";
         }
         return "skip";
       }
@@ -121,7 +122,7 @@ export function classifyOpenUrl(url: string): "ad" | "proxy" | "skip" {
   } catch {}
 
   if (isAdUrl(u)) return "ad";
-  if (/^https?:\/\//i.test(u)) return "proxy";
+  if (/^https?:\/\//i.test(u)) return hrefs.modeP() as "proxy";
   return "skip";
 }
 
@@ -186,7 +187,7 @@ export function installParentOpenTrap() {
     }
     emitOpenTab({
       url: resolved,
-      mode: kind === "ad" ? "ad" : "proxy",
+      mode: kind === "ad" ? "ad" : hrefs.modeP(),
       soft: kind === "ad",
     });
     return {
@@ -245,7 +246,7 @@ export function installFrameOpenTrap(iframe: HTMLIFrameElement) {
           features,
         });
         if (kind === "skip") return false;
-        postOpen(resolved, kind === "ad" || forceAd ? "ad" : "proxy");
+        postOpen(resolved, kind === "ad" || forceAd ? "ad" : hrefs.modeP());
         return true;
       } catch {
         return false;
