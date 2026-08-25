@@ -1103,6 +1103,11 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
 
 function ProxyFrameHost({ tab, isVisible }: { tab: Tab; isVisible: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [waiting, setWaiting] = useState(true);
+
+  useEffect(() => {
+    setWaiting(true);
+  }, [tab.url, tab.frame]);
 
   useEffect(() => {
     if (!tab.frame?.frame) return;
@@ -1114,6 +1119,9 @@ function ProxyFrameHost({ tab, isVisible }: { tab: Tab; isVisible: boolean }) {
     }
     frame.style.cssText =
       "position:absolute;inset:0;width:100%;height:100%;border:none;";
+    const onLoad = () => setWaiting(false);
+    frame.addEventListener("load", onLoad);
+    return () => frame.removeEventListener("load", onLoad);
   }, [tab.frame]);
 
   useEffect(() => {
@@ -1161,7 +1169,13 @@ function ProxyFrameHost({ tab, isVisible }: { tab: Tab; isVisible: boolean }) {
       ref={containerRef}
       className="absolute inset-0 w-full h-full"
       style={{ display: isVisible ? "block" : "none" }}
-    />
+    >
+      {waiting && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+          <p className="text-muted-foreground text-sm">Loading…</p>
+        </div>
+      )}
+    </div>
   );
 }
 
