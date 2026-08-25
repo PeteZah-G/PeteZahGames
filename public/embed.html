@@ -151,7 +151,7 @@
 
         function streamUrlFor(target) {
           var premium = isPremiumHost(hostOf(target));
-          var path = premium ? "/api/websocket-premium/" : "/n/s/";
+          var path = premium ? "/api/websocket-premium/" : "/api/websocket/";
           if (typeof _CONFIG !== "undefined" && _CONFIG.streamurl && !premium) {
             return _CONFIG.streamurl;
           }

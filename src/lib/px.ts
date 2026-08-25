@@ -22,7 +22,7 @@ export const PX = {
   get mux() {
     return dir() + "m4thx/";
   },
-  stream: "/n/s/",
+  stream: "/api/websocket/",
   edge: "/api/edge/",
   get sw() {
     return dir() + "1k123.js";

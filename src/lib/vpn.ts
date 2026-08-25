@@ -1,4 +1,4 @@
-import { PX, getMuxRoot, openMuxConnection, setMuxTransport, cfgStreamUrl } from "@/lib/px";
+import { PX, getMuxRoot, openMuxConnection, setMuxTransport } from "@/lib/px";
 import { armPx } from "@/lib/browserInit";
 import { originWsHost } from "@/lib/siteOrigin";
 
@@ -16,7 +16,7 @@ export const VPN_REGION_DEFS: VpnRegionDef[] = [
     id: "default",
     label: "Default",
     sublabel: "International",
-    relay: PX.stream,
+    relay: "/api/websocket/",
     config: "config.js",
   },
   {
@@ -74,10 +74,32 @@ export function getVpnRegions(): VpnRegionDef[] {
   return list;
 }
 
+export function activeRelayUrl(): string {
+  try {
+    const id = localStorage.getItem("selectedVpnRegion") || "default";
+    if (id === "custom") {
+      const custom = (localStorage.getItem("proxServer") || "").trim();
+      if (/^wss?:\/\//i.test(custom) && custom.endsWith("/")) {
+        const u = new URL(custom);
+        if (u.protocol === "wss:" || u.protocol === "ws:") return custom;
+      }
+    }
+    const region = VPN_REGION_DEFS.find((r) => r.id === id);
+    if (region?.relay?.startsWith("/")) return originWsHost() + region.relay;
+  } catch {}
+  return originWsHost() + "/api/websocket/";
+}
+
 export async function applyVpnRegion(regionId: string) {
   if (regionId === "custom") {
     const custom = (localStorage.getItem("proxServer") || "").trim();
     if (!/^wss?:\/\//i.test(custom) || !custom.endsWith("/")) return;
+    try {
+      const u = new URL(custom);
+      if (u.protocol !== "wss:" && u.protocol !== "ws:") return;
+    } catch {
+      return;
+    }
   }
   const region =
     regionId === "custom"
@@ -107,15 +129,11 @@ export async function applyVpnRegion(regionId: string) {
 
     const cfg = (window as any)._CONFIG;
     const streamUrl =
-      regionId === "custom"
-        ? region.relay
-        : cfgStreamUrl(cfg) ?? originWsHost() + region.relay;
+      regionId === "custom" ? region.relay : originWsHost() + region.relay;
+    if (cfg) cfg.streamurl = streamUrl;
     if (regionId === "custom") {
       try {
         localStorage.setItem("proxServer", region.relay);
-        if (cfg) {
-          cfg.streamurl = region.relay;
-        }
       } catch {}
     }
 
@@ -136,9 +154,7 @@ export async function applyVpnRegion(regionId: string) {
         newValue: regionId,
       })
     );
-  } catch (e) {
-    console.error("[vpn] region switch failed", e);
-  }
+  } catch {}
 }
 
 export async function isSignedIn(): Promise<boolean> {

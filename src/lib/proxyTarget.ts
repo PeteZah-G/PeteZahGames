@@ -1,7 +1,8 @@
-import { PX, getMuxRoot, openMuxConnection, setMuxTransport, cfgStreamUrl, defaultStreamUrl } from "./px";
+import { PX, getMuxRoot, openMuxConnection, setMuxTransport, defaultStreamUrl } from "./px";
 import { armPx } from "./browserInit";
 import { originWsHost } from "./siteOrigin";
 import { isMochiHref, publicMochiHref } from "./mochiPath";
+import { activeRelayUrl } from "./vpn";
 
 function asUrl(raw: string): URL | null {
   try {
@@ -84,11 +85,7 @@ export function isPremiumMuxHost(url: string): boolean {
 
 function activeDefaultStream(): string {
   try {
-    const custom = (localStorage.getItem("proxServer") || "").trim();
-    if (/^wss?:\/\//i.test(custom) && custom.endsWith("/")) return custom;
-    const cfg = (window as any)._CONFIG;
-    const fromCfg = cfgStreamUrl(cfg);
-    if (fromCfg) return fromCfg;
+    return activeRelayUrl();
   } catch {}
   return defaultStreamUrl();
 }
