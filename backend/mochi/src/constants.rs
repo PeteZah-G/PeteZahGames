@@ -1,4 +1,5 @@
-pub const MOCHI_PREFIX: &str = "/!!/";
+pub const MOCHI_PREFIX: &str = "/n/m/";
+pub const MOCHI_PREFIX_LEGACY: &str = "/!!/";
 pub const COVER_PREFIX: &str = "/f/c/";
 pub const COVER_PREFIX_LEGACY: &str = "/!cover!/";
 pub const PART_1: &str = r##"<script>
@@ -56,22 +57,22 @@ pub const PART_1: &str = r##"<script>
         });
     } catch(e) {}
 
-    window.__MOCHI_PREFIX__="/!!/";
-    window.__MOCHI_TARGET__=""##;
+    window.__nmp__="/n/m/";
+    window.__nmt__=""##;
 
 pub const PART_2: &str = r##"";
-    window.__MOCHI_BASE__ = window.__MOCHI_BASE__ || ((window.location.origin || "") + window.__MOCHI_PREFIX__);
+    window.__nmb__ = window.__nmb__ || ((window.location.origin || "") + window.__nmp__);
     
     try {
         const baseEl = document.querySelector('base[href]');
         if (baseEl && baseEl.href) {
-             window.__MOCHI_TARGET__ = baseEl.href;
+             window.__nmt__ = baseEl.href;
         }
     } catch(e) {}
 
     try {
-        if (typeof window.__MOCHI_TARGET__ === 'string' && window.__MOCHI_TARGET__.startsWith('http')) {
-            const t = new _U(window.__MOCHI_TARGET__);
+        if (typeof window.__nmt__ === 'string' && window.__nmt__.startsWith('http')) {
+            const t = new _U(window.__nmt__);
             const current = new _U(window.location.href);
             const needsSearch = (!current.search || current.search === '?') && t.search;
             const needsHash = (!current.hash) && t.hash;
@@ -84,7 +85,7 @@ pub const PART_2: &str = r##"";
     } catch(e) {}
 
     const _MK = 'q7Zx!9pL';
-    const __mochiEncode = (url) => {
+    const __enc = (url) => {
         try {
             const e = encodeURIComponent(url);
             let x = '';
@@ -99,15 +100,15 @@ pub const PART_2: &str = r##"";
         if (!url) return url;
         if (typeof url !== 'string') return url;
         if (url.startsWith("blob:") || url.startsWith("data:") || url.startsWith("javascript:")) return url;
-        if (url.includes(window.__MOCHI_PREFIX__)) return url;
+        if (url.includes(window.__nmp__) || url.includes("/!!/")) return url;
         
         try {
-            const match = document.cookie.match(/(?:^|; )mochi_base=([^;]*)/);
+            const match = document.cookie.match(/(?:^|; )nmb=([^;]*)/);
             if (match && url.startsWith('/')) {
-                return window.__MOCHI_BASE__ + match[1] + '/!a!' + url;
+                return window.__nmb__ + match[1] + '/a/' + url;
             }
-            const resolved = new _U(url, window.__MOCHI_TARGET__).href;
-            return window.__MOCHI_BASE__ + __mochiEncode(resolved);
+            const resolved = new _U(url, window.__nmt__).href;
+            return window.__nmb__ + __enc(resolved);
         } catch (e) {
             return url;
         }
@@ -144,17 +145,17 @@ pub const PART_2: &str = r##"";
         let target = url;
         if (!target.startsWith("ws")) {
             try {
-                target = new _U(url, window.__MOCHI_TARGET__).href
+                target = new _U(url, window.__nmt__).href
             } catch (e) {}
             target = target.replace(/^http/, "ws")
         }
         try {
-            const targetHost = new _U(target, window.__MOCHI_TARGET__).hostname;
+            const targetHost = new _U(target, window.__nmt__).hostname;
             if (isDirectWsHost(targetHost)) {
                 return new originalWS(target, protocols);
             }
         } catch (e) {}
-        const proxyUrl = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + window.__MOCHI_PREFIX__ + "ws/" + encodeURIComponent(target);
+        const proxyUrl = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + window.__nmp__ + "ws/" + encodeURIComponent(target);
         const ws = new originalWS(proxyUrl, protocols);
         ws.binaryType = "arraybuffer";
         return ws
@@ -202,26 +203,26 @@ pub const PART_2: &str = r##"";
         if (e.defaultPrevented) return;
         const a = e.target.closest("a");
         if (!a) return;
-        const href = a.getAttribute("data-mochi-orig-href") || a.getAttribute("href");
+        const href = a.getAttribute("data-nm-orig") || a.getAttribute("href");
         if (!href) return;
         if (href.startsWith("javascript:") || href.startsWith("#")) return;
         const lower = href.toLowerCase();
         const hasDownload = a.hasAttribute("download") || downloadExts.some(ext => lower.endsWith(ext));
-        const mochied = rewrite(href);
+        const rewritten = rewrite(href);
         if (!hasDownload) return;
         e.preventDefault();
         if (a.target === "_blank" || e.ctrlKey || e.metaKey || a.hasAttribute("download")) {
-            window.open(mochied, "_blank");
+            window.open(rewritten, "_blank");
         } else {
-            window.location.assign(mochied);
+            window.location.assign(rewritten);
         }
     });
 
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
         try {
             navigator.serviceWorker.controller.postMessage({
-                type: "mochi-base",
-                base: window.__MOCHI_BASE__
+                type: "nmb",
+                base: window.__nmb__
             });
         } catch (e) {}
     }

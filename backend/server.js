@@ -195,7 +195,7 @@ app.use(compression({
   filter: (req, res) => {
     if (req.headers['x-no-compression']) return false;
     const p = req.path || req.url || '';
-    if (p.startsWith('/!!/') || p.startsWith('/!cover!/') || p.startsWith('/storage/ag/')) return false;
+    if (p.startsWith('/n/m/') || p.startsWith('/!!/') || p.startsWith('/!cover!/') || p.startsWith('/storage/ag/')) return false;
     const ct = String(res.getHeader('Content-Type') || '');
     if (/image|video|audio|wasm|octet-stream|font\/|woff|zip|gzip|br\b|mp4|webm|png|jpe?g|gif|webp|avif|wasm/i.test(ct)) {
       return false;
@@ -317,6 +317,11 @@ app.use((req, res, next) => {
 function engineCache(res) {
   res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
 }
+app.get('/q9vx/ld.bin', (_req, res) => {
+  res.setHeader('Content-Type', 'application/wasm');
+  res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
+  res.sendFile(path.join(q9Path, 'sj.wasm.wasm'));
+});
 app.use(PX.core, express.static(q9Path, { index: false, setHeaders: engineCache }));
 app.use(PX.mux, express.static(m4Path, { index: false, setHeaders: engineCache }));
 app.use(PX.mux, express.static(mathPath, { index: false }));
@@ -620,7 +625,7 @@ server.on('upgrade', (req, socket, head) => {
     return socket.destroy();
   }
 
-  if (url.startsWith('/!!/') || url.startsWith('/!cover!/')) {
+  if (url.startsWith('/n/m/') || url.startsWith('/!!/') || url.startsWith('/!cover!/')) {
     mochiWsProxy.ws(req, socket, head);
     return;
   }

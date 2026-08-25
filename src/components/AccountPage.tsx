@@ -3585,15 +3585,15 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                                 ["Verified", selectedUser.email_verified ? "Yes" : "No"],
                                 ["Banned", selectedUser.banned ? "Yes" : "No"],
                                   ["Joined", selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString() : "—"],
-                                ].map(([label, val]) => (
+                              ].map(([label, val]) => (
                                   <div key={label} style={{
                                     padding: "10px 11px", borderRadius: 11, background: C.elevated, border: `1px solid ${C.border}`,
                                   }}>
                                     <p style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: C.textMuted }}>{label}</p>
                                     <p style={{ margin: "4px 0 0", fontSize: 12, fontWeight: 600, color: C.text }}>{val}</p>
-                                  </div>
-                                ))}
-                              </div>
+                                </div>
+                              ))}
+                            </div>
                               <div style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 11 }}>
                                 {([
                                   ["username", "Name"],

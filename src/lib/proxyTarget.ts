@@ -62,7 +62,7 @@ export function unwrapPlayUrl(raw: string): string {
   if (!/^https?:\/\//i.test(url) && !url.startsWith("/")) {
     url = "https://" + url.replace(/^\/+/, "");
   }
-  return url;
+  return url.split("/!!/").join("/n/m/");
 }
 
 export function isPremiumMuxHost(url: string): boolean {

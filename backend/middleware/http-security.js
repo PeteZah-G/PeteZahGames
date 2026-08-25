@@ -45,6 +45,7 @@ export function createSecurityHeaders() {
     const remoteFrame =
       p === '/storage/ag' ||
       p.startsWith('/storage/ag/') ||
+      p.startsWith('/n/m/') ||
       p.startsWith('/!!/') ||
       p.startsWith('/!cover!/');
     res.setHeader('X-Content-Type-Options', 'nosniff');

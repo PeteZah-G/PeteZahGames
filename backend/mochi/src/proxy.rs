@@ -118,6 +118,8 @@ pub async fn proxy_handler(
         constants::COVER_PREFIX_LEGACY
     } else if path_and_query.contains(constants::COVER_PREFIX) {
         constants::COVER_PREFIX
+    } else if path_and_query.contains(constants::MOCHI_PREFIX_LEGACY) {
+        constants::MOCHI_PREFIX_LEGACY
     } else {
         constants::MOCHI_PREFIX
     };
@@ -132,6 +134,8 @@ pub async fn proxy_handler(
 
         if remainder.starts_with("!a!") {
             remainder = remainder.trim_start_matches("!a!");
+        } else if remainder.starts_with("a/") {
+            remainder = remainder.trim_start_matches("a/");
         }
 
         if let Some(decoded_base) = decode_mochi_url(token) {
@@ -181,7 +185,7 @@ pub async fn proxy_handler(
                 if let Some(cookie_hdr) = headers.get("cookie").and_then(|c| c.to_str().ok()) {
                     for cookie in cookie_hdr.split(';') {
                         let cookie = cookie.trim();
-                        if let Some(base_token) = cookie.strip_prefix("mochi_base=") {
+                        if let Some(base_token) = cookie.strip_prefix("nmb=").or_else(|| cookie.strip_prefix("mochi_base=")) {
                             if let Some(ref_decoded_base) = decode_mochi_url(base_token) {
                                 if let Ok(ref_url) = Url::parse(&ref_decoded_base) {
                                     if let Ok(resolved) = ref_url.join(original_uri) {
@@ -458,7 +462,7 @@ pub async fn proxy_handler(
         safe_headers.remove("content-encoding");
 
         if let Some(token) = &valid_token {
-            let cookie_val = format!("mochi_base={}; Path=/; SameSite=Lax", token);
+            let cookie_val = format!("nmb={}; Path=/; SameSite=Lax", token);
             safe_headers.append("set-cookie", HeaderValue::from_str(&cookie_val).unwrap());
         }
 

@@ -2,7 +2,7 @@ use lol_html::{element, html_content::ContentType, HtmlRewriter, Settings};
 use std::cell::RefCell;
 use std::rc::Rc;
 use url::Url;
-use crate::constants::{MOCHI_PREFIX, PART_1, PART_2};
+use crate::constants::{MOCHI_PREFIX, MOCHI_PREFIX_LEGACY, PART_1, PART_2};
 use crate::encoding::encode_mochi_url;
 
 pub fn rewrite_html(body: &[u8], target_url: &Url, base_url_str: &str) -> Vec<u8> {
@@ -22,6 +22,7 @@ pub fn rewrite_html(body: &[u8], target_url: &Url, base_url_str: &str) -> Vec<u8
                 || url.starts_with("tel:")
                 || url.starts_with('#')
                 || url.starts_with(MOCHI_PREFIX)
+                || url.starts_with(MOCHI_PREFIX_LEGACY)
             {
                 return None;
             }
@@ -138,7 +139,7 @@ setTimeout(function(){clearInterval(_iv);},15000);
                         if let Ok(parsed_base) = target_url_for_base.join(&href) {
                             *base_for_href.borrow_mut() = parsed_base.clone();
                             let escaped_target = parsed_base.as_str().replace('\'', "\\'");
-                            let injection = format!("<script>window.__MOCHI_TARGET__ = '{}';</script>", escaped_target);
+                            let injection = format!("<script>window.__nmt__ = '{}';</script>", escaped_target);
                             el.after(&injection, ContentType::Html);
                         }
                         let proxy_href =

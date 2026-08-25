@@ -8,7 +8,7 @@ if (navigator.userAgent.includes('Firefox')) {
 var _base = self.location.pathname.replace(/[^/]*$/, '');
 var _p = _base + ['q', '9vx/'].join('');
 var _f = ['sj', '.all', '.js'].join('');
-var _v = ['dl', '8'].join('');
+var _v = ['dl', '9'].join('');
 try {
   importScripts(_p + _f + '?v=' + _v);
 } catch (e) {}
@@ -176,15 +176,12 @@ async function handleRequest(event) {
 self.addEventListener('fetch', function (event) {
   try {
     var url = new URL(event.request.url);
-    if (isAppShellRequest(event.request, url)) {
-      event.respondWith(
-        fetch(event.request).catch(function () {
-          return new Response('Network error', { status: 502 });
-        })
-      );
+    if (url.origin !== self.location.origin || url.pathname.indexOf(_pref) !== 0) {
       return;
     }
-  } catch (e) {}
+  } catch (e) {
+    return;
+  }
   event.respondWith(handleRequest(event));
 });
 

@@ -4,7 +4,7 @@ export const PX = {
   mux: '/m4thx/',
   epoxy: '/e7px/',
   curl: '/l9cx/',
-  stream: '/api/websocket/',
+  stream: '/n/s/',
   edge: '/api/edge/',
   sw: '/1k123.js',
   blocked: [
@@ -40,6 +40,7 @@ export function isStreamUpgrade(url) {
   if (path.startsWith('/api/websocket/normal')) return false;
   if (path.startsWith('/api/websocket/tor')) return false;
   if (path.startsWith(PX.stream)) return true;
+  if (path.startsWith('/api/websocket/')) return true;
   if (path.startsWith('/api/websocket-tor/')) return true;
   if (path.startsWith('/api/websocket-premium/')) return true;
   if (/^\/api\/websocket-\d+\//.test(path)) return true;
@@ -56,6 +57,7 @@ export function toWispLibUrl(url) {
   const qs = q === -1 ? '' : raw.slice(q);
   if (path.startsWith('/wisp/')) return raw;
   const stripped = path
+    .replace(/^\/n\/s\//, '')
     .replace(/^\/api\/websocket-tor\//, '')
     .replace(/^\/api\/websocket-premium\//, '')
     .replace(/^\/api\/websocket-\d+\//, '')

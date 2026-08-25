@@ -12,8 +12,9 @@ function enc(url: string): string {
 }
 
 export function coverSrc(url: string): string {
-  const u = String(url || "").trim();
+  let u = String(url || "").trim();
   if (!u) return "";
+  if (u.includes("/!!/")) u = u.split("/!!/").join("/n/m/");
   if (u.startsWith("/f/c/") || u.startsWith("/!cover!/") || u.startsWith("data:") || u.startsWith("blob:")) return u;
   if (u.startsWith("/") && !u.startsWith("//")) return u;
   if (!/^https?:\/\//i.test(u)) return u;

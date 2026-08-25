@@ -252,6 +252,10 @@ async fn async_main(t: tuning::MochiTuning) {
             &format!("{}*key", constants::MOCHI_PREFIX),
             any(proxy::proxy_handler),
         )
+        .route(
+            &format!("{}*key", constants::MOCHI_PREFIX_LEGACY),
+            any(proxy::proxy_handler),
+        )
         .fallback(any(proxy::proxy_handler))
         .with_state(state);
 

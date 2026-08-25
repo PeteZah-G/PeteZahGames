@@ -10,7 +10,7 @@ function dir() {
   }
 }
 
-export const ENGINE_GEN = "dl8";
+export const ENGINE_GEN = "dl9";
 
 export const PX = {
   get prefix() {
@@ -22,7 +22,7 @@ export const PX = {
   get mux() {
     return dir() + "m4thx/";
   },
-  stream: "/api/websocket/",
+  stream: "/n/s/",
   edge: "/api/edge/",
   get sw() {
     return dir() + "1k123.js";
@@ -34,7 +34,7 @@ export const PX = {
     return dir() + "q9vx/sj.sync.js?v=" + ENGINE_GEN;
   },
   get coreWasm() {
-    return dir() + "q9vx/sj.wasm.wasm";
+    return dir() + "q9vx/ld.bin";
   },
   get muxIndex() {
     return dir() + "m4thx/index.js?v=" + ENGINE_GEN;

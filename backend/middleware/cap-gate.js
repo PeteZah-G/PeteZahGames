@@ -86,7 +86,7 @@ export function createCapGateMiddleware() {
     if (shouldBypassGateForCrawler(req)) return next();
     if (hasValidGate(req) && hasValidLegal(req)) return next();
 
-    if (p.startsWith('/api/') || p.startsWith('/!!/') || p.startsWith('/!cover!/') || p.startsWith('/f/c/')) {
+    if (p.startsWith('/api/') || p.startsWith('/n/m/') || p.startsWith('/!!/') || p.startsWith('/!cover!/') || p.startsWith('/f/c/')) {
       return res.status(403).json({ error: 'Verification required' });
     }
 

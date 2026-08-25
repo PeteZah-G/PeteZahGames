@@ -47,8 +47,8 @@
         letter-spacing: 0.02em;
       }
     </style>
-    <script src="/m4thx/index.js?v=dl7"></script>
-    <script src="/q9vx/sj.all.js?v=dl7"></script>
+    <script src="/m4thx/index.js?v=dl9"></script>
+    <script src="/q9vx/sj.all.js?v=dl9"></script>
     <script src="/config.js"></script>
   </head>
   <body>
@@ -61,8 +61,8 @@
             return String.fromCharCode(n);
           }).join("");
         }
-        var loadCtrl = c([36, 100, 117, 115, 107, 108, 105, 110, 101, 76, 111, 97, 100, 67, 111, 110, 116, 114, 111, 108, 108, 101, 114]);
-        var ctrlName = c([68, 117, 115, 107, 108, 105, 110, 101, 67, 111, 110, 116, 114, 111, 108, 108, 101, 114]);
+        var loadCtrl = c([36, 118, 111, 108, 116, 101, 100, 103, 101, 76, 111, 97, 100, 67, 111, 110, 116, 114, 111, 108, 108, 101, 114]);
+        var ctrlName = c([86, 111, 108, 116, 101, 100, 103, 101, 67, 111, 110, 116, 114, 111, 108, 108, 101, 114]);
         var muxName = c([67, 108, 105, 112, 77, 117, 120]);
         var muxConn = c([67, 108, 105, 112, 77, 117, 120, 67, 111, 110, 110, 101, 99, 116, 105, 111, 110]);
         var setT = c([98, 105, 110, 100, 84, 114, 97, 110, 115, 102, 101, 114]);
@@ -83,10 +83,16 @@
             var ch = x.charCodeAt(j);
             o += alphabet[(ch >> 12) & 63] + alphabet[(ch >> 6) & 63] + alphabet[ch & 63];
           }
-          return o;
+          var wrapped = "";
+          for (var i2 = 0; i2 < o.length; i2++) {
+            if (i2 && i2 % 8 === 0) wrapped += "/";
+            wrapped += o[i2];
+          }
+          return wrapped + "/";
         }
         function codecDecode(url) {
           if (!url) return url;
+          url = String(url).replace(/\//g, "");
           var x = "";
           for (var i = 0; i + 2 < url.length; i += 3) {
             var a = alphabet.indexOf(url[i]);
@@ -151,7 +157,7 @@
 
         function streamUrlFor(target) {
           var premium = isPremiumHost(hostOf(target));
-          var path = premium ? "/api/websocket-premium/" : "/api/websocket/";
+          var path = premium ? "/api/websocket-premium/" : "/n/s/";
           if (typeof _CONFIG !== "undefined" && _CONFIG.streamurl && !premium) {
             return _CONFIG.streamurl;
           }
@@ -228,15 +234,15 @@
             engine = new Ctrl({
               prefix: "/afsd123k2/",
               files: {
-                wasm: "/q9vx/sj.wasm.wasm",
-                all: "/q9vx/sj.all.js?v=dl7",
-                sync: "/q9vx/sj.sync.js?v=dl7",
+                wasm: "/q9vx/ld.bin",
+                all: "/q9vx/sj.all.js?v=dl9",
+                sync: "/q9vx/sj.sync.js?v=dl9",
               },
               flags: { sourcemaps: false, rewriterLogs: false, captureErrors: true },
               codec: { encode: codecEncode, decode: codecDecode },
             });
             try {
-              await navigator.serviceWorker.register("/1k123.js?v=dl7", {
+              await navigator.serviceWorker.register("/1k123.js?v=dl9", {
                 updateViaCache: "none",
                 scope: "/",
               });
