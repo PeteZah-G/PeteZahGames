@@ -267,4 +267,21 @@ pub fn is_blacklisted_res_header(name: &str) -> bool {
             | "cross-origin-embedder-policy"
             | "cross-origin-resource-policy"
     )
+}
+
+pub fn is_cover_cdn(url: &Url) -> bool {
+    let Some(host) = url.host_str() else {
+        return false;
+    };
+    let h = host.to_ascii_lowercase();
+    h == "image.tmdb.org"
+        || h == "i.ytimg.com"
+        || h.ends_with(".ytimg.com")
+        || h.ends_with(".ggpht.com")
+        || h.ends_with(".googleusercontent.com")
+        || h.ends_with(".mzstatic.com")
+        || h == "i.scdn.co"
+        || h.ends_with(".scdn.co")
+        || h.ends_with(".sndcdn.com")
+        || h == "sndcdn.com"
 } 

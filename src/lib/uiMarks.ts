@@ -75,17 +75,13 @@ export function isGvHref(u: string): boolean {
 }
 
 export function brandMarkSrc(): string {
-  try {
-    const h = location.hostname.replace(/^www\./, "").toLowerCase();
-    if (h === hrefs.homeHost()) return "/logo.png";
-  } catch {}
-  return hrefs.eduMark();
+  return "/logo.png";
 }
 
 export function defaultBrandSrc(): string {
   try {
-    return localStorage.getItem("siteLogo") || brandMarkSrc();
+    return localStorage.getItem("siteLogo") || "/logo.png";
   } catch {
-    return brandMarkSrc();
+    return "/logo.png";
   }
 }

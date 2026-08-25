@@ -171,7 +171,7 @@ export function applySeoToHtml(html, host) {
     out = out.replace(/<\/head>/i, `  ${ld}\n</head>`);
   }
 
-  const icon = home ? "https://petezahgames.com/logo.png" : "https://hypestudy.com/logo.png";
+  const icon = "/logo.png";
   out = upsertLinkRel(out, "icon", icon);
   out = upsertLinkRel(out, "shortcut icon", icon);
   out = upsertLinkRel(out, "apple-touch-icon", icon);

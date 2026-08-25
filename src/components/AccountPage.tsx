@@ -18,6 +18,7 @@ import {
 } from "@/lib/settingsSync";
 import { notifyAuthChanged } from "@/hooks/useAuth";
 import { consumePendingAuth } from "@/lib/authPending";
+import { CoverImg } from "@/lib/mediaCover";
 import { defaultBrandSrc, hrefs, marks } from "@/lib/uiMarks";
 import ObfuscatedText from "./ObfuscatedText";
 import { applyVpnRegion } from "@/lib/vpn";
@@ -2424,7 +2425,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                             display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 8,
                             background: C.surface, border: `1px solid ${C.border}`,
                           }}>
-                            {t.artwork && <img src={t.artwork} alt="" style={{ width: 28, height: 28, borderRadius: 5, objectFit: "cover" }} />}
+                            {t.artwork ? <CoverImg src={t.artwork} alt="" style={{ width: 28, height: 28, borderRadius: 5, objectFit: "cover" }} /> : null}
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <p style={{ fontSize: 11, fontWeight: 600, color: C.text, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</p>
                               <p style={{ fontSize: 9, color: C.textMuted, margin: 0 }}>{t.artist}</p>
@@ -2454,7 +2455,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
                               background: on ? C.accentDim : C.elevated, border: `1px solid ${on ? C.borderFocus : C.border}`,
                               cursor: "pointer", textAlign: "left", color: C.text,
                             }}>
-                              {t.artwork && <img src={t.artwork} alt="" style={{ width: 24, height: 24, borderRadius: 4, objectFit: "cover" }} />}
+                              {t.artwork ? <CoverImg src={t.artwork} alt="" style={{ width: 24, height: 24, borderRadius: 4, objectFit: "cover" }} /> : null}
                               <span style={{ flex: 1, fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
                               {on ? <Check size={11} color={C.accent} /> : <Plus size={11} color={C.textMuted} />}
                             </button>

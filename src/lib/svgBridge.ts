@@ -41,6 +41,7 @@ const REMOTE = [
   "/uploads/",
   "/!!/",
   "/!cover!/",
+  "/f/c/",
   "/firefox-wasm",
   "/terms",
   "/tos",
@@ -80,7 +81,7 @@ export function rewriteClientUrl(raw: string): string {
   let url = raw;
   if (url.startsWith("/") && !url.startsWith("//")) {
     const path = url.split("?")[0];
-    if (starts(path, REMOTE) || path.startsWith("/api") || path.startsWith("/!!/") || path.startsWith("/!cover!/")) {
+    if (starts(path, REMOTE) || path.startsWith("/api") || path.startsWith("/!!/") || path.startsWith("/!cover!/") || path.startsWith("/f/c/")) {
       return origin + url;
     }
     if (onSvgDir(path)) {

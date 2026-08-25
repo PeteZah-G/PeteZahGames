@@ -23,7 +23,7 @@ const mochiLimiter = rateLimit({
   legacyHeaders: false,
   skip: (req) => {
     const ref = req.headers['referer'] || '';
-    return ref.includes('/!!/') || ref.includes('/!cover!/');
+    return ref.includes('/!!/') || ref.includes('/!cover!/') || ref.includes('/f/c/');
   },
   handler: (req, res) => {
     updateIPReputation(toIPv4(null, req), -1);
@@ -44,6 +44,7 @@ const mochiProxy = createProxyMiddleware({
   },
 });
 
+router.use('/f/c/', mochiLimiter, mochiProxy);
 router.use('/!cover!/', mochiLimiter, mochiProxy);
 router.use('/!!/', mochiLimiter, mochiProxy);
 

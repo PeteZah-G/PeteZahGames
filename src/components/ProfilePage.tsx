@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { MapPin, Link2, Music2, Play, Calendar, Shield, Lock } from "lucide-react";
 import { BadgeRow, type BadgeInfo } from "./BadgeChip";
+import { CoverImg } from "@/lib/mediaCover";
 import { hrefs } from "@/lib/uiMarks";
 
 interface FavTrack {
@@ -243,7 +244,7 @@ export default function ProfilePage({
               >
                 <div style={{ width: 48, height: 48, borderRadius: 9, overflow: "hidden", background: S.elevated, flexShrink: 0, position: "relative" }}>
                   {track.artwork ? (
-                    <img src={track.artwork} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <CoverImg src={track.artwork} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   ) : (
                     <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: S.textMuted }}>
                       <Music2 size={16} />

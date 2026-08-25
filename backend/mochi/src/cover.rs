@@ -6,8 +6,8 @@ use futures::StreamExt;
 use std::sync::Arc;
 use url::Url;
 use crate::cache::{load_from_disk, write_to_disk};
-use crate::helpers::is_blacklisted_header;
-use crate::state::{AppState, CachedResponse};
+use crate::helpers::{is_blacklisted_header, is_cover_cdn};
+use crate::state::AppState;
 
 pub async fn handle_cover_request(
     state: &Arc<AppState>,
@@ -17,11 +17,8 @@ pub async fn handle_cover_request(
     method: &Method,
     headers: &HeaderMap,
 ) -> Result<Response, Response> {
-    if let Some(cached) = state.cache.get(target_url_str).await {
-        let mut res_headers = cached.headers.clone();
-        res_headers.insert("X-Cache", HeaderValue::from_static("HIT"));
-        let status = StatusCode::from_u16(cached.status).unwrap_or(StatusCode::OK);
-        return Ok((status, res_headers, cached.body.clone()).into_response());
+    if crate::helpers::is_blocked_target(target_url) || !is_cover_cdn(target_url) {
+        return Err((StatusCode::FORBIDDEN, "blocked").into_response());
     }
 
     if let Some(disk_response) = load_from_disk(target_url_str).await {
@@ -142,13 +139,6 @@ pub async fn handle_cover_request(
     
     safe_headers.insert("content-length", HeaderValue::from(raw_bytes.len()));
     safe_headers.insert("X-Cache", HeaderValue::from_static("MISS"));
-
-    let cached = Arc::new(CachedResponse {
-        status: status.as_u16(),
-        headers: safe_headers.clone(),
-        body: raw_bytes.clone(),
-    });
-    state.cache.insert(target_url_str.to_string(), cached).await;
 
     let cache_key = target_url_str.to_string();
     let headers_for_disk = safe_headers.clone();

@@ -22,15 +22,20 @@ const MUX_JS = [
 ];
 
 const ENGINE_JS = [
-  ['Scramjet', 'Duskline'],
-  ['scramjet', 'duskline'],
-  ['SCRAMJET', 'DUSKLINE'],
-  ['scram-frame', 'dusk-frames'],
+  ['duskline', 'voltedge'],
+  ['Duskline', 'Voltedge'],
+  ['DUSKLINE', 'VOLTEDGE'],
+  ['dusk-frames', 'volt-frames'],
+  ['Scramjet', 'Voltedge'],
+  ['scramjet', 'voltedge'],
+  ['SCRAMJET', 'VOLTEDGE'],
+  ['scram-frame', 'volt-frames'],
   ['encodeUrl', 'sealHrefs'],
   ['decodeUrl', 'openHrefs'],
   ['createFrame', 'openSurface'],
   ['bare-mux', 'clip-mux'],
   ['sourcemaps:!0', 'sourcemaps:!1'],
+  ['indirect eval proxy', 'indirect eval remap'],
   ...MUX_JS,
 ];
 
@@ -66,7 +71,10 @@ assertLen(MUX_JS);
 assertLen(STREAM_JS);
 assertLen(CURL_JS);
 
-const ENGINE_WASM = [['scramjet', 'duskline']];
+const ENGINE_WASM = [
+  ['scramjet', 'voltedge'],
+  ['duskline', 'voltedge'],
+];
 const STREAM_WASM = [
   ['epoxy', 'relay'],
   ['wisp', 'link'],
@@ -146,6 +154,9 @@ function cloakFile(file, jsPairs, wasmPairs) {
 
 const jobs = [
   { dir: path.join(root, 'public', 'q9vx'), js: ENGINE_JS, wasm: ENGINE_WASM },
+  { dir: path.join(root, 'public', 'kernel'), js: ENGINE_JS, wasm: ENGINE_WASM },
+  { dir: path.join(root, 'public', 'modules'), js: ENGINE_JS, wasm: ENGINE_WASM },
+  { dir: path.join(root, 'public', 'res'), js: ENGINE_JS, wasm: ENGINE_WASM },
   { dir: path.join(root, 'public', 'm4thx'), js: MUX_JS, wasm: [] },
   { dir: path.join(root, 'public', 'e7px'), js: [...STREAM_JS], wasm: STREAM_WASM },
   {

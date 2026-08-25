@@ -4,6 +4,7 @@ import {
   Play, X, Film, Search, Heart, ArrowLeft, Tv, Star, Clapperboard, Sparkles,
   ChevronLeft, ChevronRight, Info, Loader2,
 } from "lucide-react";
+import { CoverImg } from "@/lib/mediaCover";
 import { pxEncode, pxReady } from "@/lib/px";
 import { applyVpnRegion, isSignedIn } from "@/lib/vpn";
 import { setPendingAuth } from "@/lib/authPending";
@@ -296,7 +297,7 @@ function PosterCard({
         boxShadow: "0 12px 28px rgba(0,0,0,0.35)",
       }}>
         {poster ? (
-          <img src={poster} alt={title} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <CoverImg src={poster} alt={title} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: S.textMuted }}>
             {type === "tv" ? <Tv size={28} /> : <Film size={28} />}
@@ -842,7 +843,7 @@ function MoviePlayer({
     <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "hsla(220, 35%, 4%, 0.96)" }}>
       {state.backdrop_path && (
         <div style={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none" }}>
-          <img
+          <CoverImg
             src={TMDB_BACKDROP + state.backdrop_path}
             alt=""
             style={{ width: "100%", height: "100%", objectFit: "cover", filter: "blur(2px) saturate(1.05)", opacity: 0.45 }}
@@ -899,7 +900,7 @@ function MoviePlayer({
             <div>
               <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
                 {state.poster_path && (
-                  <img
+                  <CoverImg
                     src={TMDB_IMG + state.poster_path}
                     alt=""
                     style={{
@@ -1005,7 +1006,7 @@ function MoviePlayer({
                             background: "hsla(220,28%,8%,0.8)", display: "flex", alignItems: "center", justifyContent: "center",
                           }}>
                             {ep.still_path ? (
-                              <img src={TMDB_STILL + ep.still_path} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              <CoverImg src={TMDB_STILL + ep.still_path} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                             ) : (
                               <Play size={11} style={{ color: S.textMuted }} />
                             )}
@@ -1063,7 +1064,7 @@ function MoviePlayer({
                         width: 42, height: 60, borderRadius: 8, overflow: "hidden",
                         background: S.elevated, flexShrink: 0,
                       }}>
-                        {poster && <img src={poster} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                        {poster && <CoverImg src={poster} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <p style={{
@@ -1254,7 +1255,7 @@ export default function MoviesPage({
         {!searchQuery && featured && (
           <div style={{ position: "relative", height: "min(58vh, 460px)", minHeight: 280 }}>
             {featured.backdrop_path && (
-              <img
+              <CoverImg
                 src={TMDB_BACKDROP + featured.backdrop_path}
                 alt=""
                 style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}

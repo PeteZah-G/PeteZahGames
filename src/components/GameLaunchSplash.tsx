@@ -14,7 +14,7 @@ function generateGameId(game: { label: string; url?: string }) {
 function safeImg(url: string) {
   if (!url || typeof url !== "string") return "";
   const u = url.trim();
-  if ((u.startsWith("/storage/") || u.startsWith("/!!/") || u.startsWith("/!cover!/")) && !u.includes("..")) return u;
+  if ((u.startsWith("/storage/") || u.startsWith("/!!/") || u.startsWith("/!cover!/") || u.startsWith("/f/c/")) && !u.includes("..")) return u;
   if (/^https:\/\//i.test(u)) return u;
   return "";
 }

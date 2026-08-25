@@ -112,8 +112,11 @@ pub async fn proxy_handler(
     let mut valid_token: Option<String> = None;
     let original_uri = uri.path_and_query().map(|p| p.as_str()).unwrap_or("");
     let path_and_query = uri.path_and_query().map(|p| p.as_str()).unwrap_or("");
-    let is_cover_request = path_and_query.contains(constants::COVER_PREFIX);
-    let prefix = if is_cover_request {
+    let is_cover_request = path_and_query.contains(constants::COVER_PREFIX)
+        || path_and_query.contains(constants::COVER_PREFIX_LEGACY);
+    let prefix = if path_and_query.contains(constants::COVER_PREFIX_LEGACY) {
+        constants::COVER_PREFIX_LEGACY
+    } else if path_and_query.contains(constants::COVER_PREFIX) {
         constants::COVER_PREFIX
     } else {
         constants::MOCHI_PREFIX

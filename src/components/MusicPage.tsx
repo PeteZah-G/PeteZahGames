@@ -9,6 +9,7 @@ import {
 import { requestSyncSoon } from "@/lib/settingsSync";
 import { hrefs } from "@/lib/uiMarks";
 import { trackAchievementEvent } from "@/lib/achievementEvents";
+import { CoverImg } from "@/lib/mediaCover";
 import { AdResponsiveBanner } from "@/components/ads/Adsterra";
 
 interface Track {
@@ -1362,7 +1363,7 @@ export default function MusicPage({
               border: `1px solid ${S.border}`,
             }}>
               {current?.artwork ? (
-                <img src={current.artwork} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <CoverImg src={current.artwork} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
                 <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: S.textMuted }}>
                   <Music2 size={16} />
@@ -1716,7 +1717,7 @@ function ShelfRow({
                 }}
               >
                 {track.artwork ? (
-                  <img
+                  <CoverImg
                     src={track.artwork}
                     alt=""
                     loading="lazy"
@@ -1835,7 +1836,7 @@ function TrackListView({
                 background: S.elevated, flexShrink: 0, position: "relative",
               }}>
                 {track.artwork ? (
-                  <img src={track.artwork} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <CoverImg src={track.artwork} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
                   <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: S.textMuted }}>
                     <Music2 size={14} />

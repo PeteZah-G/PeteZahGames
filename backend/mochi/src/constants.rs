@@ -1,5 +1,6 @@
 pub const MOCHI_PREFIX: &str = "/!!/";
-pub const COVER_PREFIX: &str = "/!cover!/";
+pub const COVER_PREFIX: &str = "/f/c/";
+pub const COVER_PREFIX_LEGACY: &str = "/!cover!/";
 pub const PART_1: &str = r##"<script>
 (function() {
     var _U = window.URL;

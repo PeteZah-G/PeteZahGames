@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import VantaBackground from "@/components/VantaBackground";
 import ObfuscatedText from "@/components/ObfuscatedText";
+import { CoverImg } from "@/lib/mediaCover";
 import { hrefs, marks } from "@/lib/uiMarks";
 
 type Props = {
@@ -371,7 +372,7 @@ export default function TrendingDashboard({
                   style={{ background: C.elevated, border: `1px solid ${C.border}` }}
                 >
                   {poster ? (
-                    <img
+                    <CoverImg
                       src={poster}
                       alt=""
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
@@ -449,7 +450,7 @@ export default function TrendingDashboard({
                       style={{ background: C.elevated, border: `1px solid ${C.border}` }}
                     >
                       {art ? (
-                        <img src={art} alt="" className="w-full h-full object-cover" loading="lazy" />
+                        <CoverImg src={art} alt="" className="w-full h-full object-cover" loading="lazy" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <Disc3 size={12} style={{ color: C.textMuted }} />

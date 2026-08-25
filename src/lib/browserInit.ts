@@ -22,7 +22,7 @@ declare global {
 }
 
 function dbName() {
-  return String.fromCharCode(36, 100, 117, 115, 107, 108, 105, 110, 101);
+  return String.fromCharCode(36, 118, 111, 108, 116, 101, 100, 103, 101);
 }
 
 const STORES = [
@@ -183,6 +183,7 @@ async function migrateEngineOnce(): Promise<void> {
   (window as any).__pzEgMig = 1;
   await clearServiceWorkers();
   await deleteDb(oldDbName());
+  await deleteDb(String.fromCharCode(36, 100, 117, 115, 107, 108, 105, 110, 101));
   await deleteDb(dbName());
   try {
     await Promise.all(

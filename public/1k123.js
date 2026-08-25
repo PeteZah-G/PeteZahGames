@@ -8,13 +8,13 @@ if (navigator.userAgent.includes('Firefox')) {
 var _base = self.location.pathname.replace(/[^/]*$/, '');
 var _p = _base + ['q', '9vx/'].join('');
 var _f = ['sj', '.all', '.js'].join('');
-var _v = ['dl', '7'].join('');
+var _v = ['dl', '8'].join('');
 try {
   importScripts(_p + _f + '?v=' + _v);
 } catch (e) {}
 
-var _lw = ['$', 'dusk', 'line', 'Load', 'Worker'].join('');
-var _sw = ['Dusk', 'line', 'Service', 'Worker'].join('');
+var _lw = ['$', 'volt', 'edge', 'Load', 'Worker'].join('');
+var _sw = ['Volt', 'edge', 'Service', 'Worker'].join('');
 var _boot = self[_lw];
 if (typeof _boot !== 'function') {
   self.addEventListener('install', function (event) {
