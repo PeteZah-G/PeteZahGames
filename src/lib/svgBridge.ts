@@ -39,6 +39,7 @@ const REMOTE = [
   "/cap/",
   "/storage/",
   "/uploads/",
+  "/f/g/",
   "/n/m/",
   "/!!/",
   "/!cover!/",
@@ -82,7 +83,7 @@ export function rewriteClientUrl(raw: string): string {
   let url = raw;
   if (url.startsWith("/") && !url.startsWith("//")) {
     const path = url.split("?")[0];
-    if (starts(path, REMOTE) || path.startsWith("/api") || path.startsWith("/!!/") || path.startsWith("/n/m/") || path.startsWith("/!cover!/") || path.startsWith("/f/c/")) {
+    if (starts(path, REMOTE) || path.startsWith("/api") || path.startsWith("/!!/") || path.startsWith("/n/m/") || path.startsWith("/f/g/") || path.startsWith("/!cover!/") || path.startsWith("/f/c/")) {
       return origin + url;
     }
     if (onSvgDir(path)) {

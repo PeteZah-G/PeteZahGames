@@ -53,7 +53,7 @@ function sanitizeGameUrl(raw) {
   let url = raw.trim().slice(0, MAX_URL);
   if (!url) return null;
   if (
-    (url.startsWith('/storage/') || url.startsWith('/!!/') || url.startsWith('/n/m/') || url.startsWith('/iframe.html')) &&
+    (url.startsWith('/storage/') || url.startsWith('/!!/') || url.startsWith('/n/m/') || url.startsWith('/f/g/') || url.startsWith('/iframe.html')) &&
     !url.includes('..') &&
     !/[\s<>"'`]/.test(url)
   ) {
@@ -83,7 +83,7 @@ function sanitizeImageUrl(raw) {
     if (!/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(url)) return '';
     return url.slice(0, 120_000);
   }
-  if ((url.startsWith('/storage/') || url.startsWith('/!!/') || url.startsWith('/n/m/') || url.startsWith('/f/c/')) && !url.includes('..') && !/[\s<>"'`]/.test(url)) {
+  if ((url.startsWith('/storage/') || url.startsWith('/!!/') || url.startsWith('/n/m/') || url.startsWith('/f/g/') || url.startsWith('/f/c/')) && !url.includes('..') && !/[\s<>"'`]/.test(url)) {
     return url;
   }
   if (/^https:\/\//i.test(url)) {

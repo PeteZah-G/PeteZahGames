@@ -1,4 +1,5 @@
 import { useEffect, useState, type ImgHTMLAttributes } from "react";
+import { isMochiHref, publicMochiHref } from "./mochiPath";
 
 const KEY = [113, 55, 90, 120, 33, 57, 112, 76];
 
@@ -14,7 +15,7 @@ function enc(url: string): string {
 export function coverSrc(url: string): string {
   let u = String(url || "").trim();
   if (!u) return "";
-  if (u.includes("/!!/")) u = u.split("/!!/").join("/n/m/");
+  if (isMochiHref(u)) return publicMochiHref(u);
   if (u.startsWith("/f/c/") || u.startsWith("/!cover!/") || u.startsWith("data:") || u.startsWith("blob:")) return u;
   if (u.startsWith("/") && !u.startsWith("//")) return u;
   if (!/^https?:\/\//i.test(u)) return u;

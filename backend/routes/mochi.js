@@ -23,7 +23,7 @@ const mochiLimiter = rateLimit({
   legacyHeaders: false,
   skip: (req) => {
     const ref = req.headers['referer'] || '';
-    return ref.includes('/n/m/') || ref.includes('/!!/') || ref.includes('/!cover!/') || ref.includes('/f/c/');
+    return ref.includes('/f/g/') || ref.includes('/n/m/') || ref.includes('/!!/') || ref.includes('/!cover!/') || ref.includes('/f/c/');
   },
   handler: (req, res) => {
     updateIPReputation(toIPv4(null, req), -1);
@@ -35,6 +35,10 @@ const mochiProxy = createProxyMiddleware({
   target: 'http://127.0.0.1:3005',
   changeOrigin: false,
   ws: false,
+  pathRewrite: (path) => {
+    if (path.startsWith('/f/c/') || path.startsWith('/!cover!/')) return path;
+    return path.replace(/^\/(?:n\/m|f\/g)\//, '/!!/');
+  },
   on: {
     error: (err, req, res) => {
       if (res && 'status' in res) {
@@ -46,6 +50,7 @@ const mochiProxy = createProxyMiddleware({
 
 router.use('/f/c/', mochiLimiter, mochiProxy);
 router.use('/!cover!/', mochiLimiter, mochiProxy);
+router.use('/f/g/', mochiLimiter, mochiProxy);
 router.use('/n/m/', mochiLimiter, mochiProxy);
 router.use('/!!/', mochiLimiter, mochiProxy);
 

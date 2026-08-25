@@ -195,7 +195,7 @@ app.use(compression({
   filter: (req, res) => {
     if (req.headers['x-no-compression']) return false;
     const p = req.path || req.url || '';
-    if (p.startsWith('/n/m/') || p.startsWith('/!!/') || p.startsWith('/!cover!/') || p.startsWith('/storage/ag/')) return false;
+    if (p.startsWith('/n/m/') || p.startsWith('/f/g/') || p.startsWith('/!!/') || p.startsWith('/!cover!/') || p.startsWith('/storage/ag/')) return false;
     const ct = String(res.getHeader('Content-Type') || '');
     if (/image|video|audio|wasm|octet-stream|font\/|woff|zip|gzip|br\b|mp4|webm|png|jpe?g|gif|webp|avif|wasm/i.test(ct)) {
       return false;
@@ -625,7 +625,9 @@ server.on('upgrade', (req, socket, head) => {
     return socket.destroy();
   }
 
-  if (url.startsWith('/n/m/') || url.startsWith('/!!/') || url.startsWith('/!cover!/')) {
+  if (url.startsWith('/n/m/') || url.startsWith('/f/g/') || url.startsWith('/!!/') || url.startsWith('/!cover!/')) {
+    if (url.startsWith('/n/m/')) req.url = '/!!/' + url.slice(5);
+    else if (url.startsWith('/f/g/')) req.url = '/!!/' + url.slice(5);
     mochiWsProxy.ws(req, socket, head);
     return;
   }

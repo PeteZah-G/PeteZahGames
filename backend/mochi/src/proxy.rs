@@ -120,6 +120,8 @@ pub async fn proxy_handler(
         constants::COVER_PREFIX
     } else if path_and_query.contains(constants::MOCHI_PREFIX_LEGACY) {
         constants::MOCHI_PREFIX_LEGACY
+    } else if path_and_query.contains(constants::MOCHI_PREFIX_ALT) {
+        constants::MOCHI_PREFIX_ALT
     } else {
         constants::MOCHI_PREFIX
     };

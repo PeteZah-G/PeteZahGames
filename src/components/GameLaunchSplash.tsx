@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { defaultBrandSrc, hrefs } from "@/lib/uiMarks";
+import { publicMochiHref } from "@/lib/mochiPath";
 
 type Cover = { label: string; imageUrl: string };
 
@@ -14,8 +15,10 @@ function generateGameId(game: { label: string; url?: string }) {
 function safeImg(url: string) {
   if (!url || typeof url !== "string") return "";
   let u = url.trim();
-  if (u.includes("/!!/")) u = u.split("/!!/").join("/n/m/");
-  if ((u.startsWith("/storage/") || u.startsWith("/n/m/") || u.startsWith("/!cover!/") || u.startsWith("/f/c/")) && !u.includes("..")) return u;
+  if (u.includes("/!!/") || u.includes("/n/m/") || u.startsWith("/f/g/")) {
+    u = publicMochiHref(u);
+  }
+  if ((u.startsWith("/storage/") || u.startsWith("/f/g/") || u.startsWith("/!cover!/") || u.startsWith("/f/c/")) && !u.includes("..")) return u;
   if (/^https:\/\//i.test(u)) return u;
   return "";
 }

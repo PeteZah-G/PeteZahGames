@@ -84,9 +84,9 @@ function needsRemoteFrame(raw: string): boolean {
 function isLocalGamePath(raw: string): boolean {
   try {
     const u = new URL(raw, window.location.origin);
-    return u.pathname.startsWith("/storage/") || u.pathname.startsWith("/!!/") || u.pathname.startsWith("/n/m/");
+    return u.pathname.startsWith("/storage/") || u.pathname.startsWith("/!!/") || u.pathname.startsWith("/n/m/") || u.pathname.startsWith("/f/g/");
   } catch {
-    return raw.startsWith("/storage/") || raw.startsWith("/!!/") || raw.startsWith("/n/m/");
+    return raw.startsWith("/storage/") || raw.startsWith("/!!/") || raw.startsWith("/n/m/") || raw.startsWith("/f/g/");
   }
 }
 

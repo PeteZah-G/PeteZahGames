@@ -2,7 +2,7 @@ use lol_html::{element, html_content::ContentType, HtmlRewriter, Settings};
 use std::cell::RefCell;
 use std::rc::Rc;
 use url::Url;
-use crate::constants::{MOCHI_PREFIX, MOCHI_PREFIX_LEGACY, PART_1, PART_2};
+use crate::constants::{MOCHI_PREFIX, MOCHI_PREFIX_ALT, MOCHI_PREFIX_LEGACY, PART_1, PART_2};
 use crate::encoding::encode_mochi_url;
 
 pub fn rewrite_html(body: &[u8], target_url: &Url, base_url_str: &str) -> Vec<u8> {
@@ -22,6 +22,7 @@ pub fn rewrite_html(body: &[u8], target_url: &Url, base_url_str: &str) -> Vec<u8
                 || url.starts_with("tel:")
                 || url.starts_with('#')
                 || url.starts_with(MOCHI_PREFIX)
+                || url.starts_with(MOCHI_PREFIX_ALT)
                 || url.starts_with(MOCHI_PREFIX_LEGACY)
             {
                 return None;

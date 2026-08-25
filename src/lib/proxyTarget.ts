@@ -1,6 +1,7 @@
 import { PX, getMuxRoot, openMuxConnection, setMuxTransport, cfgStreamUrl, defaultStreamUrl } from "./px";
 import { armPx } from "./browserInit";
 import { originWsHost } from "./siteOrigin";
+import { isMochiHref, publicMochiHref } from "./mochiPath";
 
 function asUrl(raw: string): URL | null {
   try {
@@ -62,7 +63,8 @@ export function unwrapPlayUrl(raw: string): string {
   if (!/^https?:\/\//i.test(url) && !url.startsWith("/")) {
     url = "https://" + url.replace(/^\/+/, "");
   }
-  return url.split("/!!/").join("/n/m/");
+  if (isMochiHref(url)) return publicMochiHref(url);
+  return url;
 }
 
 export function isPremiumMuxHost(url: string): boolean {

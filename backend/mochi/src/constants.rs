@@ -1,4 +1,5 @@
-pub const MOCHI_PREFIX: &str = "/n/m/";
+pub const MOCHI_PREFIX: &str = "/f/g/";
+pub const MOCHI_PREFIX_ALT: &str = "/n/m/";
 pub const MOCHI_PREFIX_LEGACY: &str = "/!!/";
 pub const COVER_PREFIX: &str = "/f/c/";
 pub const COVER_PREFIX_LEGACY: &str = "/!cover!/";
@@ -57,7 +58,7 @@ pub const PART_1: &str = r##"<script>
         });
     } catch(e) {}
 
-    window.__nmp__="/n/m/";
+    window.__nmp__="/f/g/";
     window.__nmt__=""##;
 
 pub const PART_2: &str = r##"";
@@ -100,7 +101,7 @@ pub const PART_2: &str = r##"";
         if (!url) return url;
         if (typeof url !== 'string') return url;
         if (url.startsWith("blob:") || url.startsWith("data:") || url.startsWith("javascript:")) return url;
-        if (url.includes(window.__nmp__) || url.includes("/!!/")) return url;
+        if (url.includes(window.__nmp__) || url.includes("/n/m/") || url.includes("/!!/")) return url;
         
         try {
             const match = document.cookie.match(/(?:^|; )nmb=([^;]*)/);
