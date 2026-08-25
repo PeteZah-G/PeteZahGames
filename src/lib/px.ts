@@ -75,11 +75,14 @@ export function getPx(): any {
 
 export function pxEncode(url: string): string {
   const c = getPx();
-  if (!c) return url;
+  if (!c) return "about:blank";
   try {
-    return c[N.encode](url);
+    const out = c[N.encode](url);
+    if (typeof out !== "string" || !out) return "about:blank";
+    if (out.indexOf("afsd123k2") === -1) return "about:blank";
+    return out;
   } catch {
-    return url;
+    return "";
   }
 }
 

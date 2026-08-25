@@ -83,16 +83,10 @@
             var ch = x.charCodeAt(j);
             o += alphabet[(ch >> 12) & 63] + alphabet[(ch >> 6) & 63] + alphabet[ch & 63];
           }
-          var wrapped = "";
-          for (var i2 = 0; i2 < o.length; i2++) {
-            if (i2 && i2 % 8 === 0) wrapped += "/";
-            wrapped += o[i2];
-          }
-          return wrapped + "/";
+          return o;
         }
         function codecDecode(url) {
           if (!url) return url;
-          url = String(url).replace(/\//g, "");
           var x = "";
           for (var i = 0; i + 2 < url.length; i += 3) {
             var a = alphabet.indexOf(url[i]);

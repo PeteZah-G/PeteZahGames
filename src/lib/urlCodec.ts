@@ -1,17 +1,3 @@
-function wrapSeg(s: string): string {
-  if (!s) return s;
-  var o = "";
-  for (var i = 0; i < s.length; i++) {
-    if (i && i % 8 === 0) o += "/";
-    o += s[i];
-  }
-  return o + "/";
-}
-
-function unwrapSeg(s: string): string {
-  return String(s || "").replace(/\//g, "");
-}
-
 export const urlCodecEncode = (url: string): string => {
   if (!url) return url;
   var k = String.fromCharCode(104, 121, 112, 101, 115, 116, 117, 100, 121, 95, 112, 120, 95, 107, 49);
@@ -25,12 +11,11 @@ export const urlCodecEncode = (url: string): string => {
     var c = x.charCodeAt(j);
     o += A[(c >> 12) & 63] + A[(c >> 6) & 63] + A[c & 63];
   }
-  return wrapSeg(o);
+  return o;
 };
 
 export const urlCodecDecode = (url: string): string => {
   if (!url) return url;
-  url = unwrapSeg(url);
   var A = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
   var x = "";
   for (var i = 0; i + 2 < url.length; i += 3) {
