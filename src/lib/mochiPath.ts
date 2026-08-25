@@ -1,14 +1,13 @@
-const KEY = "q7Zx!9pL";
-
 export const MOCHI_PUB = "/f/g/";
 
-function encodeMochiUrl(url: string): string {
-  const e = encodeURIComponent(url);
-  let x = "";
-  for (let i = 0; i < e.length; i++) {
-    x += String.fromCharCode(e.charCodeAt(i) ^ KEY.charCodeAt(i % KEY.length));
-  }
-  return btoa(x).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+function ensureDirSlash(abs: string): string {
+  const q = abs.indexOf("?");
+  const path = q === -1 ? abs : abs.slice(0, q);
+  const query = q === -1 ? "" : abs.slice(q);
+  if (path.endsWith("/")) return abs;
+  const last = path.split("/").pop() || "";
+  if (last.includes(".")) return abs;
+  return path + "/" + query;
 }
 
 export function isMochiHref(raw: string): boolean {
@@ -22,9 +21,12 @@ export function publicMochiHref(raw: string): string {
   u = u.split("/!!/").join(MOCHI_PUB).split("/n/m/").join(MOCHI_PUB);
   if (!u.startsWith(MOCHI_PUB)) return u;
   const rest = u.slice(MOCHI_PUB.length);
-  if (rest.startsWith("http://") || rest.startsWith("https://")) {
-    const target = rest.replace(/\/+$/, "");
-    return MOCHI_PUB + encodeMochiUrl(target) + "/";
+  if (rest.startsWith("hs/") || rest.startsWith("ht/")) return u;
+  if (rest.startsWith("https://")) {
+    return MOCHI_PUB + "hs/" + ensureDirSlash(rest.slice(8));
+  }
+  if (rest.startsWith("http://")) {
+    return MOCHI_PUB + "ht/" + ensureDirSlash(rest.slice(7));
   }
   return u;
 }

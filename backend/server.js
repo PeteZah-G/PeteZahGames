@@ -16,6 +16,7 @@ import process from 'process';
 import BetterSqlite3Session from 'better-sqlite3-session-store';
 import httpProxy from 'http-proxy';
 import { PX, isStreamUpgrade, toWispLibUrl } from './px-paths.js';
+import { toMochiBackendPath } from './mochi-path.js';
 import { applySeoToHtml } from './utils/seo-meta.js';
 import fs, { existsSync } from 'node:fs';
 
@@ -626,8 +627,7 @@ server.on('upgrade', (req, socket, head) => {
   }
 
   if (url.startsWith('/n/m/') || url.startsWith('/f/g/') || url.startsWith('/!!/') || url.startsWith('/!cover!/')) {
-    if (url.startsWith('/n/m/')) req.url = '/!!/' + url.slice(5);
-    else if (url.startsWith('/f/g/')) req.url = '/!!/' + url.slice(5);
+    req.url = toMochiBackendPath(url);
     mochiWsProxy.ws(req, socket, head);
     return;
   }

@@ -2,6 +2,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { toIPv4, extractToken, verifyToken, updateIPReputation } from '../middleware/security.js';
+import { toMochiBackendPath } from '../mochi-path.js';
 
 const router = Router();
 
@@ -35,10 +36,7 @@ const mochiProxy = createProxyMiddleware({
   target: 'http://127.0.0.1:3005',
   changeOrigin: false,
   ws: false,
-  pathRewrite: (path) => {
-    if (path.startsWith('/f/c/') || path.startsWith('/!cover!/')) return path;
-    return path.replace(/^\/(?:n\/m|f\/g)\//, '/!!/');
-  },
+  pathRewrite: (path) => toMochiBackendPath(path),
   on: {
     error: (err, req, res) => {
       if (res && 'status' in res) {
