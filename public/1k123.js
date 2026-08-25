@@ -195,7 +195,7 @@ self.addEventListener('message', function (msg) {
   if (data.type === 'playgroundData') {
     playgroundData = data;
   }
-  if (data[['dusk', 'line', '$type'].join('')] === 'loadConfig') {
+  if (data[['volt', 'edge', '$type'].join('')] === 'loadConfig') {
     var p = applyConfigMessage(data);
     if (typeof msg.waitUntil === 'function') {
       try {

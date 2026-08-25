@@ -11,8 +11,8 @@ try {
   importScripts(_p + _f);
 } catch (e) {}
 
-var _lw = ['$', 'dusk', 'line', 'Load', 'Worker'].join('');
-var _sw = ['Dusk', 'line', 'Service', 'Worker'].join('');
+var _lw = ['$', 'volt', 'edge', 'Load', 'Worker'].join('');
+var _sw = ['Volt', 'edge', 'Service', 'Worker'].join('');
 var _hook = self[_lw];
 if (!_hook) {
   /* engine missing */

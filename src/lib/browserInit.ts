@@ -165,40 +165,23 @@ function engKey() {
 }
 
 async function migrateEngineOnce(): Promise<void> {
-  if ((window as any).__pzEgMig) {
-    await new Promise(() => {});
-    return;
-  }
   try {
     const u = new URL(location.href);
-    if (u.searchParams.get("_eg") === ENGINE_GEN) {
+    if (u.searchParams.has("_eg")) {
       u.searchParams.delete("_eg");
       history.replaceState(null, "", u.pathname + u.search + u.hash);
-      return;
     }
     if (localStorage.getItem(engKey()) === ENGINE_GEN) return;
   } catch {
     return;
   }
-  (window as any).__pzEgMig = 1;
   await clearServiceWorkers();
   await deleteDb(oldDbName());
   await deleteDb(String.fromCharCode(36, 100, 117, 115, 107, 108, 105, 110, 101));
   await deleteDb(dbName());
   try {
-    await Promise.all(
-      [PX.coreAll, PX.muxIndex, PX.muxWorker, PX.tunMod, PX.sw + "?v=" + ENGINE_GEN].map((src) =>
-        fetch(src, { cache: "reload", credentials: "same-origin" }).catch(() => {})
-      )
-    );
-  } catch {}
-  try {
     localStorage.setItem(engKey(), ENGINE_GEN);
   } catch {}
-  const next = new URL(location.href);
-  next.searchParams.set("_eg", ENGINE_GEN);
-  location.replace(next.toString());
-  await new Promise(() => {});
 }
 
 async function repairPxStore() {
@@ -310,7 +293,7 @@ function muxPathKey() {
 
 function cfgMsgType() {
   return String.fromCharCode(
-    100, 117, 115, 107, 108, 105, 110, 101, 36, 116, 121, 112, 101
+    118, 111, 108, 116, 101, 100, 103, 101, 36, 116, 121, 112, 101
   );
 }
 
