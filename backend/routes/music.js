@@ -1,6 +1,7 @@
 import express from 'express';
 import fetch from 'node-fetch';
 import { bumpUsage } from '../utils/usage-daily.js';
+import { mediaProxyPath, proxyMedia } from './music-media.js';
 
 const router = express.Router();
 
@@ -279,6 +280,7 @@ async function itunesSearch(term, limit = 20) {
         genre: x.primaryGenreName || null,
         streamable: true,
         source: 'it',
+        previewUrl: typeof x.previewUrl === 'string' ? x.previewUrl : null,
         _searchHint: `${x.trackName} ${x.artistName || ''}`.trim(),
       }));
   } catch {
@@ -495,8 +497,20 @@ function youtubePlayIntent(videoId, metaHint = {}) {
   };
 }
 
-function soundcloudPlayIntent(track) {
+function soundcloudPlayIntent(track, audioUrl) {
   const id = String(track.id);
+  const proxied = audioUrl ? mediaProxyPath(audioUrl) : null;
+  if (proxied) {
+    return {
+      provider: 'audio',
+      audioUrl: proxied,
+      track: stripMeta({
+        ...track,
+        source: 'sc',
+        streamable: true,
+      }),
+    };
+  }
   return {
     provider: 'soundcloud',
     soundcloudId: id,
@@ -513,6 +527,60 @@ function soundcloudPlayIntent(track) {
   };
 }
 
+function itunesAudioIntent(track) {
+  const proxied = track?.previewUrl ? mediaProxyPath(track.previewUrl) : null;
+  if (!proxied) return null;
+  return {
+    provider: 'audio',
+    audioUrl: proxied,
+    track: stripMeta({
+      ...track,
+      source: 'it',
+      streamable: true,
+    }),
+  };
+}
+
+async function resolveSoundCloudStream(trackId) {
+  const clientId = await resolveClientId();
+  const meta = await fetch(`https://api-v2.soundcloud.com/tracks/${trackId}?client_id=${clientId}`, {
+    headers: { 'User-Agent': UA, Accept: 'application/json' },
+  });
+  if (!meta.ok) return null;
+  const data = await meta.json();
+  const progressive = (data.media?.transcodings || []).find(
+    (x) => x?.format?.protocol === 'progressive' && x?.url
+  );
+  if (!progressive?.url) return null;
+  const sep = progressive.url.includes('?') ? '&' : '?';
+  const streamMeta = await fetch(`${progressive.url}${sep}client_id=${clientId}`, {
+    headers: { 'User-Agent': UA, Accept: 'application/json' },
+  });
+  if (!streamMeta.ok) return null;
+  const body = await streamMeta.json();
+  const url = typeof body?.url === 'string' ? body.url : null;
+  if (!url || !/^https:\/\//i.test(url)) return null;
+  return { url, track: mapTrack(data) };
+}
+
+async function itunesPreviewFor(title, artist) {
+  const hint = `${title || ''} ${artist || ''}`.trim();
+  if (!hint) return null;
+  const hits = await itunesSearch(hint, 8);
+  const lowerTitle = String(title || '').toLowerCase();
+  const lowerArtist = String(artist || '').toLowerCase();
+  const best =
+    hits.find(
+      (t) =>
+        t.previewUrl &&
+        String(t.title).toLowerCase() === lowerTitle &&
+        (!lowerArtist || String(t.artist).toLowerCase().includes(lowerArtist.split(' ')[0] || ''))
+    ) ||
+    hits.find((t) => t.previewUrl && String(t.title).toLowerCase().includes(lowerTitle.slice(0, 18))) ||
+    hits.find((t) => t.previewUrl);
+  return best || null;
+}
+
 async function resolvePlayIntent(parsed, metaHint) {
   const cacheKey = `play:${parsed.kind}:${parsed.id}:${metaHint?.title || ''}:${metaHint?.artist || ''}`;
   const cached = cacheGet(playCache, cacheKey, 1000 * 60 * 45);
@@ -521,36 +589,57 @@ async function resolvePlayIntent(parsed, metaHint) {
   let intent = null;
 
   if (parsed.kind === 'yt') {
-    intent = youtubePlayIntent(parsed.videoId, metaHint || {});
+    const preview = await itunesPreviewFor(metaHint?.title, metaHint?.artist);
+    if (preview) intent = itunesAudioIntent(preview);
+    if (!intent) intent = youtubePlayIntent(parsed.videoId, metaHint || {});
   } else if (parsed.kind === 'it') {
     const hint =
       metaHint?._searchHint ||
       `${metaHint?.title || ''} ${metaHint?.artist || ''}`.trim() ||
       parsed.itunesId;
-    const yt = await youtubeSearch(hint || metaHint?.title || 'music', 6);
-    if (yt.length) {
-      intent = youtubePlayIntent(yt[0].id.slice(2), {
-        title: metaHint?.title || yt[0].title,
-        artist: metaHint?.artist || yt[0].artist,
-        duration: metaHint?.duration || yt[0].duration,
-      });
-    } else {
+    let itTrack = null;
+    try {
+      const found = await itunesSearch(hint || metaHint?.title || parsed.itunesId, 8);
+      itTrack =
+        found.find((t) => t.id === parsed.id) ||
+        found.find((t) => t.previewUrl) ||
+        found[0] ||
+        null;
+    } catch {}
+    if (itTrack?.previewUrl) intent = itunesAudioIntent(itTrack);
+    if (!intent) {
       const sc = await findSoundCloudPlayable(metaHint?.title || hint, metaHint?.artist);
-      if (sc) intent = soundcloudPlayIntent(sc);
+      if (sc) {
+        try {
+          const stream = await resolveSoundCloudStream(sc.id);
+          if (stream?.url) intent = soundcloudPlayIntent(stream.track || sc, stream.url);
+          else intent = soundcloudPlayIntent(sc);
+        } catch {
+          intent = soundcloudPlayIntent(sc);
+        }
+      }
+    }
+    if (!intent) {
+      const yt = await youtubeSearch(hint || metaHint?.title || 'music', 6);
+      if (yt.length) {
+        intent = youtubePlayIntent(yt[0].id.slice(2), {
+          title: metaHint?.title || yt[0].title,
+          artist: metaHint?.artist || yt[0].artist,
+          duration: metaHint?.duration || yt[0].duration,
+        });
+      }
     }
   } else {
     try {
-      const clientId = await resolveClientId();
-      const r = await fetch(`https://api-v2.soundcloud.com/tracks/${parsed.id}?client_id=${clientId}`, {
-        headers: { 'User-Agent': UA, Accept: 'application/json' },
-      });
-      if (r.ok) {
-        const mapped = mapTrack(await r.json());
-        if (mapped && mapped.policy !== 'BLOCK') {
-          intent = soundcloudPlayIntent(mapped);
-        }
+      const stream = await resolveSoundCloudStream(parsed.id);
+      if (stream?.url && stream.track && stream.track.policy !== 'BLOCK') {
+        intent = soundcloudPlayIntent(stream.track, stream.url);
       }
     } catch {}
+    if (!intent && metaHint?.title) {
+      const preview = await itunesPreviewFor(metaHint.title, metaHint.artist);
+      if (preview) intent = itunesAudioIntent(preview);
+    }
     if (!intent && metaHint?.title) {
       const yt = await youtubeSearch(`${metaHint.title} ${metaHint.artist || ''}`.trim(), 5);
       if (yt.length) {
@@ -563,7 +652,7 @@ async function resolvePlayIntent(parsed, metaHint) {
     }
   }
 
-  if (!intent) throw new Error('Could not resolve a licensed embed for this track');
+  if (!intent) throw new Error('Could not resolve a stream for this track');
   cacheSet(playCache, cacheKey, intent);
   return intent;
 }
@@ -670,6 +759,7 @@ async function handlePlay(req, res) {
   }
 }
 
+router.get('/media/:token', proxyMedia);
 router.get('/play/:id', handlePlay);
 router.get('/stream/:id', handlePlay);
 

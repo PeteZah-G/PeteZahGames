@@ -382,6 +382,7 @@ app.use('/api/music/home', musicBrowseLimiter);
 app.use('/api/music/search', musicSearchLimiter);
 app.use('/api/music/stream', musicPlayLimiter);
 app.use('/api/music/play', musicPlayLimiter);
+app.use('/api/music/media', musicPlayLimiter);
 app.use('/api/music', musicRouter);
 app.use('/api/search', searchSuggestRouter);
 
@@ -586,8 +587,8 @@ if (IS_DEV) {
 }
 
 const wsConnections = new Map();
-const MAX_WS_PER_IP = 16;
-const MAX_TOTAL_WS = 800;
+const MAX_WS_PER_IP = 24;
+const MAX_TOTAL_WS = 2400;
 
 const server = createServer((req, res) => {
   const ip = toIPv4(null, req);
@@ -645,7 +646,7 @@ server.on('upgrade', (req, socket, head) => {
   const current = wsConnections.get(ip) || 0;
   if (current >= MAX_WS_PER_IP || systemState.totalWS >= MAX_TOTAL_WS) {
     shield.incrementBlocked(ip, 'ws_cap');
-    updateIPReputation(ip, -5);
+    updateIPReputation(ip, -2);
     return socket.destroy();
   }
 
@@ -664,11 +665,15 @@ server.on('upgrade', (req, socket, head) => {
   systemState.totalWS++;
   shield.trackWS(ip, 1);
 
+  let cleaned = false;
   const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
     const n = wsConnections.get(ip) || 1;
-    if (n <= 1) wsConnections.delete(ip); else wsConnections.set(ip, n - 1);
-    systemState.activeConnections--;
-    systemState.totalWS--;
+    if (n <= 1) wsConnections.delete(ip);
+    else wsConnections.set(ip, n - 1);
+    systemState.activeConnections = Math.max(0, systemState.activeConnections - 1);
+    systemState.totalWS = Math.max(0, systemState.totalWS - 1);
     shield.trackWS(ip, -1);
   };
   socket.once('close', cleanup);
@@ -684,9 +689,11 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 const port = parseInt(process.env.PORT || '3000');
-server.keepAliveTimeout = 120000;
-server.headersTimeout = 125000;
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 70000;
 server.requestTimeout = 120000;
+server.maxRequestsPerSocket = 2000;
+server.maxHeadersCount = 64;
 
 setInterval(() => {
   checkSystemPressure(shield);
@@ -694,9 +701,15 @@ setInterval(() => {
   shield.checkAttackConditions('system', systemState);
   cleanupSecurityMaps();
   cleanupCapStore();
+  let live = 0;
+  for (const n of wsConnections.values()) live += n;
+  if (Math.abs(live - systemState.totalWS) > 8) {
+    systemState.totalWS = live;
+    systemState.activeConnections = live;
+  }
 }, 10000);
 
-server.listen({ port }, () => {
+server.listen({ port, backlog: 4096 }, () => {
   const addr = server.address();
   console.log(`Listening on http://localhost:${addr.port}`);
   console.log(`\thttp://${hostname()}:${addr.port}`);

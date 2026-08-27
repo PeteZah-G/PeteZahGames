@@ -162,8 +162,8 @@ const VIRGINIA_REGION = "4";
 const TOR_REGION = "tor";
 const BLACK_FAIL_MS = 20000;
 const AUTO_SOURCE_HOPS = [
-  { provider: "vidnest", region: VIRGINIA_REGION, label: "VidNest" },
   { provider: "vidnest", region: TOR_REGION, label: "VidNest · Tor" },
+  { provider: "vidnest", region: VIRGINIA_REGION, label: "VidNest" },
   { provider: "vidlink", region: TOR_REGION, label: "VidLink · Tor" },
 ] as const;
 
@@ -422,7 +422,7 @@ function MoviePlayer({
     if (prev !== VIRGINIA_REGION && prev !== TOR_REGION) {
       localStorage.setItem("pz-vpn-before-movies", prev);
     }
-    applyVpnRegion(VIRGINIA_REGION);
+    applyVpnRegion(TOR_REGION);
     return () => {
       const restore = localStorage.getItem("pz-vpn-before-movies") || "default";
       applyVpnRegion(restore);
@@ -530,7 +530,7 @@ function MoviePlayer({
     const providerId = autoHopRef.current ? hop.provider : provider;
     const regionId = autoHopRef.current
       ? hop.region
-      : (localStorage.getItem("selectedVpnRegion") || VIRGINIA_REGION);
+      : (localStorage.getItem("selectedVpnRegion") || TOR_REGION);
     const prov = PROVIDERS.find((p) => p.id === providerId) || PROVIDERS[0];
 
     const mount = () => {
