@@ -76,13 +76,14 @@ function sanitizeGameUrl(raw) {
 
 function sanitizeImageUrl(raw) {
   if (typeof raw !== 'string') return '';
-  const url = raw.trim().slice(0, MAX_IMAGE);
-  if (!url) return '';
-  if (url.startsWith('data:image/')) {
-    if (url.length > 120_000) return '';
-    if (!/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(url)) return '';
-    return url.slice(0, 120_000);
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('data:image/')) {
+    if (trimmed.length > 120_000) return '';
+    if (!/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(trimmed)) return '';
+    return trimmed;
   }
+  const url = trimmed.slice(0, MAX_IMAGE);
   if ((url.startsWith('/storage/') || url.startsWith('/!!/') || url.startsWith('/n/m/') || url.startsWith('/f/g/') || url.startsWith('/f/c/')) && !url.includes('..') && !/[\s<>"'`]/.test(url)) {
     return url;
   }

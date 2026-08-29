@@ -104,6 +104,46 @@ function clearRecentGames() {
   } catch {}
 }
 
+async function compressCoverFile(file: File): Promise<string> {
+  const blobUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("load"));
+      el.src = blobUrl;
+    });
+    const maxW = 400;
+    const maxH = 320;
+    let w = img.naturalWidth || img.width;
+    let h = img.naturalHeight || img.height;
+    if (!w || !h) throw new Error("size");
+    const scale = Math.min(1, maxW / w, maxH / h);
+    w = Math.max(1, Math.round(w * scale));
+    h = Math.max(1, Math.round(h * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("ctx");
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL("image/jpeg", 0.86);
+  } finally {
+    URL.revokeObjectURL(blobUrl);
+  }
+}
+
+function readCoverFile(file: File): Promise<string> {
+  return compressCoverFile(file).catch(() =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("read"));
+      reader.readAsDataURL(file);
+    })
+  );
+}
+
 function GameCarousel({
   title,
   tiles,
@@ -275,13 +315,10 @@ function AddGameModal({ onAdd, onClose, publish = false }: { onAdd: (g: Game) =>
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
+    void readCoverFile(file).then((result) => {
       setImageData(result);
       setPreview(result);
-    };
-    reader.readAsDataURL(file);
+    });
   };
 
   const handleSubmit = () => {
@@ -377,13 +414,10 @@ function EditGameModal({
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
+    void readCoverFile(file).then((result) => {
       setImageData(result);
       setPreview(result);
-    };
-    reader.readAsDataURL(file);
+    });
   };
 
   const handleSubmit = () => {
@@ -593,6 +627,12 @@ function GameCard({ game, isFav, onPlay, onOptions, priority = false, index = 0,
         width={148}
         height={118}
         style={{ background: "hsla(210, 30%, 12%, 0.6)" }}
+        onError={(e) => {
+          const el = e.currentTarget;
+          if (el.dataset.fallback === "1") return;
+          el.dataset.fallback = "1";
+          el.src = "/logo.png";
+        }}
       />
 
       <div
