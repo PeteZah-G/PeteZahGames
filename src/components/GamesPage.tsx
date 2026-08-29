@@ -5,7 +5,8 @@ import { requestSyncSoon } from "@/lib/settingsSync";
 import { AdResponsiveBanner, AdNativeBar } from "@/components/ads/Adsterra";
 import { armAdAudio } from "@/lib/exoclick";
 import { originHttpHost } from "@/lib/siteOrigin";
-import { unwrapPlayUrl } from "@/lib/proxyTarget";
+import { resolveGameViaHref } from "@/lib/proxyTarget";
+import { normalizeGameVia, type GameVia } from "@/lib/mochiPath";
 import { hrefs, marks } from "@/lib/uiMarks";
 import { isLiteDevice } from "@/lib/liteDevice";
 import ObfuscatedText from "./ObfuscatedText";
@@ -45,6 +46,7 @@ interface Game {
   categories: string[];
   isCustom?: boolean;
   isGlobal?: boolean;
+  via?: GameVia;
 }
 
 interface GamesPageProps {
@@ -208,13 +210,55 @@ function GameCarousel({
 }
 
 
-function resolveGameUrl(url: string): string {
+function resolveGameUrl(url: string, via?: GameVia): string {
   if (!url) return url;
-  const unwrapped = unwrapPlayUrl(url);
-  if (unwrapped.startsWith("http://") || unwrapped.startsWith("https://")) return unwrapped;
+  const routed = resolveGameViaHref(url, via);
+  if (routed.startsWith("http://") || routed.startsWith("https://")) return routed;
   const host = originHttpHost();
-  if (unwrapped.startsWith("/")) return host + unwrapped;
-  return host + "/" + unwrapped.replace(/^\/+/, "");
+  if (routed.startsWith("/")) return host + routed;
+  return host + "/" + routed.replace(/^\/+/, "");
+}
+
+function LaunchPathField({
+  value,
+  onChange,
+}: {
+  value: GameVia;
+  onChange: (next: GameVia) => void;
+}) {
+  return (
+    <div>
+      <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Launch path</label>
+      <div className="mt-1 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => onChange("fg")}
+          className="px-3 py-2 rounded-xl text-left text-xs transition-colors"
+          style={{
+            border: value === "fg" ? "1px solid hsla(var(--primary), 0.45)" : "1px solid hsl(var(--border))",
+            background: value === "fg" ? "hsla(var(--primary), 0.12)" : "hsl(var(--accent))",
+            color: "hsl(var(--foreground))",
+          }}
+        >
+          <span className="font-semibold block">Path 1</span>
+          <span className="text-[10px] text-muted-foreground">Same-origin embed</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange("ve")}
+          className="px-3 py-2 rounded-xl text-left text-xs transition-colors"
+          style={{
+            border: value === "ve" ? "1px solid hsla(var(--primary), 0.45)" : "1px solid hsl(var(--border))",
+            background: value === "ve" ? "hsla(var(--primary), 0.12)" : "hsl(var(--accent))",
+            color: "hsl(var(--foreground))",
+          }}
+        >
+          <span className="font-semibold block">Path 2</span>
+          <span className="text-[10px] text-muted-foreground">Remote frame</span>
+        </button>
+      </div>
+    </div>
+  );
 }
 
 
@@ -225,6 +269,7 @@ function AddGameModal({ onAdd, onClose, publish = false }: { onAdd: (g: Game) =>
   const [category, setCategory] = useState("");
   const [imageData, setImageData] = useState("");
   const [preview, setPreview] = useState("");
+  const [via, setVia] = useState<GameVia>("ve");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -242,7 +287,7 @@ function AddGameModal({ onAdd, onClose, publish = false }: { onAdd: (g: Game) =>
   const handleSubmit = () => {
     if (!title.trim() || !url.trim() || !imageData || !category) return;
     let finalUrl = url.trim();
-    if (!finalUrl.startsWith("http")) finalUrl = "https://" + finalUrl;
+    if (!finalUrl.startsWith("http") && !finalUrl.startsWith("/")) finalUrl = "https://" + finalUrl;
     const game: Game = {
       id: generateGameId({ label: title, url: finalUrl }),
       label: title.trim(),
@@ -250,6 +295,7 @@ function AddGameModal({ onAdd, onClose, publish = false }: { onAdd: (g: Game) =>
       imageUrl: imageData,
       categories: [category],
       isCustom: true,
+      via: publish ? via : undefined,
     };
     onAdd(game);
   };
@@ -279,6 +325,7 @@ function AddGameModal({ onAdd, onClose, publish = false }: { onAdd: (g: Game) =>
             <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com"
               className="w-full mt-1 px-3 py-2 rounded-xl bg-accent border border-border text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-foreground/20" />
           </div>
+          {publish ? <LaunchPathField value={via} onChange={setVia} /> : null}
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Category</label>
             <select value={category} onChange={e => setCategory(e.target.value)}
@@ -310,10 +357,12 @@ function EditGameModal({
   game,
   onSave,
   onClose,
+  showLaunchPath = false,
 }: {
   game: Game;
   onSave: (g: Game) => void;
   onClose: () => void;
+  showLaunchPath?: boolean;
 }) {
   const [title, setTitle] = useState(game.label);
   const [url, setUrl] = useState(game.url);
@@ -322,6 +371,7 @@ function EditGameModal({
   const [category, setCategory] = useState(matched || cat0 || "");
   const [imageData, setImageData] = useState(game.imageUrl || "");
   const [preview, setPreview] = useState(game.imageUrl || "");
+  const [via, setVia] = useState<GameVia>(normalizeGameVia(game.via));
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -346,6 +396,7 @@ function EditGameModal({
       url: finalUrl,
       imageUrl: imageData,
       categories: [category],
+      via: showLaunchPath ? via : game.via,
     });
   };
 
@@ -374,6 +425,7 @@ function EditGameModal({
             <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com"
               className="w-full mt-1 px-3 py-2 rounded-xl bg-accent border border-border text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-foreground/20" />
           </div>
+          {showLaunchPath ? <LaunchPathField value={via} onChange={setVia} /> : null}
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Category</label>
             <select value={category} onChange={e => setCategory(e.target.value)}
@@ -689,6 +741,7 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
                 url: o.url || g.url,
                 imageUrl: o.imageUrl || g.imageUrl,
                 categories: Array.isArray(o.categories) && o.categories.length ? o.categories : g.categories,
+                via: o.via || g.via,
               };
             })
             .filter((g) => !hidden.includes(g.id) && !excluded.has(g.id)),
@@ -739,7 +792,7 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
     pushRecentGame(game.id);
     setPlayCounts((prev) => ({ ...prev, [game.id]: (prev[game.id] || 0) + 1 }));
     if (onNavigate) {
-      const resolved = resolveGameUrl(game.url);
+      const resolved = resolveGameUrl(game.url, game.via);
       onNavigate(`${hrefs.gv()}?url=${encodeURIComponent(resolved)}&title=${encodeURIComponent(game.label)}&gid=${encodeURIComponent(game.id)}`);
     }
   }, [onNavigate]);
@@ -841,6 +894,7 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
             url: game.url,
             imageUrl: game.imageUrl,
             categories: game.categories || [],
+            via: game.via || "ve",
           }),
         });
         const data = await r.json().catch(() => ({}));
@@ -875,6 +929,7 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
           url: game.url,
           imageUrl: game.imageUrl,
           categories: game.categories || [],
+          via: game.via || "ve",
         }),
       });
       const data = await r.json().catch(() => ({}));
@@ -1051,6 +1106,7 @@ export default function GamesPage({ onNavigate, adminEdit = false, initialQuery 
             game={editGame}
             onSave={handleEditGame}
             onClose={() => setEditGame(null)}
+            showLaunchPath={isAdminMode}
           />
         )}
         {optionsGame && (

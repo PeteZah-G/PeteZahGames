@@ -27,3 +27,26 @@ export function publicMochiHref(raw: string): string {
   if (rest.startsWith("http://")) return MOCHI_PUB + "ht/" + withIndex(rest.slice(7));
   return u;
 }
+
+export type GameVia = "fg" | "ve";
+
+export function normalizeGameVia(raw: unknown): GameVia {
+  return raw === "fg" ? "fg" : "ve";
+}
+
+export function fgHrefFromRemote(raw: string): string {
+  let u = String(raw || "").trim();
+  if (!u) return u;
+  if (isMochiHref(u)) return publicMochiHref(u);
+  if (u.startsWith("/storage/") || u.startsWith("/iframe")) return u;
+  try {
+    if (!/^https?:\/\//i.test(u)) u = "https://" + u.replace(/^\/+/, "");
+    const parsed = new URL(u);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return u;
+    const tail = parsed.host + (parsed.pathname || "/") + parsed.search + parsed.hash;
+    if (parsed.protocol === "http:") return publicMochiHref(MOCHI_PUB + "ht/" + tail);
+    return publicMochiHref(MOCHI_PUB + "hs/" + tail);
+  } catch {
+    return u;
+  }
+}

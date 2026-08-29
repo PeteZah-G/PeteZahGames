@@ -1,7 +1,7 @@
 import { PX, getMuxRoot, openMuxConnection, setMuxTransport, defaultStreamUrl } from "./px";
 import { armPx } from "./browserInit";
 import { originWsHost } from "./siteOrigin";
-import { isMochiHref, publicMochiHref } from "./mochiPath";
+import { isMochiHref, publicMochiHref, fgHrefFromRemote, normalizeGameVia } from "./mochiPath";
 import { activeRelayUrl } from "./vpn";
 
 function asUrl(raw: string): URL | null {
@@ -66,6 +66,16 @@ export function unwrapPlayUrl(raw: string): string {
   }
   if (isMochiHref(url)) return publicMochiHref(url);
   return url;
+}
+
+export function resolveGameViaHref(url: string, via?: unknown): string {
+  const mode = normalizeGameVia(via);
+  let target = unwrapPlayUrl(url);
+  if (mode === "fg" && !isMochiHref(target) && !target.startsWith("/storage/")) {
+    target = fgHrefFromRemote(target);
+  }
+  if (isMochiHref(target)) return publicMochiHref(target);
+  return target;
 }
 
 export function isPremiumMuxHost(url: string): boolean {

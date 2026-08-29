@@ -108,6 +108,10 @@ function sanitizeCategories(raw) {
     .slice(0, MAX_CATEGORIES);
 }
 
+function sanitizeVia(raw) {
+  return raw === 'fg' ? 'fg' : 've';
+}
+
 export function ensureGameCatalogTables() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS game_exclusions (
@@ -141,6 +145,16 @@ export function ensureGameCatalogTables() {
     CREATE INDEX IF NOT EXISTS idx_game_exclusions_at ON game_exclusions(excluded_at DESC);
     CREATE INDEX IF NOT EXISTS idx_game_global_adds_at ON game_global_adds(created_at DESC);
   `);
+  try {
+    db.prepare('SELECT via FROM game_global_adds LIMIT 1').get();
+  } catch {
+    db.exec(`ALTER TABLE game_global_adds ADD COLUMN via TEXT NOT NULL DEFAULT 've'`);
+  }
+  try {
+    db.prepare('SELECT via FROM game_overrides LIMIT 1').get();
+  } catch {
+    db.exec(`ALTER TABLE game_overrides ADD COLUMN via TEXT`);
+  }
 }
 
 ensureGameCatalogTables();
@@ -153,7 +167,7 @@ export function getGamesCatalogHandler(req, res) {
       .map((r) => r.gameId);
     const globals = db
       .prepare(
-        `SELECT id, label, url, image_url as imageUrl, categories, created_at as createdAt
+        `SELECT id, label, url, image_url as imageUrl, categories, via, created_at as createdAt
          FROM game_global_adds ORDER BY created_at DESC LIMIT ?`
       )
       .all(MAX_GLOBAL_GAMES)
@@ -171,13 +185,14 @@ export function getGamesCatalogHandler(req, res) {
           url: g.url,
           imageUrl: g.imageUrl || '',
           categories,
+          via: sanitizeVia(g.via),
           isCustom: false,
           isGlobal: true,
         };
       });
     const overrides = db
       .prepare(
-        `SELECT game_id as gameId, label, url, image_url as imageUrl, categories
+        `SELECT game_id as gameId, label, url, image_url as imageUrl, categories, via
          FROM game_overrides`
       )
       .all()
@@ -195,6 +210,7 @@ export function getGamesCatalogHandler(req, res) {
           url: g.url || '',
           imageUrl: g.imageUrl || '',
           categories,
+          via: g.via ? sanitizeVia(g.via) : undefined,
         };
       });
     res.setHeader('Cache-Control', 'private, max-age=15');
@@ -261,6 +277,7 @@ export function adminAddGlobalGameHandler(req, res) {
   const url = sanitizeGameUrl(req.body?.url);
   const imageUrl = sanitizeImageUrl(req.body?.imageUrl || '');
   const categories = sanitizeCategories(req.body?.categories);
+  const via = sanitizeVia(req.body?.via);
 
   if (!label) return res.status(400).json({ error: 'Title required' });
   if (!url) return res.status(400).json({ error: 'Invalid game URL' });
@@ -273,10 +290,11 @@ export function adminAddGlobalGameHandler(req, res) {
 
   const id = `global-${randomUUID().replace(/-/g, '').slice(0, 16)}`;
   const now = Date.now();
+  const route = url.includes('/f/g/') || url.includes('/!!/') || url.includes('/n/m/') ? 'fg' : via;
   db.prepare(
-    `INSERT INTO game_global_adds (id, label, url, image_url, categories, created_at, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, label, url, imageUrl, JSON.stringify(categories), now, admin.id);
+    `INSERT INTO game_global_adds (id, label, url, image_url, categories, via, created_at, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, label, url, imageUrl, JSON.stringify(categories), route, now, admin.id);
 
   return res.status(201).json({
     ok: true,
@@ -286,6 +304,7 @@ export function adminAddGlobalGameHandler(req, res) {
       url,
       imageUrl,
       categories,
+      via: route,
       isCustom: false,
       isGlobal: true,
     },
@@ -317,39 +336,42 @@ export function adminUpdateGameHandler(req, res) {
   const url = sanitizeGameUrl(req.body?.url);
   const imageUrl = sanitizeImageUrl(req.body?.imageUrl || '');
   const categories = sanitizeCategories(req.body?.categories);
+  const via = sanitizeVia(req.body?.via);
 
   if (!label) return res.status(400).json({ error: 'Title required' });
   if (!url) return res.status(400).json({ error: 'Invalid game URL' });
   if (!imageUrl) return res.status(400).json({ error: 'Image required' });
 
   const now = Date.now();
+  const route = url.includes('/f/g/') || url.includes('/!!/') || url.includes('/n/m/') ? 'fg' : via;
   if (/^global-[a-z0-9]+$/i.test(id)) {
     const info = db
       .prepare(
-        `UPDATE game_global_adds SET label = ?, url = ?, image_url = ?, categories = ? WHERE id = ?`
+        `UPDATE game_global_adds SET label = ?, url = ?, image_url = ?, categories = ?, via = ? WHERE id = ?`
       )
-      .run(label, url, imageUrl, JSON.stringify(categories), id);
+      .run(label, url, imageUrl, JSON.stringify(categories), route, id);
     if (!info.changes) return res.status(404).json({ error: 'Not found' });
     return res.json({
       ok: true,
-      game: { id, label, url, imageUrl, categories, isCustom: false, isGlobal: true },
+      game: { id, label, url, imageUrl, categories, via: route, isCustom: false, isGlobal: true },
     });
   }
 
   db.prepare(
-    `INSERT INTO game_overrides (game_id, label, url, image_url, categories, updated_at, updated_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO game_overrides (game_id, label, url, image_url, categories, via, updated_at, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(game_id) DO UPDATE SET
        label = excluded.label,
        url = excluded.url,
        image_url = excluded.image_url,
        categories = excluded.categories,
+       via = excluded.via,
        updated_at = excluded.updated_at,
        updated_by = excluded.updated_by`
-  ).run(id, label, url, imageUrl, JSON.stringify(categories), now, admin.id);
+  ).run(id, label, url, imageUrl, JSON.stringify(categories), route, now, admin.id);
 
   return res.json({
     ok: true,
-    game: { id, label, url, imageUrl, categories, isCustom: false, isGlobal: false },
+    game: { id, label, url, imageUrl, categories, via: route, isCustom: false, isGlobal: false },
   });
 }
