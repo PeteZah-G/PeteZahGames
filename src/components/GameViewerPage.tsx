@@ -19,6 +19,7 @@ import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
 import { armPx } from "@/lib/browserInit";
 import { applyMuxForUrl, unwrapPlayUrl } from "@/lib/proxyTarget";
 import { hrefs } from "@/lib/uiMarks";
+import { mutePollMs } from "@/lib/liteDevice";
 
 interface GameViewerPageProps {
   url: string;
@@ -273,7 +274,7 @@ export default function GameViewerPage({
   useEffect(() => {
     const tick = () => applyMuteToFrame(getActiveFrame(), muted);
     tick();
-    const id = window.setInterval(tick, 700);
+    const id = window.setInterval(tick, mutePollMs());
     return () => window.clearInterval(id);
   }, [muted, getActiveFrame, unlocked, url, useProxy]);
 

@@ -68,6 +68,18 @@
   border: none !important;
 }
 
+.lite-device .space-twinkle {
+  display: none;
+}
+
+.lite-device .game-card img {
+  transition: none !important;
+}
+
+.lite-device .game-card:hover img {
+  transform: none !important;
+}
+
 @layer base {
   * {
     @apply border-border;

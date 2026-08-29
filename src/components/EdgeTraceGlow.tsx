@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { isLiteDevice } from "@/lib/liteDevice";
 
 export default function SearchEdgeGlow({ enabled }: { enabled: boolean }) {
   const [on, setOn] = useState(false);
+  const lite = isLiteDevice();
 
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || lite) {
       setOn(false);
       return;
     }

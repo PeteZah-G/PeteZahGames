@@ -7,18 +7,24 @@ import "./styles/studio-overrides.css";
 import { loadFontMaps } from "./lib/fontObfuscation";
 import { defaultBrandSrc } from "./lib/uiMarks";
 import { themeById, applyBrowserIdentity } from "./lib/siteThemes";
+import { isLiteDevice } from "./lib/liteDevice";
 
-const fontObf = document.createElement("script");
-fontObf.src = "/font-obfuscation.js";
-fontObf.async = true;
-document.head.appendChild(fontObf);
-loadFontMaps();
-if (document.fonts?.load) {
-  document.fonts.load("600 16px plusjakartasans-obf").catch(() => {});
+const lite = isLiteDevice();
+if (lite) {
+  document.documentElement.classList.add("lite-device");
 }
-
 if (/CrOS/.test(navigator.userAgent)) {
-  document.documentElement.classList.add('chromeos');
+  document.documentElement.classList.add("chromeos");
+}
+if (!lite) {
+  const fontObf = document.createElement("script");
+  fontObf.src = "/font-obfuscation.js";
+  fontObf.async = true;
+  document.head.appendChild(fontObf);
+  loadFontMaps();
+  if (document.fonts?.load) {
+    document.fonts.load("600 16px plusjakartasans-obf").catch(() => {});
+  }
 }
 
 function applyStoredSettings() {
@@ -100,7 +106,10 @@ if (localStorage.getItem("bgNetwork") === null) {
   localStorage.setItem("bgNetwork", "false");
 }
 if (localStorage.getItem("searchEdgeGlow") === null) {
-  localStorage.setItem("searchEdgeGlow", "true");
+  localStorage.setItem("searchEdgeGlow", lite ? "false" : "true");
+}
+if (localStorage.getItem("lowPowerBg") === null) {
+  localStorage.setItem("lowPowerBg", lite ? "true" : "false");
 }
 try {
   const t = themeById(localStorage.getItem("theme"));

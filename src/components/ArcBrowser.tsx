@@ -8,7 +8,8 @@ import Toolbar from "@/components/BrowserToolbar";
 import ContentArea from "@/components/ContentArea";
 import StatusBar from "@/components/StatusBar";
 import DiscordPopup from "@/components/DiscordPopup";
-import VantaBackground from "@/components/VantaBackground";
+import VantaBackdrop from "@/components/VantaBackdrop";
+import { presenceIntervalMs } from "@/lib/liteDevice";
 import DebugHud from "@/components/DebugHud";
 import HorizontalTabBar from "@/components/HorizontalTabBar";
 import GlobalAnnouncement from "@/components/GlobalAnnouncement";
@@ -114,7 +115,9 @@ export default function ArcBrowser() {
   }, [user]);
 
   useEffect(() => {
+    let iv: number | null = null;
     const report = () => {
+      if (document.hidden) return;
       const urls = state.tabs
         .map((t) => t.url)
         .filter((u) => typeof u === "string" && (/^https?:\/\//i.test(u) || /^petezah:\/\//i.test(u)))
@@ -148,8 +151,29 @@ export default function ArcBrowser() {
       }).catch(() => {});
     };
     report();
-    const t = window.setInterval(report, 12000);
-    return () => window.clearInterval(t);
+    const start = () => {
+      if (iv !== null) return;
+      iv = window.setInterval(report, presenceIntervalMs());
+    };
+    const stop = () => {
+      if (iv !== null) {
+        window.clearInterval(iv);
+        iv = null;
+      }
+    };
+    const onVis = () => {
+      if (document.hidden) stop();
+      else {
+        report();
+        start();
+      }
+    };
+    start();
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, [state.tabs, state.focusedTab, state.activeTab]);
 
   useEffect(() => {
@@ -314,7 +338,7 @@ export default function ArcBrowser() {
         position: "relative",
       }}
     >
-      <VantaBackground />
+      <VantaBackdrop />
       <DebugHud />
       <div
         style={{

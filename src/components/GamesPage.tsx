@@ -7,6 +7,7 @@ import { armAdAudio } from "@/lib/exoclick";
 import { originHttpHost } from "@/lib/siteOrigin";
 import { unwrapPlayUrl } from "@/lib/proxyTarget";
 import { hrefs, marks } from "@/lib/uiMarks";
+import { isLiteDevice } from "@/lib/liteDevice";
 import ObfuscatedText from "./ObfuscatedText";
 
 const CATEGORIES = ["All", "Action", "Racing", "Strategy", "Sports", "Skill", "Shooting", "2 Player", "Io"];
@@ -493,6 +494,7 @@ function GameCard({ game, isFav, onPlay, onOptions, priority = false, index = 0,
   badge?: { label: string; tone: "blue" | "gold" | "white" } | null;
 }) {
   const ease = [0.22, 1, 0.36, 1] as const;
+  const lite = isLiteDevice();
   const badgeStyle =
     badge?.tone === "gold"
       ? { background: "#e8b84a", color: "#1a1204" }
@@ -501,15 +503,15 @@ function GameCard({ game, isFav, onPlay, onOptions, priority = false, index = 0,
         : { background: "#5aa8d4", color: "#fff" };
   return (
     <motion.div
-      initial={{ opacity: 0, y: 14, scale: 0.97 }}
+      initial={lite ? false : { opacity: 0, y: 14, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
-        duration: 0.45,
-        delay: Math.min(index, 20) * 0.03,
+        duration: lite ? 0.12 : 0.45,
+        delay: lite ? 0 : Math.min(index, 20) * 0.03,
         ease,
       }}
-      whileHover={{ scale: 1.04, zIndex: 10 }}
-      whileTap={{ scale: 0.985 }}
+      whileHover={lite ? undefined : { scale: 1.04, zIndex: 10 }}
+      whileTap={lite ? undefined : { scale: 0.985 }}
       className="relative cursor-pointer group rounded-xl overflow-hidden game-card"
       style={{
         aspectRatio: "5/4",

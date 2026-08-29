@@ -3,6 +3,8 @@ import {
   useEffect,
   useRef,
   useCallback,
+  lazy,
+  Suspense,
   type ReactNode,
   type CSSProperties,
   type RefObject,
@@ -40,32 +42,51 @@ import {
   ensureDefaultBookmarks,
 } from "@/components/BookmarksPage";
 import { isBookmarklet } from "@/lib/bookmarklets";
-import GamesPage from "./GamesPage";
-import GameViewerPage from "./GameViewerPage";
-import AIPage from "./AIPage";
-import AppsPage from "./AppsPage";
-import MusicPage from "./MusicPage";
-import ChatPage from "./ChatPage";
-import MoviesPage from "./MoviesPage";
-import FirefoxVmPage from "./FirefoxVmPage";
-import AdViewerPage from "./AdViewerPage";
+import { extensionPollMs } from "@/lib/liteDevice";
 import ObfuscatedText from "./ObfuscatedText";
 import { installFrameOpenTrap, parseAdTabUrl } from "@/lib/openTabBridge";
-import AppViewerPage from "./AppViewerPage";
-import ChangelogPage from "./ChangelogPage";
-import FeedbackPage from "./FeedbackPage";
-import AccountPage from "./AccountPage";
-import HistoryPage from "./HistoryPage";
-import ToolsPage from "./ToolsPage";
-import ExtensionsPage from "./ExtensionsPage";
-import BookmarksPage from "./BookmarksPage";
-import ProfilePage from "./ProfilePage";
-import TrendingDashboard from "./TrendingDashboard";
 import { recordHistory } from "./HistoryPage";
 import { runExtensionsOnFrame } from "./ExtensionsPage";
 import { requestSyncSoon } from "@/lib/settingsSync";
 import { openTrendingOverlay } from "@/lib/homeUrl";
 import { hrefs, isGHref, marks } from "@/lib/uiMarks";
+
+const GamesPage = lazy(() => import("./GamesPage"));
+const GameViewerPage = lazy(() => import("./GameViewerPage"));
+const AIPage = lazy(() => import("./AIPage"));
+const AppsPage = lazy(() => import("./AppsPage"));
+const MusicPage = lazy(() => import("./MusicPage"));
+const ChatPage = lazy(() => import("./ChatPage"));
+const MoviesPage = lazy(() => import("./MoviesPage"));
+const FirefoxVmPage = lazy(() => import("./FirefoxVmPage"));
+const AdViewerPage = lazy(() => import("./AdViewerPage"));
+const AppViewerPage = lazy(() => import("./AppViewerPage"));
+const ChangelogPage = lazy(() => import("./ChangelogPage"));
+const FeedbackPage = lazy(() => import("./FeedbackPage"));
+const AccountPage = lazy(() => import("./AccountPage"));
+const HistoryPage = lazy(() => import("./HistoryPage"));
+const ToolsPage = lazy(() => import("./ToolsPage"));
+const ExtensionsPage = lazy(() => import("./ExtensionsPage"));
+const BookmarksPage = lazy(() => import("./BookmarksPage"));
+const ProfilePage = lazy(() => import("./ProfilePage"));
+const TrendingDashboard = lazy(() => import("./TrendingDashboard"));
+
+function TabPaneShell({
+  visible,
+  children,
+}: {
+  visible: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className="absolute inset-0"
+      style={{ display: visible ? "block" : "none" }}
+    >
+      <Suspense fallback={null}>{children}</Suspense>
+    </div>
+  );
+}
 
 interface ContentAreaProps {
   tabs: Tab[];
@@ -1155,11 +1176,21 @@ function ProxyFrameHost({ tab, isVisible }: { tab: Tab; isVisible: boolean }) {
     };
     window.addEventListener("petezah-url-change", onUrl);
 
-    const poll = window.setInterval(() => inject(), 2500);
+    const pollMs = extensionPollMs();
+    const pollTick = () => {
+      if (document.hidden) return;
+      inject();
+    };
+    const poll = window.setInterval(pollTick, pollMs);
+    const onVis = () => {
+      if (!document.hidden) inject();
+    };
+    document.addEventListener("visibilitychange", onVis);
 
     return () => {
       iframe.removeEventListener("load", onLoad);
       window.removeEventListener("petezah-url-change", onUrl);
+      document.removeEventListener("visibilitychange", onVis);
       window.clearInterval(poll);
     };
   }, [isVisible, tab.frame, tab.id, tab.url]);
@@ -1197,9 +1228,19 @@ function ExtensionAwareIframe({
     const inject = () => runExtensionsOnFrame(iframe, pageUrl);
     inject();
     iframe.addEventListener("load", inject);
-    const poll = window.setInterval(inject, 2500);
+    const pollMs = extensionPollMs();
+    const pollTick = () => {
+      if (document.hidden) return;
+      inject();
+    };
+    const poll = window.setInterval(pollTick, pollMs);
+    const onVis = () => {
+      if (!document.hidden) inject();
+    };
+    document.addEventListener("visibilitychange", onVis);
     return () => {
       iframe.removeEventListener("load", inject);
+      document.removeEventListener("visibilitychange", onVis);
       window.clearInterval(poll);
     };
   }, [src, pageUrl, isVisible]);
@@ -1256,16 +1297,13 @@ function TabPane({
         : "") ||
       "";
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <GameViewerPage
           url={gameUrl}
           title={gameTitle}
           onBack={() => onNavigate(hrefs.g())}
         />
-      </div>
+      </TabPaneShell>
     );
   }
   if (isNewTab) {
@@ -1281,12 +1319,9 @@ function TabPane({
 
   if (isTrending) {
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <TrendingDashboard variant="page" onNavigate={onNavigate} />
-      </div>
+      </TabPaneShell>
     );
   }
 
@@ -1294,187 +1329,136 @@ function TabPane({
     const params = new URLSearchParams(tab.url.split("?")[1] || "");
     const adminEdit = params.get("adminEdit") === "1";
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <GamesPage onNavigate={onNavigate} adminEdit={adminEdit} />
-      </div>
+      </TabPaneShell>
     );
   }
 
   if (isAI) {
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <AIPage onNavigate={onNavigate} />
-      </div>
+      </TabPaneShell>
     );
   }
 
   if (isApps) {
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <AppsPage onNavigate={onNavigate} />
-      </div>
+      </TabPaneShell>
     );
   }
 
   if (isMusic) {
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <MusicPage onNavigate={onNavigate} initialUrl={tab.url} />
-      </div>
+      </TabPaneShell>
     );
   }
 
   if (isUserProfile) {
     const handle = tab.url.replace(/^petezah:\/\/user\//, "");
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <ProfilePage username={handle} onNavigate={onNavigate} embedded />
-      </div>
+      </TabPaneShell>
     );
   }
 
   if (isChat) {
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <ChatPage onNavigate={onNavigate} />
-      </div>
+      </TabPaneShell>
     );
   }
 
   if (isMovies) {
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <MoviesPage onNavigate={onNavigate} />
-      </div>
+      </TabPaneShell>
     );
   }
 
   if (isFirefox) {
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <FirefoxVmPage onNavigate={onNavigate} />
-      </div>
+      </TabPaneShell>
     );
   }
 
   if (tab.url.startsWith("petezah://ad")) {
     const adUrl = parseAdTabUrl(tab.url) || "";
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         {adUrl ? <AdViewerPage url={adUrl} /> : null}
-      </div>
+      </TabPaneShell>
     );
   }
 
   if (tab.url === "petezah://changelog") {
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <ChangelogPage onNavigate={onNavigate} />
-      </div>
+      </TabPaneShell>
     );
   }
 
   if (tab.url === "petezah://feedback") {
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <FeedbackPage onNavigate={onNavigate} />
-      </div>
+      </TabPaneShell>
     );
   }
 
   if (tab.url === "petezah://settings") {
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <AccountPage onNavigate={onNavigate} />
-      </div>
+      </TabPaneShell>
     );
   }
 
   if (tab.url === "petezah://account") {
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <AccountPage onNavigate={onNavigate} />
-      </div>
+      </TabPaneShell>
     );
   }
 
   if (tab.url === "petezah://history") {
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <HistoryPage onNavigate={onNavigate} />
-      </div>
+      </TabPaneShell>
     );
   }
   if (tab.url === "petezah://extensions") {
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <ExtensionsPage onNavigate={onNavigate} />
-      </div>
+      </TabPaneShell>
     );
   }
   if (tab.url === "petezah://bookmarks") {
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <BookmarksPage onNavigate={onNavigate} />
-      </div>
+      </TabPaneShell>
     );
   }
   if (tab.url === "petezah://tools" || tab.url.startsWith("petezah://tools?")) {
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <ToolsPage onNavigate={onNavigate} />
-      </div>
+      </TabPaneShell>
     );
   }
 
@@ -1488,16 +1472,13 @@ function TabPane({
         : "") ||
       "";
     return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isVisible ? "block" : "none" }}
-      >
+      <TabPaneShell visible={isVisible}>
         <AppViewerPage
           url={appUrl}
           title={appTitle}
           onBack={() => onNavigate("petezah://apps")}
         />
-      </div>
+      </TabPaneShell>
     );
   }
 

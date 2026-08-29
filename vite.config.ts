@@ -212,6 +212,40 @@ export default defineConfig(({ mode }) => ({
     outDir: mode === "svg" ? "svg" : "dist",
     emptyOutDir: true,
     assetsDir: "assets",
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("/components/GamesPage")) return "algebra";
+          if (id.includes("/components/GameViewerPage")) return "geometry";
+          if (id.includes("/components/MoviesPage")) return "literature";
+          if (id.includes("/components/MusicPage")) return "acoustics";
+          if (id.includes("/components/AIPage")) return "research";
+          if (id.includes("/components/AccountPage")) return "student-portal";
+          if (id.includes("/components/AppsPage")) return "toolkit";
+          if (id.includes("/components/ChatPage")) return "seminar";
+          if (id.includes("/components/FirefoxVmPage")) return "chemistry-lab";
+          if (id.includes("/components/AdViewerPage")) return "bulletin";
+          if (id.includes("/components/AppViewerPage")) return "workbook";
+          if (id.includes("/components/ChangelogPage")) return "syllabus";
+          if (id.includes("/components/FeedbackPage")) return "evaluation";
+          if (id.includes("/components/HistoryPage")) return "timeline";
+          if (id.includes("/components/ToolsPage")) return "calculator";
+          if (id.includes("/components/ExtensionsPage")) return "modules";
+          if (id.includes("/components/BookmarksPage")) return "reading-list";
+          if (id.includes("/components/ProfilePage")) return "portfolio";
+          if (id.includes("/components/TrendingDashboard")) return "highlights";
+          if (id.includes("/components/VantaBackground")) return "meteorology";
+          if (id.includes("/ads/Adsterra")) return "periodic-table";
+          if (id.includes("/InterstitialAdGate")) return "lab-safety";
+          if (id.includes("/lib/exoclick")) return "microscope";
+          if (!id.includes("node_modules")) return;
+          if (id.includes("three") || id.includes("vanta")) return "earth-science";
+          if (id.includes("framer-motion")) return "kinematics";
+          if (id.includes("lucide-react")) return "glyphs";
+          if (id.includes("@tanstack/react-query")) return "datastore";
+        },
+      },
+    },
   },
   resolve: {
     alias: {

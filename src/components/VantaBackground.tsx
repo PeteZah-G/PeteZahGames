@@ -3,6 +3,7 @@ import * as THREE from "three";
 import FOG from "vanta/dist/vanta.fog.min";
 import NET from "vanta/dist/vanta.net.min";
 import { themeById } from "@/lib/siteThemes";
+import { isLiteDevice, lowPowerBackdrop } from "@/lib/liteDevice";
 
 const DEFAULT_BG = "#020810";
 
@@ -91,7 +92,7 @@ function fitVantaCanvas(el: HTMLElement | null, effect: any, contained = false) 
       if (typeof effect?.renderer?.setSize === "function") {
         effect.renderer.setSize(w, h, false);
       }
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, lowPowerBackdrop() || isLiteDevice() ? 1 : 2);
       const bw = Math.floor(w * dpr);
       const bh = Math.floor(h * dpr);
       if (canvas.width !== bw || canvas.height !== bh) {
@@ -115,6 +116,7 @@ export default function VantaBackground({ contained = false }: { contained?: boo
   const [network, setNetwork] = useState(readNetwork);
   const [bgImage, setBgImage] = useState(readBgImage);
   const [themeId, setThemeId] = useState(readThemeId);
+  const [lowPower, setLowPower] = useState(lowPowerBackdrop);
 
   useEffect(() => {
     const sync = () => {
@@ -122,6 +124,7 @@ export default function VantaBackground({ contained = false }: { contained?: boo
       setNetwork(readNetwork());
       setBgImage(readBgImage());
       setThemeId(readThemeId());
+      setLowPower(lowPowerBackdrop());
     };
     window.addEventListener("petezah-settings-updated", sync);
     window.addEventListener("storage", sync);
@@ -148,27 +151,33 @@ export default function VantaBackground({ contained = false }: { contained?: boo
       midtoneColor: site.fog.mid,
       highlightColor: site.fog.highlight,
     };
+    const fogSpeed = lowPower ? 0.35 : 1.35;
+    const fogZoom = lowPower ? 1 : 1.3;
+    const fogBlur = lowPower ? 0.95 : 0.85;
+    const fogControls = !lowPower;
 
     try {
       if (fogEffect.current) {
         fogEffect.current.setOptions({
           ...theme,
-          blurFactor: 0.85,
-          speed: 1.35,
-          zoom: 1.3,
+          blurFactor: fogBlur,
+          speed: fogSpeed,
+          zoom: fogZoom,
+          mouseControls: fogControls,
+          touchControls: fogControls,
         });
       } else {
         fogEffect.current = FOG({
           el: fogRef.current,
           THREE,
-          mouseControls: true,
-          touchControls: true,
+          mouseControls: fogControls,
+          touchControls: fogControls,
           gyroControls: false,
           minHeight: 200,
           minWidth: 200,
-          blurFactor: 0.85,
-          speed: 1.35,
-          zoom: 1.3,
+          blurFactor: fogBlur,
+          speed: fogSpeed,
+          zoom: fogZoom,
           ...theme,
         });
       }
@@ -213,10 +222,11 @@ export default function VantaBackground({ contained = false }: { contained?: boo
         ro?.disconnect();
       } catch {}
     };
-  }, [bg, themeId, bgImage, contained]);
+  }, [bg, themeId, bgImage, contained, lowPower]);
 
   useEffect(() => {
-    if (!network || bgImage) {
+    const showNet = network && !isLiteDevice() && !lowPower;
+    if (!showNet || bgImage) {
       try {
         netEffect.current?.destroy?.();
       } catch {}
@@ -249,7 +259,7 @@ export default function VantaBackground({ contained = false }: { contained?: boo
       }
       fitVantaCanvas(netRef.current, netEffect.current, contained);
     } catch {}
-  }, [network, themeId, bgImage, contained]);
+  }, [network, themeId, bgImage, contained, lowPower]);
 
   useEffect(() => {
     return () => {
@@ -299,6 +309,8 @@ export default function VantaBackground({ contained = false }: { contained?: boo
     );
   }
 
+  const showNet = network && !isLiteDevice() && !lowPower;
+
   return (
     <>
       <div
@@ -311,7 +323,7 @@ export default function VantaBackground({ contained = false }: { contained?: boo
         }}
       />
       <div aria-hidden className="space-twinkle" style={fullBleed} />
-      {network && (
+      {showNet && network && (
         <div
           ref={netRef}
           className="vanta-full"
