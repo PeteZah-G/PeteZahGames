@@ -50,6 +50,8 @@ import { runExtensionsOnFrame } from "./ExtensionsPage";
 import { requestSyncSoon } from "@/lib/settingsSync";
 import { openTrendingOverlay } from "@/lib/homeUrl";
 import { hrefs, isGHref, marks } from "@/lib/uiMarks";
+import { GameLaunchSplash } from "@/components/GameLaunchSplash";
+import { introPending, markIntroSeen } from "@/lib/sessionIntro";
 
 const GamesPage = lazy(() => import("./GamesPage"));
 const GameViewerPage = lazy(() => import("./GameViewerPage"));
@@ -1122,13 +1124,21 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
   );
 }
 
-function ProxyFrameHost({ tab, isVisible }: { tab: Tab; isVisible: boolean }) {
+function RemotePaneHost({ tab, isVisible }: { tab: Tab; isVisible: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [waiting, setWaiting] = useState(true);
+  const introClaimedRef = useRef(false);
+  const [introActive, setIntroActive] = useState(false);
 
   useEffect(() => {
-    setWaiting(true);
-  }, [tab.url, tab.frame]);
+    if (!tab.frame?.frame || introClaimedRef.current) return;
+    introClaimedRef.current = true;
+    if (introPending()) setIntroActive(true);
+  }, [tab.frame]);
+
+  const onIntroDone = useCallback(() => {
+    markIntroSeen();
+    setIntroActive(false);
+  }, []);
 
   useEffect(() => {
     if (!tab.frame?.frame) return;
@@ -1139,10 +1149,7 @@ function ProxyFrameHost({ tab, isVisible }: { tab: Tab; isVisible: boolean }) {
       container.appendChild(frame);
     }
     frame.style.cssText =
-      "position:absolute;inset:0;width:100%;height:100%;border:none;";
-    const onLoad = () => setWaiting(false);
-    frame.addEventListener("load", onLoad);
-    return () => frame.removeEventListener("load", onLoad);
+      "position:absolute;inset:0;width:100%;height:100%;border:none;z-index:2;";
   }, [tab.frame]);
 
   useEffect(() => {
@@ -1201,10 +1208,8 @@ function ProxyFrameHost({ tab, isVisible }: { tab: Tab; isVisible: boolean }) {
       className="absolute inset-0 w-full h-full"
       style={{ display: isVisible ? "block" : "none" }}
     >
-      {waiting && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-          <p className="text-muted-foreground text-sm">Loading…</p>
-        </div>
+      {introActive && (
+        <GameLaunchSplash beneath onDone={onIntroDone} minMs={2400} />
       )}
     </div>
   );
@@ -1488,7 +1493,7 @@ function TabPane({
       style={{ display: isVisible ? "block" : "none" }}
     >
       {tab.frame ? (
-        <ProxyFrameHost tab={tab} isVisible={isVisible} />
+        <RemotePaneHost tab={tab} isVisible={isVisible} />
       ) : (
         <div className="w-full h-full flex items-center justify-center">
           <p className="text-muted-foreground text-sm">Loading...</p>

@@ -341,7 +341,7 @@ export default function GameViewerPage({
         />
 
         <AnimatePresence>
-          {controlsVisible && (
+          {controlsVisible && unlocked && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -516,7 +516,7 @@ export default function GameViewerPage({
         </AnimatePresence>
 
         <AnimatePresence>
-          {!controlsVisible && (
+          {!controlsVisible && unlocked && (
             <motion.button
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.35 }}

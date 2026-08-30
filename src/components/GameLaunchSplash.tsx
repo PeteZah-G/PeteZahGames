@@ -76,10 +76,12 @@ export function GameLaunchSplash({
   title,
   onDone,
   minMs = 2400,
+  beneath = false,
 }: {
   title?: string;
   onDone: () => void;
   minMs?: number;
+  beneath?: boolean;
 }) {
   const [covers, setCovers] = useState<Cover[]>(coverCache || []);
   const [exiting, setExiting] = useState(false);
@@ -120,11 +122,11 @@ export function GameLaunchSplash({
       style={{
         position: "absolute",
         inset: 0,
-        zIndex: 90,
+        zIndex: beneath ? 0 : 90,
         display: "flex",
         overflow: "hidden",
         background: "transparent",
-        pointerEvents: "auto",
+        pointerEvents: beneath ? "none" : "auto",
       }}
     >
       <div
