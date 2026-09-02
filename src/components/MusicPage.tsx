@@ -11,6 +11,7 @@ import { hrefs } from "@/lib/uiMarks";
 import { trackAchievementEvent } from "@/lib/achievementEvents";
 import { CoverImg } from "@/lib/mediaCover";
 import { AdResponsiveBanner } from "@/components/ads/Adsterra";
+import { progressPollMs } from "@/lib/liteDevice";
 
 interface Track {
   id: string;
@@ -496,7 +497,7 @@ export default function MusicPage({
           setDuration(audioRef.current.duration || 0);
         }
       } catch {}
-    }, 400);
+    }, progressPollMs());
   }, []);
 
   const pauseOthers = useCallback((keep: "youtube" | "soundcloud" | "audio") => {

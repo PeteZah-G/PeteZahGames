@@ -52,7 +52,7 @@ const OPEN_EXACT = new Set([
   '/4f66ddd48bf4ee436b4ca095a86f40ff.html',
 ]);
 
-const OPEN_PREFIX = ['/cap/', '/api/verify-email', '/api/legal', '/vendor/', '/fonts/', '/storage/ag/'];
+const OPEN_PREFIX = ['/cap/', '/api/verify-email', '/api/legal', '/api/study/', '/api/flashcards/', '/api/quiz/', '/vendor/', '/fonts/', '/storage/ag/'];
 
 function isOpenPath(p) {
   if (OPEN_EXACT.has(p)) return true;

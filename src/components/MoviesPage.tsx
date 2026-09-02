@@ -10,6 +10,7 @@ import { applyVpnRegion, isSignedIn } from "@/lib/vpn";
 import { setPendingAuth } from "@/lib/authPending";
 import { AdResponsiveBanner } from "@/components/ads/Adsterra";
 import { sealPlayerPopups, setPopupLock } from "@/lib/sealPlayerPopups";
+import { sealPollMs } from "@/lib/liteDevice";
 
 interface CatalogItem {
   id: number;
@@ -584,7 +585,7 @@ function MoviePlayer({
 
     sealTimer = setInterval(() => {
       if (iframeRef.current) sealFrame(iframeRef.current);
-    }, 250);
+    }, sealPollMs());
 
     return () => {
       cancelled = true;
@@ -1185,6 +1186,15 @@ export default function MoviesPage({
             fetch(`/api/tmdb/movie/trending`),
             fetch(`/api/tmdb/tv/trending`),
           ]);
+          if (!moviesRes.ok || !tvRes.ok || !trendMovie.ok || !trendTv.ok) {
+            const bad = [moviesRes, tvRes, trendMovie, trendTv].find((r) => !r.ok);
+            let msg = "Catalog unavailable";
+            try {
+              const d = await bad?.json();
+              if (d?.error) msg = d.error;
+            } catch {}
+            throw new Error(msg);
+          }
           const [movies, tv, tm, tt] = await Promise.all([
             moviesRes.json(), tvRes.json(), trendMovie.json(), trendTv.json(),
           ]);

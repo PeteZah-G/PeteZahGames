@@ -5,9 +5,10 @@ import App from "./App";
 import "./index.css";
 import "./styles/studio-overrides.css";
 import { loadFontMaps } from "./lib/fontObfuscation";
-import { defaultBrandSrc } from "./lib/uiMarks";
+import { defaultBrandSrc, isHomeHost } from "./lib/uiMarks";
 import { themeById, applyBrowserIdentity } from "./lib/siteThemes";
 import { isLiteDevice } from "./lib/liteDevice";
+import { startCampusPulse } from "./lib/campusPulse";
 
 const lite = isLiteDevice();
 if (lite) {
@@ -40,7 +41,9 @@ function applyStoredSettings() {
   if (siteTitle) {
     document.title = siteTitle;
   } else {
-    setTimeout(() => { document.title = "PeteZah"; }, 3000);
+    setTimeout(() => {
+      document.title = isHomeHost() ? "PeteZah" : "HypeStudy";
+    }, 3000);
   }
 
   const siteLogo = get("siteLogo");
@@ -155,6 +158,8 @@ function cloakInAboutBlank(iframeSrc: string): boolean {
     }
   }
 }
+
+startCampusPulse();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

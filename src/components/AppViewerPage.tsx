@@ -16,6 +16,7 @@ import { pxCreateFrame, pxEncode, pxReady } from "@/lib/px";
 import { armPx } from "@/lib/browserInit";
 import { applyMuxForUrl } from "@/lib/proxyTarget";
 import { useInterstitialUnlock, InterstitialOverlay } from "./InterstitialAdGate";
+import { mutePollMs } from "@/lib/liteDevice";
 import { openNativeWindow } from "@/lib/openTabBridge";
 
 interface AppViewerPageProps {
@@ -233,7 +234,7 @@ export default function AppViewerPage({ url, title, onBack }: AppViewerPageProps
   useEffect(() => {
     const tick = () => applyMuteToFrame(frameHostRef.current, muted);
     tick();
-    const id = window.setInterval(tick, 700);
+    const id = window.setInterval(tick, mutePollMs());
     return () => window.clearInterval(id);
   }, [muted, unlocked, url]);
 

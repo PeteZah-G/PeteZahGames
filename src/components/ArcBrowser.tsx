@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useBrowserState } from "@/hooks/useBrowserState";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,7 +14,7 @@ import DebugHud from "@/components/DebugHud";
 import HorizontalTabBar from "@/components/HorizontalTabBar";
 import GlobalAnnouncement from "@/components/GlobalAnnouncement";
 import InspectOverlay from "@/components/InspectOverlay";
-import TrendingDashboard from "@/components/TrendingDashboard";
+const TrendingDashboard = lazy(() => import("@/components/TrendingDashboard"));
 import { findMatchingShortcut, armTabChord, clearTabChord } from "@/lib/shortcuts";
 import { getHomeUrl } from "@/lib/homeUrl";
 import {
@@ -433,11 +433,13 @@ export default function ArcBrowser() {
       />
       <AnimatePresence>
         {trendingOpen && (
-          <TrendingDashboard
-            variant="overlay"
-            onClose={() => setTrendingOpen(false)}
-            onNavigate={state.navigateToUrl}
-          />
+          <Suspense fallback={null}>
+            <TrendingDashboard
+              variant="overlay"
+              onClose={() => setTrendingOpen(false)}
+              onNavigate={state.navigateToUrl}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
       <AnimatePresence>

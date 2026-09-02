@@ -17,7 +17,7 @@ import BetterSqlite3Session from 'better-sqlite3-session-store';
 import httpProxy from 'http-proxy';
 import { PX, isStreamUpgrade, toWispLibUrl } from './px-paths.js';
 import { toMochiBackendPath } from './mochi-path.js';
-import { applySeoToHtml } from './utils/seo-meta.js';
+import { applySeoToHtml, isPeteZahHomeHost } from './utils/seo-meta.js';
 import fs, { existsSync } from 'node:fs';
 
 import { createRouteTimingMiddleware } from './utils/route-metrics.js';
@@ -33,12 +33,13 @@ import {
   setKillSwitchHandler,
   getAdminRouteMetricsHandler,
 } from './api/admin-dashboard.js';
-import { authLimiter, signinLimiter, createApiLimiter, createAiLimiter, signupLimiter, localStorageLimiter, pfpLimiter, securityActionLimiter, adminOverviewLimiter, aiConversationsLimiter, musicBrowseLimiter, musicSearchLimiter, musicPlayLimiter } from './middleware/rate-limit.js';
+import { authLimiter, signinLimiter, createApiLimiter, createAiLimiter, signupLimiter, localStorageLimiter, pfpLimiter, securityActionLimiter, adminOverviewLimiter, aiConversationsLimiter, musicBrowseLimiter, musicSearchLimiter, musicPlayLimiter, musicStreamLimiter } from './middleware/rate-limit.js';
 import challengeRouter from './routes/challenge.js';
 import aiRouter from './routes/ai.js';
 import moviesRouter from './routes/movies.js';
 import musicRouter from './routes/music.js';
 import searchSuggestRouter from './routes/search-suggest.js';
+import studyPulseRouter from './routes/study-pulse.js';
 import mochiRouter from './routes/mochi.js';
 import db from './db.js';
 
@@ -302,6 +303,8 @@ app.use('/api/', (req, res, next) => {
   if (req.path === '/websocket/normal' || req.path === '/websocket/normal/' || req.path === '/websocket/tor' || req.path === '/websocket/tor/') {
     return next();
   }
+  if (req.path.startsWith('/music/media/')) return next();
+  if (req.path.startsWith('/study/') || req.path.startsWith('/flashcards/') || req.path.startsWith('/quiz/')) return next();
   return AUTH_PATHS.has(req.path) ? authLimiter(req, res, next) : apiLimiter(req, res, next);
 });
 app.use(PX.edge, apiLimiter);
@@ -376,13 +379,16 @@ app.use('/api', challengeRouter);
 app.use('/api', elevated2faGate);
 app.use('/api/generate', aiLimiter, generateJsonParser, aiRouter);
 app.use('/api/tmdb', moviesRouter);
+app.use('/api/study', studyPulseRouter);
+app.use('/api/flashcards', studyPulseRouter);
+app.use('/api/quiz', studyPulseRouter);
 app.use('/api/music/browse', musicBrowseLimiter);
 app.use('/api/music/trending', musicBrowseLimiter);
 app.use('/api/music/home', musicBrowseLimiter);
 app.use('/api/music/search', musicSearchLimiter);
 app.use('/api/music/stream', musicPlayLimiter);
 app.use('/api/music/play', musicPlayLimiter);
-app.use('/api/music/media', musicPlayLimiter);
+app.use('/api/music/media', musicStreamLimiter);
 app.use('/api/music', musicRouter);
 app.use('/api/search', searchSuggestRouter);
 
@@ -524,7 +530,31 @@ if (IS_DEV) {
       return '';
     }
   }
-  // Game folders under /storage/ag/* should resolve to their index.html
+  app.get('/manifest.json', (req, res) => {
+    const home = isPeteZahHomeHost(req.headers.host || req.hostname);
+    const body = home
+      ? {
+          name: 'PeteZah Games',
+          short_name: 'PeteZah',
+          description: 'Games, movies, music, and browse.',
+          background_color: '#0A1D37',
+          theme_color: '#0A1D37',
+        }
+      : {
+          name: 'HypeStudy',
+          short_name: 'HypeStudy',
+          description: 'Flashcards, quizzes, and study analytics for students.',
+          background_color: '#f8f6f1',
+          theme_color: '#f8f6f1',
+        };
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.json({
+      ...body,
+      start_url: '/',
+      display: 'standalone',
+      icons: [{ src: '/logo.png', sizes: '512x512', type: 'image/png' }],
+    });
+  });
   app.use(
     '/storage/ag',
     express.static(storageAgPath, {
@@ -587,7 +617,7 @@ if (IS_DEV) {
 }
 
 const wsConnections = new Map();
-const MAX_WS_PER_IP = 24;
+const MAX_WS_PER_IP = 40;
 const MAX_TOTAL_WS = 2400;
 
 const server = createServer((req, res) => {

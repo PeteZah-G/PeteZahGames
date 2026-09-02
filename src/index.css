@@ -68,6 +68,22 @@
   border: none !important;
 }
 
+.lite-device .glass,
+.lite-device .glass-heavy,
+.lite-device .glass-search,
+.lite-device .nt-search,
+.lite-device .glass-subtle,
+.lite-device .chrome-bar,
+.chromeos .glass,
+.chromeos .glass-heavy,
+.chromeos .glass-search,
+.chromeos .nt-search,
+.chromeos .glass-subtle,
+.chromeos .chrome-bar {
+  backdrop-filter: blur(8px) saturate(1.1) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(1.1) !important;
+}
+
 .lite-device .space-twinkle {
   display: none;
 }

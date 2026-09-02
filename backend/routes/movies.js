@@ -69,6 +69,7 @@ router.get('/search', async (req, res) => {
   try {
     const data = await fetchTMDB(`/search/multi?query=${encodeURIComponent(q)}&include_adult=false`);
     const results = (data.results || []).filter((r) => r.media_type === 'movie' || r.media_type === 'tv');
+    res.setHeader('Cache-Control', 'public, max-age=120');
     res.json({ ...data, results });
   } catch (e) {
     res.status(500).json({ error: e.message });

@@ -76,9 +76,18 @@ export const aiConversationsLimiter = rateLimit({
   message: { error: 'Too many AI chat requests. Slow down.' },
 });
 
+export const musicStreamLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 2400,
+  keyGenerator: (req) => toIPv4(null, req),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Stream limit reached' },
+});
+
 export const musicBrowseLimiter = rateLimit({
   windowMs: 60_000,
-  max: 90,
+  max: 140,
   keyGenerator: (req) => toIPv4(null, req),
   standardHeaders: true,
   legacyHeaders: false,
@@ -87,7 +96,7 @@ export const musicBrowseLimiter = rateLimit({
 
 export const musicSearchLimiter = rateLimit({
   windowMs: 60_000,
-  max: 36,
+  max: 56,
   keyGenerator: (req) => toIPv4(null, req),
   standardHeaders: true,
   legacyHeaders: false,
@@ -96,7 +105,7 @@ export const musicSearchLimiter = rateLimit({
 
 export const musicPlayLimiter = rateLimit({
   windowMs: 60_000,
-  max: 72,
+  max: 120,
   keyGenerator: (req) => toIPv4(null, req),
   standardHeaders: true,
   legacyHeaders: false,
@@ -114,7 +123,7 @@ export function createApiLimiter(shield) {
         req._pzTok = token || null;
       }
       if (req._pzTokOk) return 1000;
-      return 150;
+      return 320;
     },
     keyGenerator: req => {
       if (req.session?.user?.id) return `user:${req.session.user.id}`;

@@ -1,11 +1,11 @@
 {
-  "name": "PeteZah Games",
-  "short_name": "PeteZah",
+  "name": "HypeStudy",
+  "short_name": "HypeStudy",
   "start_url": "/",
   "display": "standalone",
-  "description": "Access the internet uncensored.  Game on.",
-  "background_color": "#0A1D37",
-  "theme_color": "#0A1D37",
+  "description": "Flashcards, quizzes, and study analytics for students.",
+  "background_color": "#f8f6f1",
+  "theme_color": "#f8f6f1",
   "icons": [
     {
       "src": "/logo.png",

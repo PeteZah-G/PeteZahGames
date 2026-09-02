@@ -85,3 +85,12 @@ export function defaultBrandSrc(): string {
     return "/logo.png";
   }
 }
+
+export function isHomeHost(): boolean {
+  try {
+    const h = window.location.hostname.replace(/^www\./, "").toLowerCase();
+    return h === hrefs.homeHost();
+  } catch {
+    return false;
+  }
+}

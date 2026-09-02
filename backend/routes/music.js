@@ -589,9 +589,11 @@ async function resolvePlayIntent(parsed, metaHint) {
   let intent = null;
 
   if (parsed.kind === 'yt') {
-    const preview = await itunesPreviewFor(metaHint?.title, metaHint?.artist);
-    if (preview) intent = itunesAudioIntent(preview);
-    if (!intent) intent = youtubePlayIntent(parsed.videoId, metaHint || {});
+    intent = youtubePlayIntent(parsed.videoId, metaHint || {});
+    if (!intent) {
+      const preview = await itunesPreviewFor(metaHint?.title, metaHint?.artist);
+      if (preview) intent = itunesAudioIntent(preview);
+    }
   } else if (parsed.kind === 'it') {
     const hint =
       metaHint?._searchHint ||
@@ -606,7 +608,6 @@ async function resolvePlayIntent(parsed, metaHint) {
         found[0] ||
         null;
     } catch {}
-    if (itTrack?.previewUrl) intent = itunesAudioIntent(itTrack);
     if (!intent) {
       const sc = await findSoundCloudPlayable(metaHint?.title || hint, metaHint?.artist);
       if (sc) {
@@ -629,6 +630,7 @@ async function resolvePlayIntent(parsed, metaHint) {
         });
       }
     }
+    if (!intent && itTrack?.previewUrl) intent = itunesAudioIntent(itTrack);
   } else {
     try {
       const stream = await resolveSoundCloudStream(parsed.id);
@@ -636,10 +638,6 @@ async function resolvePlayIntent(parsed, metaHint) {
         intent = soundcloudPlayIntent(stream.track, stream.url);
       }
     } catch {}
-    if (!intent && metaHint?.title) {
-      const preview = await itunesPreviewFor(metaHint.title, metaHint.artist);
-      if (preview) intent = itunesAudioIntent(preview);
-    }
     if (!intent && metaHint?.title) {
       const yt = await youtubeSearch(`${metaHint.title} ${metaHint.artist || ''}`.trim(), 5);
       if (yt.length) {
@@ -649,6 +647,10 @@ async function resolvePlayIntent(parsed, metaHint) {
           duration: metaHint.duration || yt[0].duration,
         });
       }
+    }
+    if (!intent && metaHint?.title) {
+      const preview = await itunesPreviewFor(metaHint.title, metaHint.artist);
+      if (preview) intent = itunesAudioIntent(preview);
     }
   }
 
