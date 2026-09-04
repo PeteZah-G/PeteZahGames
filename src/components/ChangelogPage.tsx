@@ -145,7 +145,7 @@ export default function ChangelogPage({ onNavigate }: { onNavigate: (url: string
 
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ background: "transparent" }}>
-      <div className="flex items-center gap-3 px-6 py-4 flex-shrink-0" style={{ borderBottom: "1px solid hsl(216 20% 16% / 0.7)", background: "hsla(216, 30%, 8%, 0.35)", backdropFilter: "blur(10px)" }}>
+      <div className="flex items-center gap-3 px-6 py-4 flex-shrink-0" style={{ borderBottom: "1px solid hsl(216 20% 16% / 0.7)", background: "hsla(216, 30%, 8%, 0.62)", backdropFilter: "blur(14px)" }}>
         <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{ background: "hsl(216 22% 12%)", border: "1px solid hsl(216 20% 16%)" }}>
           <Megaphone size={14} style={{ color: "hsl(213 70% 58%)" }} />
@@ -222,7 +222,7 @@ export default function ChangelogPage({ onNavigate }: { onNavigate: (url: string
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.035 }}
             className="rounded-2xl overflow-hidden"
-            style={{ background: "hsla(216, 26%, 9%, 0.72)", border: "1px solid hsl(216 20% 16%)", backdropFilter: "blur(8px)" }}>
+            style={{ background: "hsla(216, 26%, 9%, 0.84)", border: "1px solid hsl(216 20% 16%)", backdropFilter: "blur(10px)" }}>
             <button
               className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
               onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}>

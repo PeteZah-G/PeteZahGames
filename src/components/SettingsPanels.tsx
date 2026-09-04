@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef, type RefObject } from "react";
+import { useMemo, useState, useEffect, useRef, type RefObject, type CSSProperties } from "react";
 import {
   Check,
   ChevronDown,
@@ -20,6 +20,8 @@ import { PX } from "@/lib/px";
 import { originWsHost } from "@/lib/siteOrigin";
 import { hrefs, marks } from "@/lib/uiMarks";
 import ObfuscatedText from "./ObfuscatedText";
+import { RAIN_SCENES, normalizeRainScene, rainSceneThumb } from "@/lib/rainScenes";
+import { BG_EFFECTS, normalizeBgEffect } from "@/lib/bgEffects";
 import {
   SHORTCUT_META,
   DEFAULT_SHORTCUTS,
@@ -285,194 +287,413 @@ function FancySelect({
 export function AppearanceSettings(props: Props) {
   const { C, s, setS, applySettings, settingsSaved, applySettingsNow, bgImgRef } = props;
   const themeOpts = SITE_THEMES.map((t) => ({ id: t.id, label: t.label, swatch: t.bg }));
+  const effect = normalizeBgEffect(s.bgEffect || (s.rainBackdrop === "true" ? "rain" : "fog"));
+  const theme = themeById(s.theme);
+
+  const patch = (partial: Record<string, string>) => {
+    const next = { ...s, ...partial };
+    if (partial.bgEffect) {
+      next.rainBackdrop = partial.bgEffect === "rain" ? "true" : "false";
+    }
+    setS(next);
+    applySettingsNow(next);
+  };
+
+  const previewBg =
+    effect === "stars"
+      ? "radial-gradient(ellipse at 50% 80%, #1a2240 0%, #02040a 70%)"
+      : effect === "sakura"
+        ? `linear-gradient(180deg, hsla(220,30%,4%,0.35), hsla(220,25%,2%,0.55)), url(/fx/sakura/tree.jpg) center 35%/cover`
+        : effect === "rain"
+          ? `url(${rainSceneThumb(normalizeRainScene(s.rainScene))}) center/cover`
+          : s.backgroundImage
+            ? `url(${s.backgroundImage}) center/cover`
+            : `radial-gradient(ellipse 70% 60% at 50% 40%, ${theme.accent}33, transparent 70%), ${s.backgroundColor || theme.bg}`;
+
+  const sectionLabel: CSSProperties = {
+    fontSize: 10,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+    color: C.textMuted,
+    margin: "0 0 10px",
+  };
 
   return (
-    <div style={{ maxWidth: 540 }}>
+    <div style={{ maxWidth: 560 }}>
       <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text, margin: "0 0 4px" }}>Appearance</h2>
       <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 18px", lineHeight: 1.45 }}>
-        Pick a palette for Vanta and chrome accents, or override with your own color or image.
+        Choose an effect, then tune its base color, scene, or your own image.
       </p>
 
       <div
         style={{
-          height: 118,
-          borderRadius: 14,
-          marginBottom: 18,
+          height: 132,
+          borderRadius: 16,
+          marginBottom: 20,
           overflow: "hidden",
           position: "relative",
           border: `1px solid ${C.border}`,
-          background: s.backgroundImage
-            ? `url(${s.backgroundImage}) center/cover`
-            : `radial-gradient(ellipse 70% 60% at 50% 40%, ${themeById(s.theme).accent}33, transparent 70%), ${s.backgroundColor || themeById(s.theme).bg}`,
+          background: previewBg,
         }}
       >
         <div
           style={{
             position: "absolute",
-            left: 12,
-            bottom: 10,
-            fontSize: 10,
-            fontWeight: 650,
-            color: "hsla(0,0%,100%,0.72)",
-            letterSpacing: "0.05em",
-            textTransform: "uppercase",
+            inset: 0,
+            background:
+              effect === "fog"
+                ? "linear-gradient(180deg, transparent 40%, hsla(210,40%,6%,0.55))"
+                : "linear-gradient(180deg, transparent 50%, hsla(220,30%,4%,0.5))",
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            left: 14,
+            bottom: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
           }}
         >
-          Live preview
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: "hsla(0,0%,100%,0.78)",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}
+          >
+            {BG_EFFECTS.find((e) => e.id === effect)?.label || "Backdrop"}
+          </span>
+          <span style={{ fontSize: 10, color: "hsla(0,0%,100%,0.45)" }}>
+            {BG_EFFECTS.find((e) => e.id === effect)?.pair}
+          </span>
         </div>
       </div>
 
-      <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 8px" }}>
-        Theme
-      </p>
+      <p style={sectionLabel}>1 · Effect</p>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gap: 8,
+          marginBottom: 20,
+        }}
+      >
+        {BG_EFFECTS.map((item) => {
+          const active = effect === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() =>
+                patch({
+                  bgEffect: item.id,
+                  ...(item.id === "rain" ? { rainScene: normalizeRainScene(s.rainScene || "harbor") } : {}),
+                  ...(item.id === "stars" ? { backgroundColor: "#02040a" } : {}),
+                  ...(item.id === "sakura" ? { backgroundColor: "#140810" } : {}),
+                })
+              }
+              style={{
+                textAlign: "left",
+                padding: "12px 12px 11px",
+                borderRadius: 12,
+                cursor: "pointer",
+                border: `1px solid ${active ? C.borderFocus : C.border}`,
+                background: active ? "hsla(210, 40%, 70%, 0.08)" : "hsla(220, 28%, 12%, 0.35)",
+                boxShadow: active ? `inset 0 0 0 1px ${item.accent}33` : "none",
+                fontFamily: "inherit",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 99,
+                    background: item.accent,
+                    boxShadow: `0 0 10px ${item.accent}66`,
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{ fontSize: 12, fontWeight: 650, color: C.text }}>{item.label}</span>
+              </div>
+              <p style={{ margin: 0, fontSize: 10, lineHeight: 1.4, color: C.textMuted }}>{item.blurb}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      {effect === "rain" && (
+        <>
+          <p style={sectionLabel}>2 · Rain scene</p>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(118px, 1fr))",
+              gap: 8,
+              marginBottom: 20,
+            }}
+          >
+            {RAIN_SCENES.map((scene) => {
+              const active = normalizeRainScene(s.rainScene) === scene.id;
+              return (
+                <button
+                  key={scene.id}
+                  type="button"
+                  onClick={() => patch({ rainScene: scene.id, bgEffect: "rain", rainBackdrop: "true" })}
+                  style={{
+                    padding: 0,
+                    borderRadius: 11,
+                    overflow: "hidden",
+                    cursor: "pointer",
+                    border: `1.5px solid ${active ? C.borderFocus : C.border}`,
+                    background: C.surface,
+                    boxShadow: active ? `0 0 0 1px ${C.accent}44` : "none",
+                    textAlign: "left",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  <img
+                    src={rainSceneThumb(scene.id)}
+                    alt=""
+                    width={320}
+                    height={180}
+                    style={{ display: "block", width: "100%", height: 68, objectFit: "cover" }}
+                  />
+                  <span
+                    style={{
+                      display: "block",
+                      padding: "7px 8px",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      color: active ? C.text : C.textSub,
+                    }}
+                  >
+                    {scene.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {effect === "fog" && (
+        <>
+          <p style={sectionLabel}>2 · Fog options</p>
+          <div
+            style={{
+              borderRadius: 14,
+              border: `1px solid ${C.border}`,
+              overflow: "hidden",
+              background: "hsla(220, 28%, 12%, 0.28)",
+              marginBottom: 20,
+            }}
+          >
+            <div style={{ borderBottom: `1px solid ${C.border}` }}>
+              <ToggleRow
+                C={C}
+                label="Network mesh"
+                desc="Soft line overlay on the fog"
+                checked={s.bgNetwork === "true"}
+                onChange={() =>
+                  patch({ bgNetwork: s.bgNetwork === "true" ? "false" : "true" })
+                }
+              />
+            </div>
+            <ToggleRow
+              C={C}
+              label="Low-power motion"
+              desc="Slower Vanta for weaker devices"
+              checked={s.lowPowerBg === "true"}
+              onChange={() => patch({ lowPowerBg: s.lowPowerBg === "true" ? "false" : "true" })}
+            />
+          </div>
+        </>
+      )}
+
+      {effect !== "rain" && effect !== "stars" && (
+        <>
+          <p style={sectionLabel}>
+            {effect === "fog" ? "3" : "2"} · Base color & image
+          </p>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              marginBottom: 20,
+              padding: 14,
+              borderRadius: 14,
+              border: `1px solid ${C.border}`,
+              background: "hsla(220, 28%, 12%, 0.28)",
+            }}
+          >
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: 6,
+                  color: C.textMuted,
+                }}
+              >
+                Color
+              </label>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div
+                  style={{
+                    position: "relative",
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    overflow: "hidden",
+                    border: `1px solid ${C.border}`,
+                    flexShrink: 0,
+                  }}
+                >
+                  <input
+                    type="color"
+                    value={/^#[0-9a-fA-F]{6}$/.test(s.backgroundColor || "") ? s.backgroundColor : "#041018"}
+                    onChange={(e) => patch({ backgroundColor: e.target.value, backgroundImage: "" })}
+                    style={{
+                      position: "absolute",
+                      inset: -4,
+                      width: "calc(100% + 8px)",
+                      height: "calc(100% + 8px)",
+                      cursor: "pointer",
+                      border: "none",
+                      padding: 0,
+                    }}
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={s.backgroundColor || ""}
+                  onChange={(e) => props.setVal("backgroundColor", e.target.value)}
+                  onBlur={() => applySettingsNow({ ...s, backgroundImage: "" })}
+                  style={{
+                    flex: 1,
+                    background: C.surface,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 8,
+                    color: C.text,
+                    fontSize: 12,
+                    padding: "8px 10px",
+                    outline: "none",
+                    fontFamily: "monospace",
+                  }}
+                />
+              </div>
+            </div>
+
+            {(effect === "solid" || effect === "sakura" || effect === "snow" || effect === "fog") && (
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    marginBottom: 6,
+                    color: C.textMuted,
+                  }}
+                >
+                  Your image
+                </label>
+                <input
+                  ref={bgImgRef as any}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 2_500_000) {
+                      alert("Please use an image under 2.5MB.");
+                      e.target.value = "";
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      const data = String(ev.target?.result || "");
+                      if (!data.startsWith("data:image/")) return;
+                      patch({
+                        backgroundImage: data,
+                        backgroundColor: s.backgroundColor || theme.bg,
+                        bgEffect: effect === "fog" ? "solid" : effect,
+                      });
+                    };
+                    reader.readAsDataURL(file);
+                    e.target.value = "";
+                  }}
+                />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => bgImgRef.current?.click()}
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "9px 12px",
+                      borderRadius: 8,
+                      background: C.surface,
+                      border: `1px solid ${C.border}`,
+                      color: C.textSub,
+                      fontSize: 12,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Image size={12} />
+                    {s.backgroundImage ? "Change image" : "Upload image"}
+                  </button>
+                  {s.backgroundImage && (
+                    <button
+                      onClick={() => patch({ backgroundImage: "" })}
+                      style={{
+                        padding: "9px 12px",
+                        borderRadius: 8,
+                        background: "transparent",
+                        border: `1px solid hsl(0 60% 50% / 0.2)`,
+                        color: C.danger,
+                        fontSize: 11,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      <p style={sectionLabel}>Chrome palette</p>
       <FancySelect
         C={C}
         value={s.theme || "default"}
         options={themeOpts}
         onChange={(id) => {
           const t = themeById(id);
-          const next = {
-            ...s,
+          patch({
             theme: id,
-            backgroundColor: t.bg,
-            backgroundImage: "",
-          };
-          setS(next);
-          applySettingsNow(next);
+            backgroundColor:
+              effect === "stars" ? "#02040a" : effect === "sakura" ? "#140810" : t.bg,
+          });
         }}
       />
-
-      <div style={{ height: 1, background: C.border, margin: "18px 0" }} />
-
-      <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, margin: "0 0 10px" }}>
-        Custom background
-      </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div>
-          <label style={{ display: "block", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, color: C.textMuted }}>
-            Color
-          </label>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ position: "relative", width: 36, height: 36, borderRadius: 8, overflow: "hidden", border: `1px solid ${C.border}`, flexShrink: 0 }}>
-              <input
-                type="color"
-                value={/^#[0-9a-fA-F]{6}$/.test(s.backgroundColor || "") ? s.backgroundColor : "#041018"}
-                onChange={(e) => {
-                  const next = { ...s, backgroundColor: e.target.value, backgroundImage: "" };
-                  setS(next);
-                  applySettingsNow(next);
-                }}
-                style={{ position: "absolute", inset: -4, width: "calc(100% + 8px)", height: "calc(100% + 8px)", cursor: "pointer", border: "none", padding: 0 }}
-              />
-            </div>
-            <input
-              type="text"
-              value={s.backgroundColor || ""}
-              onChange={(e) => props.setVal("backgroundColor", e.target.value)}
-              onBlur={() => {
-                const next = { ...s, backgroundImage: "" };
-                applySettingsNow(next);
-              }}
-              style={{
-                flex: 1,
-                background: C.surface,
-                border: `1px solid ${C.border}`,
-                borderRadius: 8,
-                color: C.text,
-                fontSize: 12,
-                padding: "8px 10px",
-                outline: "none",
-                fontFamily: "monospace",
-              }}
-            />
-          </div>
-        </div>
-
-        <div>
-          <label style={{ display: "block", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, color: C.textMuted }}>
-            Image instead of Vanta
-          </label>
-          <input
-            ref={bgImgRef as any}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              if (file.size > 2_500_000) {
-                alert("Please use an image under 2.5MB.");
-                e.target.value = "";
-                return;
-              }
-              const reader = new FileReader();
-              reader.onload = (ev) => {
-                const data = String(ev.target?.result || "");
-                if (!data.startsWith("data:image/")) return;
-                const next = { ...s, backgroundImage: data, backgroundColor: s.backgroundColor || themeById(s.theme).bg };
-                setS(next);
-                applySettingsNow(next);
-              };
-              reader.readAsDataURL(file);
-              e.target.value = "";
-            }}
-          />
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              onClick={() => bgImgRef.current?.click()}
-              style={{
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "9px 12px",
-                borderRadius: 8,
-                background: C.surface,
-                border: `1px solid ${C.border}`,
-                color: C.textSub,
-                fontSize: 12,
-                cursor: "pointer",
-              }}
-            >
-              <Image size={12} />
-              {s.backgroundImage ? "Change image" : "Upload image"}
-            </button>
-            {s.backgroundImage && (
-              <button
-                onClick={() => {
-                  const next = { ...s, backgroundImage: "" };
-                  setS(next);
-                  applySettingsNow(next);
-                }}
-                style={{
-                  padding: "9px 12px",
-                  borderRadius: 8,
-                  background: "transparent",
-                  border: `1px solid hsl(0 60% 50% / 0.2)`,
-                  color: C.danger,
-                  fontSize: 11,
-                  cursor: "pointer",
-                }}
-              >
-                Remove
-              </button>
-            )}
-          </div>
-        </div>
-
-        <ToggleRow
-          C={C}
-          label="Network mesh"
-          desc="Soft line overlay on the fog background"
-          checked={s.bgNetwork === "true"}
-          onChange={() => {
-            const on = s.bgNetwork !== "true";
-            const next = { ...s, bgNetwork: on ? "true" : "false" };
-            setS(next);
-            applySettingsNow(next);
-          }}
-        />
-      </div>
 
       <ApplyBtn C={C} saved={settingsSaved} onClick={applySettings} />
     </div>
@@ -591,13 +812,6 @@ export function BehaviorSettings(props: Props) {
             }}
           />
         </div>
-        <ToggleRow
-          C={C}
-          label="Low-power backdrop"
-          desc="Slow Vanta motion for weaker devices"
-          checked={s.lowPowerBg === "true"}
-          onChange={() => toggle("lowPowerBg")}
-        />
       </div>
 
       <div style={{ height: 1, background: C.border, margin: "18px 0 14px" }} />

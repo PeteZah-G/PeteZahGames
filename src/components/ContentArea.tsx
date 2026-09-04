@@ -1040,9 +1040,9 @@ function NewTabPage({ onNavigate }: { onNavigate: (url: string) => void }) {
         </motion.h1>
 
         <motion.div
-          initial={{ opacity: 0, y: 16, scale: 0.98 }}
+          initial={{ opacity: 1, y: 10, scale: 0.99 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.6, delay: 0.2, ease }}
+          transition={{ duration: 0.45, delay: 0.12, ease }}
           className="w-full flex justify-center"
         >
           <NewTabSearchBar onNavigate={onNavigate} />

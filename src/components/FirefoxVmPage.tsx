@@ -154,6 +154,21 @@ export default function FirefoxVmPage({ onNavigate }: { onNavigate: (url: string
       />
       <div className="relative z-10 flex flex-col items-center text-center max-w-md gap-4">
         <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "42%",
+            transform: "translate(-50%, -50%)",
+            width: "min(520px, 92vw)",
+            height: 320,
+            borderRadius: "50%",
+            background: "radial-gradient(ellipse at center, hsla(220, 32%, 6%, 0.55) 0%, hsla(220, 30%, 4%, 0.28) 48%, transparent 72%)",
+            pointerEvents: "none",
+            zIndex: -1,
+          }}
+        />
+        <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mb-1"
           style={{
             background: "hsl(216 30% 10%)",

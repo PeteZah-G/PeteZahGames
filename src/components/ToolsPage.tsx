@@ -737,7 +737,7 @@ export default function ToolsPage({ onNavigate: _onNavigate }: { onNavigate?: (u
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease }}
         className="flex items-center gap-3 px-6 py-4 flex-shrink-0"
-        style={{ borderBottom: "1px solid hsl(216 20% 16% / 0.7)", background: "hsla(216, 30%, 8%, 0.35)", backdropFilter: "blur(10px)" }}
+        style={{ borderBottom: "1px solid hsl(216 20% 16% / 0.7)", background: "hsla(216, 30%, 8%, 0.62)", backdropFilter: "blur(14px)" }}
       >
         <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "hsl(216 22% 12%)", border: "1px solid hsl(216 20% 16%)" }}>
           <Wrench size={16} style={{ color: S.accent }} />

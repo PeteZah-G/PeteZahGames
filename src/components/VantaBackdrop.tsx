@@ -1,7 +1,20 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { themeById } from "@/lib/siteThemes";
+import { normalizeBgEffect, syncBgEffectAttr, type BgEffectId } from "@/lib/bgEffects";
 
 const VantaBackground = lazy(() => import("./VantaBackground"));
+const RainBackdrop = lazy(() => import("./RainBackdrop"));
+const SakuraBackdrop = lazy(() => import("./effects/SakuraBackdrop"));
+const StarfieldBackdrop = lazy(() => import("./effects/StarfieldBackdrop"));
+const SnowBackdrop = lazy(() => import("./effects/SnowBackdrop"));
+
+function readEffect(): BgEffectId {
+  try {
+    return normalizeBgEffect(localStorage.getItem("bgEffect"));
+  } catch {
+    return "rain";
+  }
+}
 
 function StaticBackdrop() {
   let bg = "#020810";
@@ -53,10 +66,55 @@ function StaticBackdrop() {
   );
 }
 
+function RainReadabilityWash() {
+  return (
+    <div
+      aria-hidden
+      className="bg-effect-wash"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1,
+        pointerEvents: "none",
+        background:
+          "radial-gradient(ellipse 90% 75% at 50% 42%, hsla(220, 38%, 4%, 0.22) 0%, hsla(220, 35%, 3%, 0.42) 55%, hsla(220, 30%, 2%, 0.55) 100%)",
+      }}
+    />
+  );
+}
+
 export default function VantaBackdrop() {
+  const [effect, setEffect] = useState(readEffect);
+
+  useEffect(() => {
+    const sync = () => {
+      const next = readEffect();
+      setEffect(next);
+      syncBgEffectAttr(next);
+    };
+    sync();
+    window.addEventListener("storage", sync);
+    window.addEventListener("petezah-settings-updated", sync);
+    const id = window.setInterval(sync, 1200);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("petezah-settings-updated", sync);
+      window.clearInterval(id);
+    };
+  }, []);
+
+  let node = <VantaBackground />;
+  if (effect === "rain") node = <RainBackdrop />;
+  else if (effect === "sakura") node = <SakuraBackdrop />;
+  else if (effect === "stars") node = <StarfieldBackdrop />;
+  else if (effect === "snow") node = <SnowBackdrop />;
+  else if (effect === "solid") node = <StaticBackdrop />;
+  else node = <VantaBackground />;
+
   return (
     <Suspense fallback={<StaticBackdrop />}>
-      <VantaBackground />
+      {node}
+      {effect === "rain" ? <RainReadabilityWash /> : null}
     </Suspense>
   );
 }

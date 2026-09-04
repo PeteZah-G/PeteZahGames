@@ -9,6 +9,7 @@ import { defaultBrandSrc, isHomeHost } from "./lib/uiMarks";
 import { themeById, applyBrowserIdentity } from "./lib/siteThemes";
 import { isLiteDevice } from "./lib/liteDevice";
 import { startCampusPulse } from "./lib/campusPulse";
+import { syncBgEffectAttr } from "./lib/bgEffects";
 
 const lite = isLiteDevice();
 if (lite) {
@@ -114,10 +115,23 @@ if (localStorage.getItem("searchEdgeGlow") === null) {
 if (localStorage.getItem("lowPowerBg") === null) {
   localStorage.setItem("lowPowerBg", lite ? "true" : "false");
 }
+if (localStorage.getItem("bgEffect") === null && localStorage.getItem("rainBackdrop") === null) {
+  localStorage.setItem("bgEffect", "rain");
+  localStorage.setItem("rainBackdrop", "true");
+  localStorage.setItem("rainScene", "harbor");
+} else if (localStorage.getItem("bgEffect") === null && localStorage.getItem("rainBackdrop") === "true") {
+  localStorage.setItem("bgEffect", "rain");
+} else if (localStorage.getItem("bgEffect") === null) {
+  localStorage.setItem("bgEffect", "fog");
+}
+if (!localStorage.getItem("rainScene")) {
+  localStorage.setItem("rainScene", "harbor");
+}
 try {
   const t = themeById(localStorage.getItem("theme"));
   document.documentElement.style.setProperty("--pz-accent", t.accent);
 } catch {}
+syncBgEffectAttr();
 applyStoredSettings();
 
 function cloakInAboutBlank(iframeSrc: string): boolean {

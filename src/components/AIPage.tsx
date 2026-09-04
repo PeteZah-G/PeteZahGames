@@ -1297,13 +1297,15 @@ export default function AIPage({
 
   const composer = (
     <div
-      className="w-full transition-all"
+      className="w-full transition-all ai-composer-shell"
       style={{
-        background: isLanding ? "hsla(0,0%,100%,0.04)" : "hsla(0,0%,100%,0.05)",
+        background: isLanding ? "hsla(220, 28%, 8%, 0.52)" : "hsla(220, 28%, 8%, 0.48)",
         border: "1px solid hsla(0,0%,100%,0.14)",
         borderRadius: isLanding ? 18 : 16,
         boxShadow: isLanding ? "0 10px 40px rgba(0,0,0,0.35)" : "none",
         padding: isLanding ? "14px 14px 12px" : "12px 12px 10px",
+        backdropFilter: "blur(18px) saturate(1.2)",
+        WebkitBackdropFilter: "blur(18px) saturate(1.2)",
       }}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
@@ -1658,7 +1660,7 @@ export default function AIPage({
             width: 196,
             flexShrink: 0,
             borderRight: "1px solid hsla(210, 20%, 70%, 0.08)",
-            background: "hsla(220, 28%, 7%, 0.72)",
+            background: "hsla(220, 28%, 7%, 0.82)",
             backdropFilter: "blur(16px) saturate(1.15)",
             WebkitBackdropFilter: "blur(16px) saturate(1.15)",
             display: "flex",
@@ -1876,9 +1878,10 @@ export default function AIPage({
                 onClick={() => setHistoryOpen(true)}
                 className="flex items-center justify-center w-8 h-8 rounded-lg text-white/50 hover:text-white/85 transition-colors"
                 style={{
-                  background: "hsla(0,0%,100%,0.04)",
-                  border: "1px solid hsla(0,0%,100%,0.08)",
+                  background: "hsla(220, 28%, 8%, 0.55)",
+                  border: "1px solid hsla(0,0%,100%,0.1)",
                   cursor: "pointer",
+                  backdropFilter: "blur(12px)",
                 }}
               >
                 <History size={14} />
@@ -1890,9 +1893,10 @@ export default function AIPage({
                 onClick={() => onNavigate("petezah://account")}
                 className="flex items-center justify-center w-8 h-8 rounded-lg text-white/50 hover:text-white/85 transition-colors"
                 style={{
-                  background: "hsla(0,0%,100%,0.04)",
-                  border: "1px solid hsla(0,0%,100%,0.08)",
+                  background: "hsla(220, 28%, 8%, 0.55)",
+                  border: "1px solid hsla(0,0%,100%,0.1)",
                   cursor: "pointer",
+                  backdropFilter: "blur(12px)",
                 }}
               >
                 <UserRound size={14} />
@@ -1909,11 +1913,15 @@ export default function AIPage({
                 <div className="text-center space-y-2">
                   <h2
                     className="text-[1.65rem] sm:text-[1.85rem] font-bold tracking-tight"
-                    style={{ color: "hsla(0,0%,98%,0.96)", letterSpacing: "-0.03em" }}
+                    style={{
+                      color: "hsla(0,0%,98%,0.96)",
+                      letterSpacing: "-0.03em",
+                      textShadow: "0 2px 24px rgba(0,0,0,0.45)",
+                    }}
                   >
                     PeteAI
                   </h2>
-                  <p className="text-[13px] min-h-[1.25rem]" style={{ color: "hsla(0,0%,100%,0.42)" }}>
+                  <p className="text-[13px] min-h-[1.25rem]" style={{ color: "hsla(0,0%,100%,0.62)", textShadow: "0 1px 12px rgba(0,0,0,0.4)" }}>
                     {typedSub}
                     <span
                       className="inline-block w-[1px] h-[0.95em] ml-0.5 align-[-2px]"

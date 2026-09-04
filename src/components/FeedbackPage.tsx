@@ -160,7 +160,7 @@ export default function FeedbackPage({ onNavigate }: { onNavigate: (url: string)
 
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ background: "transparent" }}>
-      <div className="flex items-center gap-3 px-6 py-4 flex-shrink-0" style={{ borderBottom: "1px solid hsl(216 20% 16% / 0.7)", background: "hsla(216, 30%, 8%, 0.35)", backdropFilter: "blur(10px)" }}>
+      <div className="flex items-center gap-3 px-6 py-4 flex-shrink-0" style={{ borderBottom: "1px solid hsl(216 20% 16% / 0.7)", background: "hsla(216, 30%, 8%, 0.62)", backdropFilter: "blur(14px)" }}>
         <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{ background: "hsl(216 22% 12%)", border: "1px solid hsl(216 20% 16%)" }}>
           <MessageSquare size={14} style={{ color: "hsl(213 70% 58%)" }} />
@@ -198,7 +198,7 @@ export default function FeedbackPage({ onNavigate }: { onNavigate: (url: string)
           <>
             {/* Submit form */}
             <div className="p-4 rounded-2xl space-y-3"
-              style={{ background: "hsla(216, 26%, 9%, 0.72)", border: "1px solid hsl(216 20% 16%)", backdropFilter: "blur(8px)" }}>
+              style={{ background: "hsla(216, 26%, 9%, 0.84)", border: "1px solid hsl(216 20% 16%)", backdropFilter: "blur(10px)" }}>
               <p className="text-xs" style={{ color: "hsl(220 15% 40%)" }}>
                 Share a bug report, feature idea, or anything on your mind
               </p>
@@ -243,7 +243,7 @@ export default function FeedbackPage({ onNavigate }: { onNavigate: (url: string)
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03 }}
                 className="p-4 rounded-2xl"
-                style={{ background: "hsla(216, 26%, 9%, 0.72)", border: "1px solid hsl(216 20% 16%)", backdropFilter: "blur(8px)" }}>
+                style={{ background: "hsla(216, 26%, 9%, 0.84)", border: "1px solid hsl(216 20% 16%)", backdropFilter: "blur(10px)" }}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
