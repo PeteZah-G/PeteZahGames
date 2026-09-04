@@ -5,6 +5,7 @@ import { normalizeBgEffect, syncBgEffectAttr, type BgEffectId } from "@/lib/bgEf
 const VantaBackground = lazy(() => import("./VantaBackground"));
 const RainBackdrop = lazy(() => import("./RainBackdrop"));
 const SakuraBackdrop = lazy(() => import("./effects/SakuraBackdrop"));
+const LightningBackdrop = lazy(() => import("./effects/LightningBackdrop"));
 const StarfieldBackdrop = lazy(() => import("./effects/StarfieldBackdrop"));
 const SnowBackdrop = lazy(() => import("./effects/SnowBackdrop"));
 
@@ -106,15 +107,18 @@ export default function VantaBackdrop() {
   let node = <VantaBackground />;
   if (effect === "rain") node = <RainBackdrop />;
   else if (effect === "sakura") node = <SakuraBackdrop />;
+  else if (effect === "lightning") node = <LightningBackdrop />;
   else if (effect === "stars") node = <StarfieldBackdrop />;
   else if (effect === "snow") node = <SnowBackdrop />;
   else if (effect === "solid") node = <StaticBackdrop />;
   else node = <VantaBackground />;
 
+  const washBusy = effect === "rain" || effect === "sakura" || effect === "lightning";
+
   return (
     <Suspense fallback={<StaticBackdrop />}>
       {node}
-      {effect === "rain" ? <RainReadabilityWash /> : null}
+      {washBusy ? <RainReadabilityWash /> : null}
     </Suspense>
   );
 }

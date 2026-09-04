@@ -250,15 +250,15 @@ function FluidCanvas({ enabled }: { enabled: boolean }) {
 
 const C = {
   bg:       "transparent",
-  surface:  "hsla(220, 28%, 12%, 0.38)",
-  elevated: "hsla(220, 24%, 16%, 0.45)",
-  border:   "hsla(210, 30%, 80%, 0.12)",
-  borderFocus: "hsla(210, 40%, 70%, 0.28)",
+  surface:  "hsla(220, 28%, 11%, 0.72)",
+  elevated: "hsla(220, 24%, 15%, 0.78)",
+  border:   "hsla(210, 30%, 80%, 0.16)",
+  borderFocus: "hsla(210, 40%, 70%, 0.34)",
   accent:   "hsla(0, 0%, 96%, 0.92)",
-  accentDim:"hsla(210, 40%, 55%, 0.16)",
-  text:     "hsla(210, 20%, 96%, 0.95)",
-  textSub:  "hsla(210, 14%, 70%, 0.78)",
-  textMuted:"hsla(210, 12%, 55%, 0.55)",
+  accentDim:"hsla(210, 40%, 55%, 0.2)",
+  text:     "hsla(210, 20%, 97%, 0.96)",
+  textSub:  "hsla(210, 14%, 78%, 0.88)",
+  textMuted:"hsla(210, 12%, 68%, 0.72)",
   danger:   "hsl(0 60% 58%)",
   success:  "hsl(145 45% 52%)",
 };
@@ -272,10 +272,10 @@ function Field({ label, type = "text", value, onChange, placeholder, icon: Icon,
       {label && <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px", color: C.textMuted }}>{label}</label>}
       <div style={{
         position: "relative", display: "flex", alignItems: "center",
-        background: "hsla(220, 28%, 12%, 0.32)",
+        background: "hsla(220, 28%, 11%, 0.68)",
         border: `1px solid ${focused ? C.borderFocus : C.border}`,
         borderRadius: "999px", transition: "border-color 0.15s",
-        backdropFilter: "blur(10px)",
+        backdropFilter: "blur(12px)",
       }}>
         {Icon && <Icon size={12} style={{ position: "absolute", left: "12px", color: C.textMuted, flexShrink: 0 }} />}
         <input
@@ -329,7 +329,7 @@ function Divider() {
 
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ background: "hsla(220, 28%, 12%, 0.28)", border: `1px solid ${C.border}`, borderRadius: "16px", padding: "0 16px", backdropFilter: "blur(12px)" }}>
+    <div style={{ background: "hsla(220, 28%, 11%, 0.72)", border: `1px solid ${C.border}`, borderRadius: "16px", padding: "0 16px", backdropFilter: "blur(14px)" }}>
       {children}
     </div>
   );
@@ -1906,7 +1906,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
           position: "relative", zIndex: 10, width: "100%", maxWidth: 320,
           padding: "28px 26px 24px",
           borderRadius: 18,
-          background: "hsla(220, 28%, 8%, 0.42)",
+          background: "hsla(220, 28%, 8%, 0.72)",
           border: "1px solid hsla(210, 40%, 80%, 0.12)",
           backdropFilter: "blur(18px)",
           boxShadow: "0 18px 48px rgba(0,0,0,0.26)",
@@ -2136,7 +2136,7 @@ export default function AccountPage({ onNavigate }: { onNavigate: (url: string) 
           flexDirection: "column",
           borderRight: `1px solid ${C.border}`,
           padding: "14px 8px",
-          background: "hsla(220, 30%, 8%, 0.42)",
+          background: "hsla(220, 30%, 8%, 0.72)",
           backdropFilter: "blur(18px) saturate(1.2)",
           WebkitBackdropFilter: "blur(18px) saturate(1.2)",
           minHeight: 0,

@@ -22,6 +22,7 @@ import { hrefs, marks } from "@/lib/uiMarks";
 import ObfuscatedText from "./ObfuscatedText";
 import { RAIN_SCENES, normalizeRainScene, rainSceneThumb } from "@/lib/rainScenes";
 import { BG_EFFECTS, normalizeBgEffect } from "@/lib/bgEffects";
+import { youtubeThumb, SPIRIT_TREE_VIDEO_ID, LIGHTNING_VIDEO_ID } from "@/components/effects/YoutubeWallpaperBackdrop";
 import {
   SHORTCUT_META,
   DEFAULT_SHORTCUTS,
@@ -195,7 +196,7 @@ function FancySelect({
           gap: 10,
           padding: "10px 12px",
           borderRadius: 999,
-          background: "hsla(220, 28%, 12%, 0.35)",
+          background: "hsla(220, 28%, 11%, 0.62)",
           border: `1px solid ${open ? C.borderFocus : C.border}`,
           color: C.text,
           cursor: "pointer",
@@ -303,12 +304,14 @@ export function AppearanceSettings(props: Props) {
     effect === "stars"
       ? "radial-gradient(ellipse at 50% 80%, #1a2240 0%, #02040a 70%)"
       : effect === "sakura"
-        ? `linear-gradient(180deg, hsla(220,30%,4%,0.35), hsla(220,25%,2%,0.55)), url(/fx/sakura/tree.jpg) center 35%/cover`
-        : effect === "rain"
-          ? `url(${rainSceneThumb(normalizeRainScene(s.rainScene))}) center/cover`
-          : s.backgroundImage
-            ? `url(${s.backgroundImage}) center/cover`
-            : `radial-gradient(ellipse 70% 60% at 50% 40%, ${theme.accent}33, transparent 70%), ${s.backgroundColor || theme.bg}`;
+        ? `linear-gradient(180deg, hsla(220,30%,4%,0.4), hsla(220,25%,2%,0.55)), url(${youtubeThumb(SPIRIT_TREE_VIDEO_ID) || "/fx/sakura/tree.jpg"}) center/cover`
+        : effect === "lightning"
+          ? `linear-gradient(180deg, hsla(48,60%,12%,0.25), hsla(220,25%,2%,0.6)), url(${youtubeThumb(LIGHTNING_VIDEO_ID)}) center/cover`
+          : effect === "rain"
+            ? `url(${rainSceneThumb(normalizeRainScene(s.rainScene))}) center/cover`
+            : s.backgroundImage
+              ? `url(${s.backgroundImage}) center/cover`
+              : `radial-gradient(ellipse 70% 60% at 50% 40%, ${theme.accent}33, transparent 70%), ${s.backgroundColor || theme.bg}`;
 
   const sectionLabel: CSSProperties = {
     fontSize: 10,
@@ -395,7 +398,8 @@ export function AppearanceSettings(props: Props) {
                   bgEffect: item.id,
                   ...(item.id === "rain" ? { rainScene: normalizeRainScene(s.rainScene || "harbor") } : {}),
                   ...(item.id === "stars" ? { backgroundColor: "#02040a" } : {}),
-                  ...(item.id === "sakura" ? { backgroundColor: "#140810" } : {}),
+                  ...(item.id === "sakura" ? { backgroundColor: "#0a1210" } : {}),
+                  ...(item.id === "lightning" ? { backgroundColor: "#0a0c08" } : {}),
                 })
               }
               style={{
@@ -404,7 +408,7 @@ export function AppearanceSettings(props: Props) {
                 borderRadius: 12,
                 cursor: "pointer",
                 border: `1px solid ${active ? C.borderFocus : C.border}`,
-                background: active ? "hsla(210, 40%, 70%, 0.08)" : "hsla(220, 28%, 12%, 0.35)",
+                background: active ? "hsla(210, 40%, 70%, 0.08)" : "hsla(220, 28%, 11%, 0.62)",
                 boxShadow: active ? `inset 0 0 0 1px ${item.accent}33` : "none",
                 fontFamily: "inherit",
               }}
@@ -491,7 +495,7 @@ export function AppearanceSettings(props: Props) {
               borderRadius: 14,
               border: `1px solid ${C.border}`,
               overflow: "hidden",
-              background: "hsla(220, 28%, 12%, 0.28)",
+              background: "hsla(220, 28%, 11%, 0.68)",
               marginBottom: 20,
             }}
           >
@@ -531,7 +535,7 @@ export function AppearanceSettings(props: Props) {
               padding: 14,
               borderRadius: 14,
               border: `1px solid ${C.border}`,
-              background: "hsla(220, 28%, 12%, 0.28)",
+              background: "hsla(220, 28%, 11%, 0.68)",
             }}
           >
             <div>
@@ -690,7 +694,13 @@ export function AppearanceSettings(props: Props) {
           patch({
             theme: id,
             backgroundColor:
-              effect === "stars" ? "#02040a" : effect === "sakura" ? "#140810" : t.bg,
+              effect === "stars"
+                ? "#02040a"
+                : effect === "sakura"
+                  ? "#0a1210"
+                  : effect === "lightning"
+                    ? "#0a0c08"
+                    : t.bg,
           });
         }}
       />
@@ -707,7 +717,7 @@ export function BehaviorSettings(props: Props) {
       <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text, margin: "0 0 4px" }}>Behavior</h2>
       <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 18px" }}>Session habits and gamer-facing extras</p>
 
-      <div style={{ borderRadius: 18, border: `1px solid ${C.border}`, background: "hsla(220, 28%, 12%, 0.28)", overflow: "hidden", backdropFilter: "blur(12px)" }}>
+      <div style={{ borderRadius: 18, border: `1px solid ${C.border}`, background: "hsla(220, 28%, 11%, 0.68)", overflow: "hidden", backdropFilter: "blur(12px)" }}>
         <div style={{ borderBottom: `1px solid ${C.border}` }}>
           <ToggleRow C={C} label="Exit warning" desc="Ask before closing the tab" checked={s.beforeUnload === "true"} onChange={() => toggle("beforeUnload")} />
         </div>
@@ -883,7 +893,7 @@ export function ShortcutsSettings({ C }: { C: C }) {
       <p style={{ fontSize: 11, color: C.textSub, margin: "0 0 16px" }}>
         Defaults use Tab chords (press Tab, then a key) so they do not fight the browser. Click a row, press Tab, then the key.
       </p>
-      <div style={{ borderRadius: 18, border: `1px solid ${C.border}`, background: "hsla(220, 28%, 12%, 0.28)", overflow: "hidden", backdropFilter: "blur(12px)" }}>
+      <div style={{ borderRadius: 18, border: `1px solid ${C.border}`, background: "hsla(220, 28%, 11%, 0.68)", overflow: "hidden", backdropFilter: "blur(12px)" }}>
         {SHORTCUT_META.map((row, i) => (
           <button
             key={row.id}
@@ -1206,7 +1216,7 @@ export function ProxySettings(props: Props) {
         Preview · {uaPreview}
       </div>
 
-      <div style={{ borderRadius: 18, border: `1px solid ${C.border}`, background: "hsla(220, 28%, 12%, 0.28)", overflow: "hidden", backdropFilter: "blur(12px)" }}>
+      <div style={{ borderRadius: 18, border: `1px solid ${C.border}`, background: "hsla(220, 28%, 11%, 0.68)", overflow: "hidden", backdropFilter: "blur(12px)" }}>
         <div style={{ borderBottom: `1px solid ${C.border}` }}>
           <ToggleRow
             C={C}

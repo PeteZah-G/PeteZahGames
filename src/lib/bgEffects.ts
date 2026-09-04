@@ -1,6 +1,6 @@
 import { RAIN_SCENES, type RainSceneId } from "./rainScenes";
 
-export type BgEffectId = "fog" | "rain" | "sakura" | "stars" | "snow" | "solid";
+export type BgEffectId = "fog" | "rain" | "sakura" | "lightning" | "stars" | "snow" | "solid";
 
 export type BgEffectMeta = {
   id: BgEffectId;
@@ -27,10 +27,17 @@ export const BG_EFFECTS: BgEffectMeta[] = [
   },
   {
     id: "sakura",
-    label: "Sakura",
-    blurb: "Falling cherry petals over a night sakura tree",
-    accent: "#f2a0b4",
-    pair: "Tree scene",
+    label: "Spirit tree",
+    blurb: "Animated forest loop (privacy YouTube embed)",
+    accent: "#7ec8a0",
+    pair: "Live wallpaper",
+  },
+  {
+    id: "lightning",
+    label: "Lightning",
+    blurb: "Yellow lightning animated loop",
+    accent: "#f0d060",
+    pair: "Live wallpaper",
   },
   {
     id: "stars",
