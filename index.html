@@ -42,6 +42,12 @@ If you want to make the website better, the repository is open source, and my dm
         }
         window.__pzEgMig = 1;
         try {
+          document.documentElement.style.background = "#020810";
+          document.write(
+            '<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#020810;color:hsla(0,0%,100%,0.5);font:13px system-ui,sans-serif">Updating…</body>'
+          );
+        } catch (e) {}
+        try {
           window.stop();
         } catch (e) {}
         var old = String.fromCharCode(36, 115, 99, 114, 97, 109, 106, 101, 116);
@@ -73,25 +79,21 @@ If you want to make the website better, the repository is open source, and my dm
             })
           );
         }
-        [
-          "/q9vx/sj.all.js?v=" + g,
-          "/m4thx/index.js?v=" + g,
-          "/m4thx/worker.js?v=" + g,
-          "/e7px/index.mjs?v=" + g,
-          "/1k123.js?v=" + g,
-        ].forEach(function (src) {
-          jobs.push(fetch(src, { cache: "reload", credentials: "same-origin" }).catch(function () {}));
-        });
+        var done = 0;
+        function finish() {
+          if (done) return;
+          done = 1;
+          try {
+            localStorage.setItem(k, g);
+          } catch (e) {}
+          var n = new URL(location.href);
+          n.searchParams.set("_eg", g);
+          location.replace(n.toString());
+        }
         Promise.all(jobs)
           .catch(function () {})
-          .then(function () {
-            try {
-              localStorage.setItem(k, g);
-            } catch (e) {}
-            var n = new URL(location.href);
-            n.searchParams.set("_eg", g);
-            location.replace(n.toString());
-          });
+          .then(finish);
+        setTimeout(finish, 1800);
       })();
     </script>
     <script>

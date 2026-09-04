@@ -14,7 +14,7 @@ let verifyCache = { mtime: 0, html: '', checkedAt: 0 };
 function readVerifyTemplate() {
   try {
     const now = Date.now();
-    if (verifyCache.html && now - verifyCache.checkedAt < 5000) return verifyCache.html;
+    if (verifyCache.html && now - verifyCache.checkedAt < 60000) return verifyCache.html;
     const st = fs.statSync(VERIFY_FILE);
     verifyCache.checkedAt = now;
     if (st.mtimeMs !== verifyCache.mtime || !verifyCache.html) {

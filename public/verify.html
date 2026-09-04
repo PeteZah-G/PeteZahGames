@@ -7,7 +7,7 @@
   <script>
     (function () {
       var k = String.fromCharCode(112, 122, 45, 101, 103);
-      var g = "dl9";
+      var g = "dl10";
       try {
         var u = new URL(location.href);
         if (u.searchParams.get("_eg") === g) {
@@ -20,6 +20,12 @@
         return;
       }
       window.__pzEgMig = 1;
+      try {
+        document.documentElement.style.background = "#020810";
+        document.write(
+          '<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#020810;color:hsla(0,0%,100%,0.5);font:13px system-ui,sans-serif">Updating…</body>'
+        );
+      } catch (e) {}
       try {
         window.stop();
       } catch (e) {}
@@ -52,44 +58,55 @@
           })
         );
       }
-      [
-        "/q9vx/sj.all.js?v=" + g,
-        "/m4thx/index.js?v=" + g,
-        "/m4thx/worker.js?v=" + g,
-        "/e7px/index.mjs?v=" + g,
-        "/1k123.js?v=" + g,
-      ].forEach(function (src) {
-        jobs.push(fetch(src, { cache: "reload", credentials: "same-origin" }).catch(function () {}));
-      });
+      var done = 0;
+      function finish() {
+        if (done) return;
+        done = 1;
+        try {
+          localStorage.setItem(k, g);
+        } catch (e) {}
+        var n = new URL(location.href);
+        n.searchParams.set("_eg", g);
+        location.replace(n.toString());
+      }
       Promise.all(jobs)
         .catch(function () {})
-        .then(function () {
-          try {
-            localStorage.setItem(k, g);
-          } catch (e) {}
-          var n = new URL(location.href);
-          n.searchParams.set("_eg", g);
-          location.replace(n.toString());
-        });
+        .then(finish);
+      setTimeout(finish, 1800);
     })();
   </script>
   <script>
     !(function (e, t, a, n) {
-      ((e[n] = e[n] || []),
-        e[n].push({ "gtm.start": new Date().getTime(), event: "gtm.js" }));
-      var g = t.getElementsByTagName(a)[0],
-        m = t.createElement(a);
-      ((m.async = !0),
-        (m.src = "https://www.googletagmanager.com/gtm.js?id=GTM-WPH7NCG4"),
-        g.parentNode.insertBefore(m, g));
+      function boot() {
+        ((e[n] = e[n] || []),
+          e[n].push({ "gtm.start": new Date().getTime(), event: "gtm.js" }));
+        var g = t.getElementsByTagName(a)[0],
+          m = t.createElement(a);
+        ((m.async = !0),
+          (m.src = "https://www.googletagmanager.com/gtm.js?id=GTM-WPH7NCG4"),
+          g.parentNode.insertBefore(m, g));
+      }
+      if ("requestIdleCallback" in e) e.requestIdleCallback(boot, { timeout: 6000 });
+      else e.setTimeout(boot, 2500);
     })(window, document, "script", "dataLayer");
   </script>
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-SHE360M0YP"></script>
   <script>
-    function gtag() { dataLayer.push(arguments); }
-    ((window.dataLayer = window.dataLayer || []),
-      gtag("js", new Date()),
-      gtag("config", "G-SHE360M0YP"));
+    (function () {
+      function boot() {
+        var s = document.createElement("script");
+        s.async = true;
+        s.src = "https://www.googletagmanager.com/gtag/js?id=G-SHE360M0YP";
+        document.head.appendChild(s);
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function () {
+          dataLayer.push(arguments);
+        };
+        gtag("js", new Date());
+        gtag("config", "G-SHE360M0YP");
+      }
+      if ("requestIdleCallback" in window) requestIdleCallback(boot, { timeout: 7000 });
+      else setTimeout(boot, 3000);
+    })();
   </script>
   <title>HypeStudy</title>
   <meta name="description" content="Create flashcards, take quizzes, track your progress with advanced analytics, and master any subject with confidence." />
@@ -368,8 +385,27 @@
     window.CAP_CUSTOM_WASM_URL = "/vendor/cap/cap_wasm_bg.wasm";
     window.CAP_PAKO_URL = "/vendor/cap/pako_inflate.min.js";
   </script>
-  <script type="module" src="/pz-vanta.js"></script>
   <script src="/vendor/cap/cap.min.js"></script>
+  <script>
+    (function () {
+      var lite = /CrOS/.test(navigator.userAgent);
+      try {
+        if (navigator.connection && navigator.connection.saveData) lite = true;
+        var dm = navigator.deviceMemory;
+        if (typeof dm === "number" && dm > 0 && dm <= 4) lite = true;
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) lite = true;
+      } catch (e) {}
+      if (lite) return;
+      function boot() {
+        var s = document.createElement("script");
+        s.type = "module";
+        s.src = "/pz-vanta.js";
+        document.body.appendChild(s);
+      }
+      if ("requestIdleCallback" in window) requestIdleCallback(boot, { timeout: 5000 });
+      else setTimeout(boot, 1800);
+    })();
+  </script>
   <script type="module">
     const status = document.getElementById("status");
     const el = document.getElementById("cap");
